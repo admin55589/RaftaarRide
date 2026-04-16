@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "uyF4uskBs2hNwpriKFkHb"
+uri = "file://artifacts/mobile/assets/images/icon.png"
+type = "image"
+title = "raftaarride app icon"
