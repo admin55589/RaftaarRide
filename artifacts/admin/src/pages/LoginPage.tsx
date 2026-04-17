@@ -18,7 +18,7 @@ export function LoginPage() {
       const res = await adminLogin({ email, password });
       login(res.token);
     } catch {
-      setError("Invalid credentials. Try admin@raftaarride.com / admin123");
+      setError("Invalid credentials. Please check your email and password.");
     } finally {
       setLoading(false);
     }
