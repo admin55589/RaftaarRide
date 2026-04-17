@@ -7,8 +7,8 @@ import jwt from "jsonwebtoken";
 const router: IRouter = Router();
 
 const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
-const ADMIN_EMAIL = "admin@raftaarride.com";
-const ADMIN_PASSWORD = "admin123";
+const ADMIN_EMAIL = "admin.raftaarride@gmail.com";
+const ADMIN_PASSWORD = "Luck@12345RR";
 
 function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;

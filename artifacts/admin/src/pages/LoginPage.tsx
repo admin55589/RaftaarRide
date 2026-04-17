@@ -5,8 +5,8 @@ import { useAuth } from "@/context/AuthContext";
 
 export function LoginPage() {
   const { login } = useAuth();
-  const [email, setEmail] = useState("admin@raftaarride.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("admin.raftaarride@gmail.com");
+  const [password, setPassword] = useState("Luck@12345RR");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
