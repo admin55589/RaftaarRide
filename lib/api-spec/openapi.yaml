@@ -10,13 +10,14 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: admin
+    description: Admin panel operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +25,151 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Get dashboard stats
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+
+  /admin/users:
+    get:
+      operationId: listUsers
+      tags: [admin]
+      summary: List all users
+      responses:
+        "200":
+          description: Users list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /admin/drivers:
+    get:
+      operationId: listDrivers
+      tags: [admin]
+      summary: List all drivers
+      responses:
+        "200":
+          description: Drivers list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Driver"
+
+  /admin/rides:
+    get:
+      operationId: listRides
+      tags: [admin]
+      summary: List all rides
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Rides list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ride"
+
+  /admin/rides/recent:
+    get:
+      operationId: getRecentRides
+      tags: [admin]
+      summary: Get recent rides
+      responses:
+        "200":
+          description: Recent rides
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ride"
+
+  /admin/analytics/daily:
+    get:
+      operationId: getDailyAnalytics
+      tags: [admin]
+      summary: Get daily analytics for chart
+      responses:
+        "200":
+          description: Daily analytics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DailyAnalytics"
+
+  /admin/rides/{id}/assign:
+    patch:
+      operationId: assignDriverToRide
+      tags: [admin]
+      summary: Assign a driver to a ride
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignDriverBody"
+      responses:
+        "200":
+          description: Updated ride
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ride"
+
+  /admin/login:
+    post:
+      operationId: adminLogin
+      tags: [admin]
+      summary: Admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLoginBody"
+      responses:
+        "200":
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminLoginResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +180,191 @@ components:
       required:
         - status
 
+    AdminStats:
+      type: object
+      properties:
+        totalRides:
+          type: integer
+        totalUsers:
+          type: integer
+        totalDrivers:
+          type: integer
+        totalEarnings:
+          type: number
+        activeDrivers:
+          type: integer
+        ridesThisMonth:
+          type: integer
+        earningsThisMonth:
+          type: number
+        avgRating:
+          type: number
+      required:
+        - totalRides
+        - totalUsers
+        - totalDrivers
+        - totalEarnings
+        - activeDrivers
+        - ridesThisMonth
+        - earningsThisMonth
+        - avgRating
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        status:
+          type: string
+        totalRides:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - email
+        - phone
+        - status
+        - totalRides
+        - createdAt
+
+    Driver:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        vehicleType:
+          type: string
+        vehicleNumber:
+          type: string
+        rating:
+          type: number
+        status:
+          type: string
+        totalEarnings:
+          type: number
+        totalRides:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - email
+        - phone
+        - vehicleType
+        - vehicleNumber
+        - rating
+        - status
+        - totalEarnings
+        - totalRides
+        - createdAt
+
+    Ride:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        driverId:
+          type: integer
+          nullable: true
+        userName:
+          type: string
+        driverName:
+          type: string
+          nullable: true
+        pickup:
+          type: string
+        destination:
+          type: string
+        vehicleType:
+          type: string
+        rideMode:
+          type: string
+        price:
+          type: number
+        status:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - userId
+        - userName
+        - pickup
+        - destination
+        - vehicleType
+        - rideMode
+        - price
+        - status
+        - createdAt
+
+    DailyAnalytics:
+      type: object
+      properties:
+        date:
+          type: string
+        rides:
+          type: integer
+        earnings:
+          type: number
+        newUsers:
+          type: integer
+      required:
+        - date
+        - rides
+        - earnings
+        - newUsers
+
+    AssignDriverBody:
+      type: object
+      properties:
+        driverId:
+          type: integer
+      required:
+        - driverId
+
+    AdminLoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AdminLoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        role:
+          type: string
+      required:
+        - token
+        - role
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message

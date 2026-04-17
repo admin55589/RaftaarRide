@@ -8,3 +8,82 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface AdminStats {
+  totalRides: number;
+  totalUsers: number;
+  totalDrivers: number;
+  totalEarnings: number;
+  activeDrivers: number;
+  ridesThisMonth: number;
+  earningsThisMonth: number;
+  avgRating: number;
+}
+
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  status: string;
+  totalRides: number;
+  createdAt: string;
+}
+
+export interface Driver {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  vehicleType: string;
+  vehicleNumber: string;
+  rating: number;
+  status: string;
+  totalEarnings: number;
+  totalRides: number;
+  createdAt: string;
+}
+
+export interface Ride {
+  id: number;
+  userId: number;
+  driverId?: number | null;
+  userName: string;
+  driverName?: string | null;
+  pickup: string;
+  destination: string;
+  vehicleType: string;
+  rideMode: string;
+  price: number;
+  status: string;
+  createdAt: string;
+}
+
+export interface DailyAnalytics {
+  date: string;
+  rides: number;
+  earnings: number;
+  newUsers: number;
+}
+
+export interface AssignDriverBody {
+  driverId: number;
+}
+
+export interface AdminLoginBody {
+  email: string;
+  password: string;
+}
+
+export interface AdminLoginResponse {
+  token: string;
+  role: string;
+}
+
+export interface ErrorResponse {
+  message: string;
+}
+
+export type ListRidesParams = {
+  status?: string;
+};

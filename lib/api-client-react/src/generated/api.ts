@@ -5,18 +5,33 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  AdminLoginBody,
+  AdminLoginResponse,
+  AdminStats,
+  AssignDriverBody,
+  DailyAnalytics,
+  Driver,
+  ErrorResponse,
+  HealthStatus,
+  ListRidesParams,
+  Ride,
+  User,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -25,7 +40,6 @@ type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const getHealthCheckUrl = () => {
@@ -99,3 +113,633 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get dashboard stats
+ */
+export const getGetAdminStatsUrl = () => {
+  return `/api/admin/stats`;
+};
+
+export const getAdminStats = async (
+  options?: RequestInit,
+): Promise<AdminStats> => {
+  return customFetch<AdminStats>(getGetAdminStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAdminStatsQueryKey = () => {
+  return [`/api/admin/stats`] as const;
+};
+
+export const getGetAdminStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAdminStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAdminStatsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminStats>>> = ({
+    signal,
+  }) => getAdminStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAdminStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAdminStats>>
+>;
+export type GetAdminStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get dashboard stats
+ */
+
+export function useGetAdminStats<
+  TData = Awaited<ReturnType<typeof getAdminStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAdminStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all users
+ */
+export const getListUsersUrl = () => {
+  return `/api/admin/users`;
+};
+
+export const listUsers = async (options?: RequestInit): Promise<User[]> => {
+  return customFetch<User[]>(getListUsersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListUsersQueryKey = () => {
+  return [`/api/admin/users`] as const;
+};
+
+export const getListUsersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listUsers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListUsersQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listUsers>>> = ({
+    signal,
+  }) => listUsers({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listUsers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListUsersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listUsers>>
+>;
+export type ListUsersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all users
+ */
+
+export function useListUsers<
+  TData = Awaited<ReturnType<typeof listUsers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListUsersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all drivers
+ */
+export const getListDriversUrl = () => {
+  return `/api/admin/drivers`;
+};
+
+export const listDrivers = async (options?: RequestInit): Promise<Driver[]> => {
+  return customFetch<Driver[]>(getListDriversUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDriversQueryKey = () => {
+  return [`/api/admin/drivers`] as const;
+};
+
+export const getListDriversQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDrivers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDrivers>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListDriversQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listDrivers>>> = ({
+    signal,
+  }) => listDrivers({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDrivers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDriversQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDrivers>>
+>;
+export type ListDriversQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all drivers
+ */
+
+export function useListDrivers<
+  TData = Awaited<ReturnType<typeof listDrivers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listDrivers>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDriversQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all rides
+ */
+export const getListRidesUrl = (params?: ListRidesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/admin/rides?${stringifiedParams}`
+    : `/api/admin/rides`;
+};
+
+export const listRides = async (
+  params?: ListRidesParams,
+  options?: RequestInit,
+): Promise<Ride[]> => {
+  return customFetch<Ride[]>(getListRidesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListRidesQueryKey = (params?: ListRidesParams) => {
+  return [`/api/admin/rides`, ...(params ? [params] : [])] as const;
+};
+
+export const getListRidesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listRides>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListRidesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRides>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListRidesQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listRides>>> = ({
+    signal,
+  }) => listRides(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listRides>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListRidesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listRides>>
+>;
+export type ListRidesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all rides
+ */
+
+export function useListRides<
+  TData = Awaited<ReturnType<typeof listRides>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListRidesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRides>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListRidesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get recent rides
+ */
+export const getGetRecentRidesUrl = () => {
+  return `/api/admin/rides/recent`;
+};
+
+export const getRecentRides = async (
+  options?: RequestInit,
+): Promise<Ride[]> => {
+  return customFetch<Ride[]>(getGetRecentRidesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRecentRidesQueryKey = () => {
+  return [`/api/admin/rides/recent`] as const;
+};
+
+export const getGetRecentRidesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRecentRides>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRecentRides>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRecentRidesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRecentRides>>> = ({
+    signal,
+  }) => getRecentRides({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRecentRides>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRecentRidesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRecentRides>>
+>;
+export type GetRecentRidesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get recent rides
+ */
+
+export function useGetRecentRides<
+  TData = Awaited<ReturnType<typeof getRecentRides>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRecentRides>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRecentRidesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get daily analytics for chart
+ */
+export const getGetDailyAnalyticsUrl = () => {
+  return `/api/admin/analytics/daily`;
+};
+
+export const getDailyAnalytics = async (
+  options?: RequestInit,
+): Promise<DailyAnalytics[]> => {
+  return customFetch<DailyAnalytics[]>(getGetDailyAnalyticsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDailyAnalyticsQueryKey = () => {
+  return [`/api/admin/analytics/daily`] as const;
+};
+
+export const getGetDailyAnalyticsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDailyAnalytics>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDailyAnalytics>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDailyAnalyticsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getDailyAnalytics>>
+  > = ({ signal }) => getDailyAnalytics({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDailyAnalytics>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDailyAnalyticsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDailyAnalytics>>
+>;
+export type GetDailyAnalyticsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get daily analytics for chart
+ */
+
+export function useGetDailyAnalytics<
+  TData = Awaited<ReturnType<typeof getDailyAnalytics>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDailyAnalytics>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDailyAnalyticsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Assign a driver to a ride
+ */
+export const getAssignDriverToRideUrl = (id: number) => {
+  return `/api/admin/rides/${id}/assign`;
+};
+
+export const assignDriverToRide = async (
+  id: number,
+  assignDriverBody: AssignDriverBody,
+  options?: RequestInit,
+): Promise<Ride> => {
+  return customFetch<Ride>(getAssignDriverToRideUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(assignDriverBody),
+  });
+};
+
+export const getAssignDriverToRideMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignDriverToRide>>,
+    TError,
+    { id: number; data: BodyType<AssignDriverBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof assignDriverToRide>>,
+  TError,
+  { id: number; data: BodyType<AssignDriverBody> },
+  TContext
+> => {
+  const mutationKey = ["assignDriverToRide"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof assignDriverToRide>>,
+    { id: number; data: BodyType<AssignDriverBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return assignDriverToRide(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AssignDriverToRideMutationResult = NonNullable<
+  Awaited<ReturnType<typeof assignDriverToRide>>
+>;
+export type AssignDriverToRideMutationBody = BodyType<AssignDriverBody>;
+export type AssignDriverToRideMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Assign a driver to a ride
+ */
+export const useAssignDriverToRide = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof assignDriverToRide>>,
+    TError,
+    { id: number; data: BodyType<AssignDriverBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof assignDriverToRide>>,
+  TError,
+  { id: number; data: BodyType<AssignDriverBody> },
+  TContext
+> => {
+  return useMutation(getAssignDriverToRideMutationOptions(options));
+};
+
+/**
+ * @summary Admin login
+ */
+export const getAdminLoginUrl = () => {
+  return `/api/admin/login`;
+};
+
+export const adminLogin = async (
+  adminLoginBody: AdminLoginBody,
+  options?: RequestInit,
+): Promise<AdminLoginResponse> => {
+  return customFetch<AdminLoginResponse>(getAdminLoginUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(adminLoginBody),
+  });
+};
+
+export const getAdminLoginMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminLogin>>,
+    TError,
+    { data: BodyType<AdminLoginBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminLogin>>,
+  TError,
+  { data: BodyType<AdminLoginBody> },
+  TContext
+> => {
+  const mutationKey = ["adminLogin"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminLogin>>,
+    { data: BodyType<AdminLoginBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return adminLogin(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminLoginMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminLogin>>
+>;
+export type AdminLoginMutationBody = BodyType<AdminLoginBody>;
+export type AdminLoginMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Admin login
+ */
+export const useAdminLogin = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminLogin>>,
+    TError,
+    { data: BodyType<AdminLoginBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminLogin>>,
+  TError,
+  { data: BodyType<AdminLoginBody> },
+  TContext
+> => {
+  return useMutation(getAdminLoginMutationOptions(options));
+};
