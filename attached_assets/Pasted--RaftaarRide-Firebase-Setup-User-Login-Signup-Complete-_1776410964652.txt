@@ -1,0 +1,233 @@
+ߔ **RaftaarRide – Firebase Setup (User Login/Signup Complete Guide)**
+
+---
+
+## ߚ Step 1: Firebase Project Create
+
+1. Open ߑ Firebase Console
+2. Click **“Create Project”**
+3. Project Name: `RaftaarRide`
+4. Google Analytics → Enable (recommended)
+5. Click **Create Project**
+
+---
+
+## ߓ Step 2: App Add karo (Android)
+
+1. Click **Add App → Android**
+2. Package Name:
+
+   ```
+   com.raftaarride.app
+   ```
+3. App Nickname: `RaftaarRide`
+4. Download **google-services.json**
+5. Is file ko paste karo:
+
+   ```
+   android/app/google-services.json
+   ```
+
+---
+
+## ⚙️ Step 3: Flutter me Firebase Connect
+
+### ߔ Dependencies add karo (`pubspec.yaml`)
+
+```yaml
+dependencies:
+  firebase_core: ^2.25.0
+  firebase_auth: ^4.17.0
+```
+
+---
+
+### ߔ Android Setup
+
+**android/build.gradle**
+
+```gradle
+classpath 'com.google.gms:google-services:4.3.15'
+```
+
+**android/app/build.gradle**
+
+```gradle
+apply plugin: 'com.google.gms.google-services'
+```
+
+---
+
+### ߔ Initialize Firebase (main.dart)
+
+```dart
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(MyApp());
+}
+```
+
+---
+
+## ߔ Step 4: Authentication Enable karo
+
+1. Firebase Console → Authentication
+2. Click **Get Started**
+3. Enable methods:
+
+   * ✅ Email/Password
+   * ✅ Phone (OTP login – recommended for ride app)
+
+---
+
+## ߓ Step 5: Signup (Email/Password)
+
+```dart
+import 'package:firebase_auth/firebase_auth.dart';
+
+Future<void> signup(String email, String password) async {
+  try {
+    await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    print("Signup Success");
+  } catch (e) {
+    print("Error: $e");
+  }
+}
+```
+
+---
+
+## ߔ Step 6: Login (Email/Password)
+
+```dart
+Future<void> login(String email, String password) async {
+  try {
+    await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    print("Login Success");
+  } catch (e) {
+    print("Error: $e");
+  }
+}
+```
+
+---
+
+## ߓ Step 7: Phone OTP Login (Important ߚ)
+
+### ߔ Send OTP
+
+```dart
+FirebaseAuth auth = FirebaseAuth.instance;
+
+Future<void> sendOTP(String phone) async {
+  await auth.verifyPhoneNumber(
+    phoneNumber: phone,
+    verificationCompleted: (PhoneAuthCredential credential) async {
+      await auth.signInWithCredential(credential);
+    },
+    verificationFailed: (FirebaseAuthException e) {
+      print(e.message);
+    },
+    codeSent: (String verificationId, int? resendToken) {
+      print("OTP Sent");
+    },
+    codeAutoRetrievalTimeout: (String verificationId) {},
+  );
+}
+```
+
+---
+
+### ߔ Verify OTP
+
+```dart
+Future<void> verifyOTP(String verificationId, String otp) async {
+  PhoneAuthCredential credential = PhoneAuthProvider.credential(
+    verificationId: verificationId,
+    smsCode: otp,
+  );
+
+  await FirebaseAuth.instance.signInWithCredential(credential);
+}
+```
+
+---
+
+## ߑ Step 8: Current User Check
+
+```dart
+User? user = FirebaseAuth.instance.currentUser;
+
+if (user != null) {
+  print("User Logged In: ${user.phoneNumber ?? user.email}");
+}
+```
+
+---
+
+## ߚ Step 9: Logout
+
+```dart
+await FirebaseAuth.instance.signOut();
+```
+
+---
+
+## ߎ Bonus (Pro Level Setup)
+
+### ✅ User Data Save (Firestore)
+
+Install:
+
+```yaml
+cloud_firestore: ^4.15.0
+```
+
+```dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+Future<void> saveUserData(String uid, String name) async {
+  await FirebaseFirestore.instance.collection('users').doc(uid).set({
+    'name': name,
+    'createdAt': DateTime.now(),
+  });
+}
+```
+
+---
+
+## ߧ Recommended Flow (RaftaarRide UX)
+
+1. App Open
+2. Splash Screen
+3. Auto-check login
+4. Not logged → Phone OTP screen
+5. OTP → Verify → Home Screen
+
+---
+
+## ⚡ Final Result
+
+• Fast login (OTP based)
+• Secure authentication ߔ
+• Auto user session handling
+• Ready for ride booking system ߚ
+
+---
+
+अगर तुम चाहो तो next step में मैं तुम्हारे लिए:
+ߑ **Complete Login UI (Flutter code + Figma match)**
+ߑ **Driver/User role system**
+ߑ **Backend ride booking logic**
+
+बना सकता हूँ ߑ
