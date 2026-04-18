@@ -69,7 +69,7 @@ function buildCheckoutHtml(order: RazorpayOrder, user: RazorpayWebViewProps["use
       order_id: "${order.orderId}",
       name: "RaftaarRide",
       description: "Ride Payment",
-      image: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzFhMWEyZSIvPjx0ZXh0IHg9IjUwIiB5PSI2OCIgZm9udC1zaXplPSI1MiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2Y1YTYyMyI+JiN4MjZBMTs8L3RleHQ+PC9zdmc+",
+      image: "https://${process.env.EXPO_PUBLIC_DOMAIN}/api/assets/logo.png",
       prefill: {
         name: "${user.name.replace(/"/g, '\\"')}",
         email: "${(user.email || "").replace(/"/g, '\\"')}",
