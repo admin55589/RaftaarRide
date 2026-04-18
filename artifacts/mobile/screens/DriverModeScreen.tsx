@@ -55,16 +55,21 @@ function RideRequest({
 }) {
   const colors = useColors();
   const [countdown, setCountdown] = useState(20);
+  const onRejectRef = React.useRef(onReject);
+  onRejectRef.current = onReject;
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCountdown((c) => {
-        if (c <= 1) { clearInterval(timer); onReject(); return 0; }
-        return c - 1;
-      });
+      setCountdown((c) => (c <= 1 ? 0 : c - 1));
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (countdown === 0) {
+      onRejectRef.current();
+    }
+  }, [countdown]);
 
   const progress = countdown / 20;
   const progressColor = countdown > 10 ? colors.success : countdown > 5 ? colors.primary : colors.destructive;

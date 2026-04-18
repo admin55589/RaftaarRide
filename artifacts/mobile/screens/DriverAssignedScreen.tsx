@@ -157,13 +157,13 @@ export function DriverAssignedScreen() {
                   onPress={handleCall}
                   style={[styles.actionBtn, { backgroundColor: colors.success + "22", borderColor: colors.success }]}
                 >
-                  <Feather name="phone" size={20} color={colors.success} />
+                  <Text style={styles.actionBtnEmoji}>📞</Text>
                 </Pressable>
                 <Pressable
                   onPress={handleChat}
                   style={[styles.actionBtn, { backgroundColor: vehicleColor + "22", borderColor: vehicleColor }]}
                 >
-                  <Feather name="message-circle" size={20} color={vehicleColor} />
+                  <Text style={styles.actionBtnEmoji}>💬</Text>
                 </Pressable>
               </View>
             </Animated.View>
@@ -284,6 +284,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
+  },
+  actionBtnEmoji: {
+    fontSize: 20,
   },
   bottomActions: {
     flexDirection: "row",

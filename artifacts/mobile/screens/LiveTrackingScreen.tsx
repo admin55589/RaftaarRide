@@ -160,7 +160,7 @@ export function LiveTrackingScreen() {
                 <Text style={[styles.driverPlate, { color: colors.mutedForeground }]}>{driver.vehicleNumber}</Text>
               </View>
               <Pressable style={[styles.callBtn, { backgroundColor: colors.success + "22", borderColor: colors.success }]}>
-                <Feather name="phone" size={18} color={colors.success} />
+                <Text style={styles.callBtnEmoji}>📞</Text>
               </Pressable>
             </View>
 
@@ -314,6 +314,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
+  },
+  callBtnEmoji: {
+    fontSize: 18,
   },
   sosRow: {
     flexDirection: "row",
