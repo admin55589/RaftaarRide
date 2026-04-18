@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import {
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -79,7 +80,7 @@ function ETABar({ eta }: { eta: number }) {
 export function DriverAssignedScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { assignedDriver, setScreen, selectedVehicle } = useApp();
+  const { assignedDriver, setScreen, selectedVehicle, pickup, destination } = useApp();
   const { announceDriverFound } = useVoiceAI();
 
   const driver = assignedDriver ?? {
@@ -111,6 +112,30 @@ export function DriverAssignedScreen() {
   const handleChat = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert("Chat", "In-app chat coming soon!");
+  };
+
+  const handleShareLocation = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const vehicleEmoji = driver.vehicleType === "bike" ? "🏍️" : driver.vehicleType === "auto" ? "🛺" : "🚗";
+    const message = [
+      `${vehicleEmoji} Main RaftaarRide mein hoon!`,
+      ``,
+      `👤 Driver: ${driver.name} (⭐ ${driver.rating})`,
+      `🚘 Vehicle: ${driver.vehicle}`,
+      `🔢 Number: ${driver.vehicleNumber}`,
+      `⏱️ ETA: ${driver.eta} min`,
+      ``,
+      `📍 Pickup: ${pickup || "Current location"}`,
+      `🏁 Destination: ${destination || "Unknown"}`,
+      ``,
+      `RaftaarRide se book kiya gaya — safe & fast! ⚡`,
+    ].join("\n");
+
+    try {
+      await Share.share({ message, title: "Meri Ride Track Karo 🚗" });
+    } catch {
+      Alert.alert("Share Error", "Location share nahi ho saki.");
+    }
   };
 
   const handleCancel = () => {
@@ -186,9 +211,18 @@ export function DriverAssignedScreen() {
                 <Feather name="alert-triangle" size={14} color={colors.destructive} />
                 <Text style={[styles.sosText, { color: colors.destructive }]}>SOS</Text>
               </Pressable>
-              <Pressable style={[styles.shareBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-                <Feather name="share-2" size={14} color={colors.mutedForeground} />
-                <Text style={[styles.shareText, { color: colors.mutedForeground }]}>Share Location</Text>
+              <Pressable
+                onPress={handleShareLocation}
+                style={({ pressed }) => [
+                  styles.shareBtn,
+                  {
+                    backgroundColor: pressed ? colors.primary + "22" : colors.secondary,
+                    borderColor: pressed ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Feather name="share-2" size={14} color={colors.primary} />
+                <Text style={[styles.shareText, { color: colors.primary }]}>Share Location</Text>
               </Pressable>
             </View>
           </View>
