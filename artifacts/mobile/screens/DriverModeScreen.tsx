@@ -16,7 +16,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
@@ -74,7 +74,7 @@ function RideRequest({
       <GlassCard style={styles.requestCard} padding={16}>
         <View style={styles.requestHeader}>
           <View style={[styles.requestBadge, { backgroundColor: colors.primary + "22", borderColor: colors.primary }]}>
-            <MaterialCommunityIcons name="car" size={16} color={colors.primary} />
+            <Text style={{ fontSize: 14 }}>🚗</Text>
             <Text style={[styles.requestBadgeText, { color: colors.primary }]}>New Ride</Text>
           </View>
           <View style={styles.countdown}>

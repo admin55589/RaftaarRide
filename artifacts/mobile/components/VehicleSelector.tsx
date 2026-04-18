@@ -11,7 +11,6 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 import { useApp, VehicleType } from "@/context/AppContext";
 
@@ -19,7 +18,7 @@ const VEHICLES = [
   {
     type: "bike" as VehicleType,
     label: "Bike",
-    icon: "motorbike",
+    emoji: "🏍️",
     priceMultiplier: 0.6,
     timeMultiplier: 0.7,
     description: "Fastest option",
@@ -27,7 +26,7 @@ const VEHICLES = [
   {
     type: "auto" as VehicleType,
     label: "Auto",
-    icon: "rickshaw",
+    emoji: "🛺",
     priceMultiplier: 0.85,
     timeMultiplier: 0.9,
     description: "Budget friendly",
@@ -35,7 +34,7 @@ const VEHICLES = [
   {
     type: "cab" as VehicleType,
     label: "Cab",
-    icon: "car",
+    emoji: "🚗",
     priceMultiplier: 1,
     timeMultiplier: 1,
     description: "Comfortable ride",
@@ -78,11 +77,7 @@ function VehicleCard({ vehicle }: { vehicle: typeof VEHICLES[0] }) {
         ]}
       >
         <View style={[styles.iconBg, { backgroundColor: vehicleColor + "20" }]}>
-          <MaterialCommunityIcons
-            name={vehicle.icon as any}
-            size={28}
-            color={vehicleColor}
-          />
+          <Text style={styles.vehicleEmoji}>{vehicle.emoji}</Text>
         </View>
         <Text style={[styles.label, { color: colors.foreground }]}>{vehicle.label}</Text>
         <Text style={[styles.price, { color: vehicleColor }]}>₹{price}</Text>
@@ -125,6 +120,9 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
+  },
+  vehicleEmoji: {
+    fontSize: 26,
   },
   label: {
     fontFamily: "Inter_600SemiBold",

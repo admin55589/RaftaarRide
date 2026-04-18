@@ -19,7 +19,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { useColors } from "@/hooks/useColors";
@@ -158,11 +158,7 @@ export function HomeScreen() {
             onPress={() => setIsDriverMode(!isDriverMode)}
             style={[styles.modeToggle, { backgroundColor: isDriverMode ? colors.primary : colors.secondary, borderColor: colors.border }]}
           >
-            <MaterialCommunityIcons
-              name={isDriverMode ? "steering" : "account"}
-              size={20}
-              color={isDriverMode ? colors.primaryForeground : colors.foreground}
-            />
+            <Text style={{ fontSize: 18 }}>{isDriverMode ? "🚘" : "👤"}</Text>
           </Pressable>
         </Animated.View>
 
@@ -241,7 +237,7 @@ export function HomeScreen() {
           onPress={() => setScreen("driver_mode")}
           style={[styles.driverFab, { backgroundColor: colors.card, borderColor: colors.glassBorder }]}
         >
-          <MaterialCommunityIcons name="steering" size={20} color={colors.primary} />
+          <Text style={{ fontSize: 18 }}>🚘</Text>
           <Text style={[styles.driverFabText, { color: colors.foreground }]}>Driver</Text>
         </Pressable>
       </View>

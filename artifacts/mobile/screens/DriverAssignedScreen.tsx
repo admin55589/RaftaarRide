@@ -18,7 +18,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
@@ -31,14 +31,11 @@ import { useVoiceAI } from "@/hooks/useVoiceAI";
 function StarRating({ rating }: { rating: number }) {
   const colors = useColors();
   return (
-    <View style={{ flexDirection: "row", gap: 2 }}>
+    <View style={{ flexDirection: "row", gap: 1 }}>
       {Array.from({ length: 5 }).map((_, i) => (
-        <MaterialCommunityIcons
-          key={i}
-          name={i < Math.floor(rating) ? "star" : "star-outline"}
-          size={14}
-          color={colors.primary}
-        />
+        <Text key={i} style={{ fontSize: 13, color: colors.primary }}>
+          {i < Math.floor(rating) ? "⭐" : "☆"}
+        </Text>
       ))}
     </View>
   );
@@ -135,7 +132,7 @@ export function DriverAssignedScreen() {
           <View style={styles.content}>
             <Animated.View entering={FadeInDown.springify()} style={styles.etaRow}>
               <View style={[styles.etaBadge, { backgroundColor: vehicleColor + "22", borderColor: vehicleColor }]}>
-                <MaterialCommunityIcons name="timer-outline" size={16} color={vehicleColor} />
+                <Feather name="clock" size={16} color={vehicleColor} />
                 <Text style={[styles.etaText, { color: vehicleColor }]}>
                   {driver.eta} min away
                 </Text>
