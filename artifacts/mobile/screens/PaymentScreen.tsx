@@ -24,6 +24,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
+import { useVoiceAI } from "@/hooks/useVoiceAI";
 
 function SuccessTick() {
   const colors = useColors();
@@ -60,6 +61,7 @@ export function PaymentScreen() {
   const [paid, setPaid] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [swipeX, setSwipeX] = useState(0);
+  const { announcePaymentSuccess } = useVoiceAI();
 
   const vehicleMultiplier = selectedVehicle === "bike" ? 0.6 : selectedVehicle === "auto" ? 0.85 : 1;
   const rideModeMultiplier = rideMode === "economy" ? 1 : rideMode === "fast" ? 1.3 : 1.7;
@@ -72,6 +74,7 @@ export function PaymentScreen() {
     setTimeout(() => {
       setPaid(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      announcePaymentSuccess(price);
       const driver = assignedDriver ?? { name: "Raj Kumar", rating: 4.8, vehicle: "Swift Dzire", vehicleNumber: "DL 4C AB 1234", vehicleType: selectedVehicle, eta: 5, photo: "RK", id: "1" };
       addRideToHistory({
         id: Date.now().toString(),

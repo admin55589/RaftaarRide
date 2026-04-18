@@ -31,21 +31,25 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 ### RaftaarRide Mobile App (`artifacts/mobile`)
 - Expo React Native app, dark premium UI (#0A0A0F bg, #F5A623 primary)
-- 7 screens: Home (map), Booking, Searching, Driver Assigned, Live Tracking, Payment, Driver Mode
+- 10 screens: Login, Signup, OTP Verify, Home (map), Booking, Searching, Driver Assigned, Live Tracking, Payment, Driver Mode
+- Auth flow: AuthGuard in _layout.tsx → redirects to /auth/login if not logged in
+- AuthContext: JWT stored in AsyncStorage, user session persisted across app restarts
+- Voice AI (expo-speech): Hindi announcements for driver found, searching, payment success
 - AsyncStorage persistence, Inter fonts, glass morphism cards, react-native-reanimated animations
 
 ### RaftaarRide Admin Panel (`artifacts/admin`)
 - React + Vite web app at `/admin/`
 - Dark theme matching mobile design tokens
 - Pages: Login, Dashboard, Users, Drivers, Rides
-- JWT auth (admin@raftaarride.com / admin123)
+- Admin credentials: admin.raftaarride@gmail.com / Luck@12345RR
 - Charts: Area (rides), Bar (earnings) using Recharts
 - Uses generated React Query hooks from `@workspace/api-client-react`
 
 ### API Server (`artifacts/api-server`)
 - Express 5, serves at `/api`
 - Admin endpoints: login, stats, users, drivers, rides, analytics, assign driver
-- JWT-based auth middleware for admin routes
+- User auth endpoints: POST /api/auth/register, /api/auth/login, /api/auth/send-otp, /api/auth/verify-otp
+- JWT-based auth middleware, bcryptjs for password hashing
 - jsonwebtoken package for token signing/verification
 
 ## Database Schema (`lib/db/src/schema/index.ts`)

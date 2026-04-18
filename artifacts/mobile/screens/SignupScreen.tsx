@@ -1,0 +1,263 @@
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
+import { Feather } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { useAuth } from "@/context/AuthContext";
+import { authApi } from "@/lib/authApi";
+import { useVoiceAI } from "@/hooks/useVoiceAI";
+
+export default function SignupScreen() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { login } = useAuth();
+  const { announceWelcome } = useVoiceAI();
+
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSignup = async () => {
+    setError("");
+    if (!name.trim()) { setError("Apna naam daalo"); return; }
+    if (!phone.trim() || phone.length < 10) { setError("Valid phone number daalo"); return; }
+    if (!password || password.length < 6) { setError("Password kam se kam 6 characters ka hona chahiye"); return; }
+    if (password !== confirmPassword) { setError("Password match nahi kar raha"); return; }
+
+    setLoading(true);
+    try {
+      const formatted = phone.startsWith("+91") ? phone : `+91${phone}`;
+      const res = await authApi.register({
+        name: name.trim(),
+        phone: formatted,
+        email: email.trim() || undefined,
+        password,
+      });
+      await login(res.token, res.user);
+      announceWelcome(res.user.name);
+      router.replace("/(tabs)");
+    } catch (err: any) {
+      setError(err.message || "Signup failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <LinearGradient colors={["#0A0A0F", "#12121A", "#0A0A0F"]} style={styles.container}>
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
+            <Pressable onPress={() => router.back()} style={styles.backBtn}>
+              <Feather name="arrow-left" size={22} color="#FFFFFF" />
+            </Pressable>
+            <View style={styles.logoRow}>
+              <View style={styles.logoIcon}>
+                <Text style={styles.logoEmoji}>⚡</Text>
+              </View>
+              <Text style={styles.appName}>RaftaarRide</Text>
+            </View>
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(200).springify()}>
+            <Text style={styles.heading}>Account Banao</Text>
+            <Text style={styles.subheading}>Abhi join karo aur ride enjoy karo!</Text>
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.form}>
+            <View style={styles.field}>
+              <Text style={styles.label}>Poora Naam *</Text>
+              <View style={styles.inputWrap}>
+                <Feather name="user" size={18} color="#8A8A9A" style={styles.icon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Aapka naam"
+                  placeholderTextColor="#8A8A9A"
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                />
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Phone Number *</Text>
+              <View style={styles.inputRow}>
+                <View style={styles.flag}>
+                  <Text style={styles.flagText}>🇮🇳 +91</Text>
+                </View>
+                <TextInput
+                  style={styles.phoneInput}
+                  placeholder="10-digit number"
+                  placeholderTextColor="#8A8A9A"
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  returnKeyType="next"
+                />
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Email (optional)</Text>
+              <View style={styles.inputWrap}>
+                <Feather name="mail" size={18} color="#8A8A9A" style={styles.icon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="aapka@email.com"
+                  placeholderTextColor="#8A8A9A"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  returnKeyType="next"
+                />
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Password *</Text>
+              <View style={styles.inputWrap}>
+                <Feather name="lock" size={18} color="#8A8A9A" style={styles.icon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Min. 6 characters"
+                  placeholderTextColor="#8A8A9A"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  returnKeyType="next"
+                />
+                <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                  <Feather name={showPassword ? "eye-off" : "eye"} size={18} color="#8A8A9A" />
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Password Confirm Karo *</Text>
+              <View style={styles.inputWrap}>
+                <Feather name="lock" size={18} color="#8A8A9A" style={styles.icon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Password dobara daalo"
+                  placeholderTextColor="#8A8A9A"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showPassword}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSignup}
+                />
+              </View>
+            </View>
+
+            {error ? (
+              <Animated.View entering={FadeInUp.springify()} style={styles.errorBox}>
+                <Feather name="alert-circle" size={14} color="#FF4D4D" />
+                <Text style={styles.errorText}>{error}</Text>
+              </Animated.View>
+            ) : null}
+
+            <Pressable
+              style={[styles.primaryBtn, loading && styles.disabled]}
+              onPress={handleSignup}
+              disabled={loading}
+            >
+              <LinearGradient colors={["#F5A623", "#E09010"]} style={styles.primaryGrad}>
+                {loading ? (
+                  <ActivityIndicator color="#0A0A0F" />
+                ) : (
+                  <Text style={styles.primaryText}>Account Banao →</Text>
+                )}
+              </LinearGradient>
+            </Pressable>
+
+            <Pressable style={styles.loginLink} onPress={() => router.replace("/auth/login")}>
+              <Text style={styles.loginLinkText}>
+                Already account hai? <Text style={{ color: "#F5A623" }}>Login karo</Text>
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </ScrollView>
+      </LinearGradient>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  scroll: { paddingHorizontal: 24 },
+  header: { flexDirection: "row", alignItems: "center", marginBottom: 36, gap: 12 },
+  backBtn: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: "#16161E", alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "#2A2A38",
+  },
+  logoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  logoIcon: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: "#F5A623", alignItems: "center", justifyContent: "center",
+  },
+  logoEmoji: { fontSize: 20 },
+  appName: { fontSize: 18, fontWeight: "700", color: "#FFFFFF" },
+  heading: { fontSize: 28, fontWeight: "800", color: "#FFFFFF", marginBottom: 6 },
+  subheading: { fontSize: 14, color: "#8A8A9A", marginBottom: 28 },
+  form: {},
+  field: { marginBottom: 16 },
+  label: { color: "#FFFFFF", fontWeight: "600", fontSize: 13, marginBottom: 8 },
+  inputWrap: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "#16161E", borderRadius: 14,
+    borderWidth: 1, borderColor: "#2A2A38", paddingHorizontal: 14,
+  },
+  icon: { marginRight: 10 },
+  input: { flex: 1, paddingVertical: 14, color: "#FFFFFF", fontSize: 15 },
+  eyeBtn: { padding: 4 },
+  inputRow: {
+    flexDirection: "row", backgroundColor: "#16161E",
+    borderRadius: 14, borderWidth: 1, borderColor: "#2A2A38", overflow: "hidden",
+  },
+  flag: {
+    paddingHorizontal: 14, paddingVertical: 14,
+    borderRightWidth: 1, borderRightColor: "#2A2A38", justifyContent: "center",
+  },
+  flagText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
+  phoneInput: { flex: 1, paddingHorizontal: 14, paddingVertical: 14, color: "#FFFFFF", fontSize: 15 },
+  errorBox: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "rgba(255,77,77,0.1)", borderRadius: 10, padding: 12, gap: 8, marginBottom: 8,
+  },
+  errorText: { color: "#FF4D4D", fontSize: 13, flex: 1 },
+  primaryBtn: { marginTop: 8, borderRadius: 16, overflow: "hidden" },
+  disabled: { opacity: 0.6 },
+  primaryGrad: { paddingVertical: 16, alignItems: "center", borderRadius: 16 },
+  primaryText: { color: "#0A0A0F", fontWeight: "800", fontSize: 16 },
+  loginLink: { marginTop: 20, alignItems: "center" },
+  loginLinkText: { color: "#8A8A9A", fontSize: 14 },
+});

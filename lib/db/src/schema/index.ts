@@ -5,6 +5,7 @@ import {
   numeric,
   integer,
   timestamp,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -12,8 +13,12 @@ import { z } from "zod";
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  phone: text("phone").notNull(),
+  email: text("email").unique(),
+  phone: text("phone").notNull().unique(),
+  passwordHash: text("password_hash"),
+  otpCode: text("otp_code"),
+  otpExpiresAt: timestamp("otp_expires_at"),
+  isVerified: boolean("is_verified").notNull().default(false),
   status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

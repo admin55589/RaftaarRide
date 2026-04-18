@@ -14,6 +14,7 @@ import { useApp } from "@/context/AppContext";
 import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
 import { Feather } from "@expo/vector-icons";
+import { useVoiceAI } from "@/hooks/useVoiceAI";
 
 const MESSAGES = [
   "Finding nearby drivers...",
@@ -66,8 +67,10 @@ export function SearchingScreen() {
   const colors = useColors();
   const { setScreen, assignedDriver, selectedVehicle } = useApp();
   const [msgIndex, setMsgIndex] = React.useState(0);
+  const { announceSearching } = useVoiceAI();
 
   useEffect(() => {
+    announceSearching();
     const intervals = [
       setTimeout(() => setMsgIndex(1), 2000),
       setTimeout(() => setMsgIndex(2), 4000),

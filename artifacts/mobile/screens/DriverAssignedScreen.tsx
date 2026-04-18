@@ -26,6 +26,7 @@ import { useApp } from "@/context/AppContext";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { MapView } from "@/components/MapView";
+import { useVoiceAI } from "@/hooks/useVoiceAI";
 
 function StarRating({ rating }: { rating: number }) {
   const colors = useColors();
@@ -82,6 +83,7 @@ export function DriverAssignedScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { assignedDriver, setScreen, selectedVehicle } = useApp();
+  const { announceDriverFound } = useVoiceAI();
 
   const driver = assignedDriver ?? {
     name: "Raj Kumar",
@@ -99,6 +101,10 @@ export function DriverAssignedScreen() {
       : driver.vehicleType === "auto"
       ? colors.autoColor
       : colors.cabColor;
+
+  useEffect(() => {
+    announceDriverFound(driver.name, driver.eta);
+  }, []);
 
   const handleCall = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

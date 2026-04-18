@@ -22,6 +22,7 @@ import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
+import { useAuth } from "@/context/AuthContext";
 import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
 
@@ -76,7 +77,9 @@ function SuggestionChip({
 export function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { setScreen, setDestination, userName, isDriverMode, setIsDriverMode } = useApp();
+  const { setScreen, setDestination, isDriverMode, setIsDriverMode } = useApp();
+  const { user, logout } = useAuth();
+  const userName = user?.name ?? "Aarav";
   const [inputValue, setInputValue] = React.useState("");
 
   const dotScale = useSharedValue(1);
