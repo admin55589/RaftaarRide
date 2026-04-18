@@ -4,12 +4,11 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
-import { useFonts } from "expo-font";
-import { Feather, MaterialCommunityIcons, Ionicons, AntDesign } from "@expo/vector-icons";
+import * as Font from "expo-font";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -64,24 +63,36 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
-    ...Feather.font,
-    ...MaterialCommunityIcons.font,
-    ...Ionicons.font,
-    ...AntDesign.font,
-  });
+  const [fontsLoaded, setFontsLoaded] = useState(false);
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
+    async function loadFonts() {
+      try {
+        await Font.loadAsync({
+          Inter_400Regular,
+          Inter_500Medium,
+          Inter_600SemiBold,
+          Inter_700Bold,
+          // Feather icon font
+          Feather: require("../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Feather.ttf"),
+          // MaterialCommunityIcons font
+          MaterialCommunityIcons: require("../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf"),
+          // Ionicons font
+          Ionicons: require("../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf"),
+          // AntDesign font
+          AntDesign: require("../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/AntDesign.ttf"),
+        });
+      } catch (e) {
+        console.warn("Font loading error:", e);
+      } finally {
+        setFontsLoaded(true);
+        SplashScreen.hideAsync();
+      }
     }
-  }, [fontsLoaded, fontError]);
+    loadFonts();
+  }, []);
 
-  if (!fontsLoaded && !fontError) {
+  if (!fontsLoaded) {
     return (
       <View style={{ flex: 1, backgroundColor: "#0A0A0F", alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator color="#F5A623" size="large" />
