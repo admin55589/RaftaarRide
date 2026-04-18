@@ -199,7 +199,9 @@ export default function LoginScreen() {
             </Pressable>
 
             <View style={styles.divider}>
+              <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>ya</Text>
+              <View style={styles.dividerLine} />
             </View>
 
             <Pressable style={styles.secondaryBtn} onPress={() => router.push("/auth/signup")}>
@@ -268,6 +270,8 @@ const styles = StyleSheet.create({
   countryCode: {
     paddingHorizontal: 14,
     paddingVertical: 16,
+    borderRightWidth: 1,
+    borderRightColor: "#2A2A38",
     justifyContent: "center",
   },
   countryCodeText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
