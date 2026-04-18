@@ -63,9 +63,9 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  // Only load Inter fonts — Expo Go already has @expo/vector-icons fonts pre-bundled.
-  // Loading icon fonts again via useFonts causes conflicts on Android.
-  const [fontsLoaded, fontError] = useFonts({
+  // Load Inter fonts in background — don't block app render.
+  // Expo Go already has @expo/vector-icons fonts pre-bundled (no wait needed).
+  useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
@@ -73,18 +73,11 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
+    // Hide splash immediately — don't wait for fonts
+    SplashScreen.hideAsync();
+  }, []);
 
-  if (!fontsLoaded && !fontError) {
-    return (
-      <View style={{ flex: 1, backgroundColor: "#0A0A0F", alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator color="#F5A623" size="large" />
-      </View>
-    );
-  }
+  // Show app right away; Inter fonts load silently in background
 
   return (
     <SafeAreaProvider>
