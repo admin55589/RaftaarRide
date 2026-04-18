@@ -1,12 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { authApi } from "@/lib/authApi";
 
 export interface AuthUser {
-  id: number;
+  id: string | number;
   name: string;
   phone: string;
   email?: string | null;
   isVerified: boolean;
+  isFirebase?: boolean;
 }
 
 interface AuthContextType {
@@ -59,6 +61,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    try {
+      await authApi.firebaseLogout();
+    } catch {}
     await Promise.all([
       AsyncStorage.removeItem(AUTH_TOKEN_KEY),
       AsyncStorage.removeItem(AUTH_USER_KEY),
