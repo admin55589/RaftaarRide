@@ -268,8 +268,6 @@ const styles = StyleSheet.create({
   countryCode: {
     paddingHorizontal: 14,
     paddingVertical: 16,
-    borderRightWidth: 1,
-    borderRightColor: "#2A2A38",
     justifyContent: "center",
   },
   countryCodeText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
