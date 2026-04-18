@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
@@ -88,10 +89,11 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.logoRow}>
-            <View style={styles.logoIcon}>
-              <Text style={styles.logoText}>⚡</Text>
-            </View>
-            <Text style={styles.appName}>RaftaarRide</Text>
+            <Image
+              source={require("../assets/logo.png")}
+              style={styles.logoImg}
+              resizeMode="contain"
+            />
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(200).springify()}>
@@ -225,18 +227,8 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { paddingHorizontal: 24 },
-  logoRow: { flexDirection: "row", alignItems: "center", marginBottom: 40 },
-  logoIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#F5A623",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-  logoText: { fontSize: 24 },
-  appName: { fontSize: 22, fontWeight: "700", color: "#FFFFFF" },
+  logoRow: { alignItems: "center", marginBottom: 32 },
+  logoImg: { width: 160, height: 160, borderRadius: 24 },
   heading: { fontSize: 32, fontWeight: "800", color: "#FFFFFF", marginBottom: 8 },
   subheading: { fontSize: 15, color: "#8A8A9A", marginBottom: 32 },
   tabRow: {
