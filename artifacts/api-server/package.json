@@ -20,7 +20,8 @@
     "express": "^5",
     "jsonwebtoken": "^9.0.3",
     "pino": "^9",
-    "pino-http": "^10"
+    "pino-http": "^10",
+    "razorpay": "^2.9.6"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

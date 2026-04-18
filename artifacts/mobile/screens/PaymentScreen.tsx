@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,7 +23,9 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
+import { RazorpayWebView } from "@/components/RazorpayWebView";
 import { useVoiceAI } from "@/hooks/useVoiceAI";
+import { paymentApi, type RazorpayOrder } from "@/lib/paymentApi";
 
 function SuccessTick() {
   const scale = useSharedValue(0);
@@ -65,10 +68,10 @@ function StarRating() {
 export function PaymentScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { setScreen, selectedVehicle, rideMode, estimatedPrice, estimatedTime, paymentMethod, assignedDriver, destination, pickup, addRideToHistory } = useApp();
+  const { setScreen, selectedVehicle, rideMode, estimatedPrice, estimatedTime, paymentMethod, assignedDriver, destination, pickup, addRideToHistory, userName } = useApp();
   const [paid, setPaid] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [swipeX, setSwipeX] = useState(0);
+  const [razorpayOrder, setRazorpayOrder] = useState<RazorpayOrder | null>(null);
   const { announcePaymentSuccess } = useVoiceAI();
 
   const vehicleMultiplier = selectedVehicle === "bike" ? 0.6 : selectedVehicle === "auto" ? 0.85 : 1;
@@ -76,27 +79,63 @@ export function PaymentScreen() {
   const price = Math.round(estimatedPrice * vehicleMultiplier * rideModeMultiplier);
   const duration = Math.round(estimatedTime * (selectedVehicle === "bike" ? 0.7 : 1));
 
-  const handlePay = () => {
+  const completeRide = (paidAmount: number) => {
+    setPaid(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    announcePaymentSuccess(paidAmount);
+    const driver = assignedDriver ?? { name: "Raj Kumar", rating: 4.8, vehicle: "Swift Dzire", vehicleNumber: "DL 4C AB 1234", vehicleType: selectedVehicle, eta: 5, photo: "RK", id: "1" };
+    addRideToHistory({
+      id: Date.now().toString(),
+      pickup,
+      destination,
+      vehicleType: selectedVehicle,
+      rideMode,
+      price: paidAmount,
+      duration,
+      distance: "8.2 km",
+      date: new Date().toISOString(),
+      driver,
+    });
+  };
+
+  const handlePay = async () => {
+    if (paymentMethod === "Cash") {
+      setIsProcessing(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      setTimeout(() => { completeRide(price); setIsProcessing(false); }, 1000);
+      return;
+    }
     setIsProcessing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    setTimeout(() => {
-      setPaid(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      announcePaymentSuccess(price);
-      const driver = assignedDriver ?? { name: "Raj Kumar", rating: 4.8, vehicle: "Swift Dzire", vehicleNumber: "DL 4C AB 1234", vehicleType: selectedVehicle, eta: 5, photo: "RK", id: "1" };
-      addRideToHistory({
-        id: Date.now().toString(),
-        pickup,
-        destination,
-        vehicleType: selectedVehicle,
-        rideMode,
-        price,
-        duration,
-        distance: "8.2 km",
-        date: new Date().toISOString(),
-        driver,
-      });
-    }, 1500);
+    try {
+      const order = await paymentApi.createOrder(price);
+      setRazorpayOrder(order);
+    } catch (err: any) {
+      Alert.alert("Error", err?.message || "Payment start nahi ho saka");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRazorpaySuccess = async (data: {
+    razorpay_payment_id: string;
+    razorpay_order_id: string;
+    razorpay_signature: string;
+  }) => {
+    setRazorpayOrder(null);
+    setIsProcessing(true);
+    try {
+      const result = await paymentApi.verifyPayment(data);
+      if (result.success) {
+        completeRide(price);
+      } else {
+        Alert.alert("Verification Failed", "Payment verify nahi hua. Support se contact karo.");
+      }
+    } catch {
+      Alert.alert("Error", "Payment verification fail ho gayi");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleHome = () => setScreen("home");
@@ -204,6 +243,16 @@ export function PaymentScreen() {
           </Animated.View>
         )}
       </ScrollView>
+
+      {razorpayOrder && (
+        <RazorpayWebView
+          visible
+          order={razorpayOrder}
+          userInfo={{ name: userName || "RaftaarRide User" }}
+          onSuccess={handleRazorpaySuccess}
+          onDismiss={() => setRazorpayOrder(null)}
+        />
+      )}
     </View>
   );
 }
