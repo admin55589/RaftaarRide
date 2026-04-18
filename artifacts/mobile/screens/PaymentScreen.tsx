@@ -15,7 +15,7 @@ import Animated, {
   withDelay,
   withSpring,
 } from "react-native-reanimated";
-import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
@@ -43,9 +43,22 @@ function SuccessTick() {
   return (
     <Animated.View style={[styles.successCircle, circleStyle]}>
       <Animated.View style={checkStyle}>
-        <Feather name="check" size={48} color="#FFFFFF" />
+        <Text style={styles.checkText}>✓</Text>
       </Animated.View>
     </Animated.View>
+  );
+}
+
+function StarRating() {
+  const [rating, setRating] = useState(0);
+  return (
+    <View style={styles.stars}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Pressable key={i} onPress={() => setRating(i + 1)}>
+          <Text style={[styles.starText, { opacity: i < rating ? 1 : 0.35 }]}>⭐</Text>
+        </Pressable>
+      ))}
+    </View>
   );
 }
 
@@ -126,13 +139,7 @@ export function PaymentScreen() {
 
             <Animated.View entering={FadeInDown.delay(700).springify()} style={styles.ratingContainer}>
               <Text style={[styles.ratingTitle, { color: colors.foreground }]}>Rate your driver</Text>
-              <View style={styles.stars}>
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Pressable key={i}>
-                    <MaterialCommunityIcons name="star" size={36} color={colors.primary} />
-                  </Pressable>
-                ))}
-              </View>
+              <StarRating />
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(900).springify()} style={{ width: "100%" }}>
@@ -307,6 +314,13 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 12,
   },
+  checkText: {
+    fontSize: 52,
+    color: "#FFFFFF",
+    fontWeight: "bold",
+    lineHeight: 60,
+    textAlign: "center",
+  },
   successTitle: {
     fontFamily: "Inter_700Bold",
     fontSize: 32,
@@ -348,6 +362,9 @@ const styles = StyleSheet.create({
   },
   stars: {
     flexDirection: "row",
-    gap: 8,
+    gap: 4,
+  },
+  starText: {
+    fontSize: 36,
   },
 });
