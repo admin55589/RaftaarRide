@@ -1,31 +1,20 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
-  Platform,
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import * as Notifications from "expo-notifications";
 
 export default function NotificationPermissionScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-
-  const handleAllow = async () => {
-    setLoading(true);
-    try {
-      if (Platform.OS !== "web") {
-        await Notifications.requestPermissionsAsync();
-      }
-    } catch (_) {}
-    setLoading(false);
+  const handleAllow = () => {
     router.replace("/(tabs)");
   };
 
@@ -87,12 +76,10 @@ export default function NotificationPermissionScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(450).springify()} style={styles.buttonsWrap}>
-          <Pressable style={styles.allowBtn} onPress={handleAllow} disabled={loading}>
+          <Pressable style={styles.allowBtn} onPress={handleAllow}>
             <LinearGradient colors={["#F5A623", "#E09010"]} style={styles.allowGrad}>
               <Feather name="bell" size={18} color="#0A0A0F" />
-              <Text style={styles.allowText}>
-                {loading ? "Allow ho raha hai..." : "Allow Karo"}
-              </Text>
+              <Text style={styles.allowText}>Allow Karo</Text>
             </LinearGradient>
           </Pressable>
 
