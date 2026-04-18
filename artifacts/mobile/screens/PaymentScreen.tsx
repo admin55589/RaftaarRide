@@ -125,13 +125,16 @@ export function PaymentScreen() {
 
             <Animated.View entering={FadeInDown.delay(500).springify()} style={[styles.receiptCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {[
-                ["Amount Paid", `₹${price}`],
-                ["Duration", `${duration} min`],
-                ["Distance", "8.2 km"],
-                ["Payment", paymentMethod],
-              ].map(([label, value]) => (
+                { icon: "tag", label: "Amount Paid", value: `₹${price}` },
+                { icon: "clock", label: "Duration", value: `${duration} min` },
+                { icon: "map-pin", label: "Distance", value: "8.2 km" },
+                { icon: "credit-card", label: "Payment", value: paymentMethod },
+              ].map(({ icon, label, value }) => (
                 <View key={label} style={[styles.receiptRow, { borderColor: colors.border }]}>
-                  <Text style={[styles.receiptLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                  <View style={styles.receiptLabelRow}>
+                    <Feather name={icon as any} size={13} color={colors.mutedForeground} />
+                    <Text style={[styles.receiptLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                  </View>
                   <Text style={[styles.receiptValue, { color: colors.foreground }]}>{value}</Text>
                 </View>
               ))}
@@ -155,18 +158,19 @@ export function PaymentScreen() {
               <Text style={[styles.amount, { color: colors.primary }]}>₹{price}</Text>
               <View style={[styles.amountDivider, { backgroundColor: colors.border }]} />
               <View style={styles.amountDetails}>
-                <View style={styles.amountRow}>
-                  <Text style={[styles.amountDetailLabel, { color: colors.mutedForeground }]}>Base Fare</Text>
-                  <Text style={[styles.amountDetailValue, { color: colors.foreground }]}>₹{Math.round(price * 0.7)}</Text>
-                </View>
-                <View style={styles.amountRow}>
-                  <Text style={[styles.amountDetailLabel, { color: colors.mutedForeground }]}>Distance</Text>
-                  <Text style={[styles.amountDetailValue, { color: colors.foreground }]}>₹{Math.round(price * 0.25)}</Text>
-                </View>
-                <View style={styles.amountRow}>
-                  <Text style={[styles.amountDetailLabel, { color: colors.mutedForeground }]}>Convenience Fee</Text>
-                  <Text style={[styles.amountDetailValue, { color: colors.foreground }]}>₹{Math.round(price * 0.05)}</Text>
-                </View>
+                {[
+                  { icon: "tag", label: "Base Fare", value: Math.round(price * 0.7) },
+                  { icon: "map-pin", label: "Distance", value: Math.round(price * 0.25) },
+                  { icon: "percent", label: "Convenience Fee", value: Math.round(price * 0.05) },
+                ].map(({ icon, label, value }) => (
+                  <View key={label} style={styles.amountRow}>
+                    <View style={styles.amountLabelRow}>
+                      <Feather name={icon as any} size={12} color={colors.mutedForeground} />
+                      <Text style={[styles.amountDetailLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                    </View>
+                    <Text style={[styles.amountDetailValue, { color: colors.foreground }]}>₹{value}</Text>
+                  </View>
+                ))}
               </View>
             </GlassCard>
 
@@ -245,6 +249,12 @@ const styles = StyleSheet.create({
   amountRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
+  },
+  amountLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   amountDetailLabel: {
     fontFamily: "Inter_400Regular",
@@ -340,9 +350,15 @@ const styles = StyleSheet.create({
   receiptRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
+  },
+  receiptLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
   },
   receiptLabel: {
     fontFamily: "Inter_400Regular",

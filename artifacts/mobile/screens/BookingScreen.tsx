@@ -47,7 +47,12 @@ export function BookingScreen() {
     setScreen("searching");
   }, [selectedVehicle]);
 
-  const PAYMENT_METHODS = ["UPI", "Cash", "Card", "Wallet"];
+  const PAYMENT_METHODS = [
+    { label: "UPI", icon: "📱" },
+    { label: "Cash", icon: "💵" },
+    { label: "Card", icon: "💳" },
+    { label: "Wallet", icon: "👛" },
+  ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -105,25 +110,26 @@ export function BookingScreen() {
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>PAYMENT</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.paymentRow}>
-                {PAYMENT_METHODS.map((m) => (
+                {PAYMENT_METHODS.map(({ label, icon }) => (
                   <Pressable
-                    key={m}
-                    onPress={() => setPaymentMethod(m)}
+                    key={label}
+                    onPress={() => setPaymentMethod(label)}
                     style={[
                       styles.paymentChip,
                       {
-                        backgroundColor: paymentMethod === m ? colors.primary + "22" : colors.secondary,
-                        borderColor: paymentMethod === m ? colors.primary : colors.border,
+                        backgroundColor: paymentMethod === label ? colors.primary + "22" : colors.secondary,
+                        borderColor: paymentMethod === label ? colors.primary : colors.border,
                       },
                     ]}
                   >
+                    <Text style={styles.paymentIcon}>{icon}</Text>
                     <Text
                       style={[
                         styles.paymentLabel,
-                        { color: paymentMethod === m ? colors.primary : colors.mutedForeground },
+                        { color: paymentMethod === label ? colors.primary : colors.mutedForeground },
                       ]}
                     >
-                      {m}
+                      {label}
                     </Text>
                   </Pressable>
                 ))}
@@ -132,15 +138,24 @@ export function BookingScreen() {
 
             <View style={[styles.priceSummary, { borderColor: colors.border }]}>
               <View style={styles.priceRow}>
-                <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Estimated Fare</Text>
+                <View style={styles.priceLabelRow}>
+                  <Feather name="tag" size={13} color={colors.mutedForeground} />
+                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Estimated Fare</Text>
+                </View>
                 <Text style={[styles.priceValue, { color: colors.primary }]}>₹{price}</Text>
               </View>
               <View style={styles.priceRow}>
-                <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Duration</Text>
+                <View style={styles.priceLabelRow}>
+                  <Feather name="clock" size={13} color={colors.mutedForeground} />
+                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Duration</Text>
+                </View>
                 <Text style={[styles.priceValue, { color: colors.foreground }]}>{duration} min</Text>
               </View>
               <View style={styles.priceRow}>
-                <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Distance</Text>
+                <View style={styles.priceLabelRow}>
+                  <Feather name="map-pin" size={13} color={colors.mutedForeground} />
+                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Distance</Text>
+                </View>
                 <Text style={[styles.priceValue, { color: colors.foreground }]}>~8.2 km</Text>
               </View>
             </View>
@@ -243,7 +258,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1.5,
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  paymentIcon: {
+    fontSize: 15,
   },
   paymentLabel: {
     fontFamily: "Inter_600SemiBold",
@@ -259,6 +280,12 @@ const styles = StyleSheet.create({
   priceRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
+  },
+  priceLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   priceLabel: {
     fontFamily: "Inter_400Regular",

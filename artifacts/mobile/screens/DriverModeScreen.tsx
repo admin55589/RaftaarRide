@@ -194,16 +194,19 @@ export function DriverModeScreen() {
         <GlassCard style={styles.statsCard} padding={16}>
           <View style={styles.statsRow}>
             <View style={styles.stat}>
+              <Text style={styles.statIcon}>💰</Text>
               <EarningsCounter value={driverEarnings} />
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Today's Earnings</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.stat}>
+              <Text style={styles.statIcon}>🚗</Text>
               <Text style={[styles.statValue, { color: colors.foreground }]}>{ridesCompleted}</Text>
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Rides</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.stat}>
+              <Text style={styles.statIcon}>⭐</Text>
               <Text style={[styles.statValue, { color: colors.foreground }]}>4.9</Text>
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Rating</Text>
             </View>
@@ -311,6 +314,10 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 40,
+  },
+  statIcon: {
+    fontSize: 18,
+    marginBottom: 2,
   },
   earningsValue: {
     fontFamily: "Inter_700Bold",

@@ -115,10 +115,11 @@ export function SearchingScreen() {
 
           <View style={styles.statsRow}>
             {[
-              { label: "Drivers Nearby", value: "12" },
-              { label: "Avg ETA", value: "4 min" },
-            ].map(({ label, value }) => (
+              { label: "Drivers Nearby", value: "12", icon: "👥" },
+              { label: "Avg ETA", value: "4 min", icon: "⏱️" },
+            ].map(({ label, value, icon }) => (
               <View key={label} style={[styles.stat, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+                <Text style={styles.statIcon}>{icon}</Text>
                 <Text style={[styles.statValue, { color: colors.primary }]}>{value}</Text>
                 <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{label}</Text>
               </View>
@@ -183,6 +184,9 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: "center",
     gap: 4,
+  },
+  statIcon: {
+    fontSize: 20,
   },
   statValue: {
     fontFamily: "Inter_700Bold",
