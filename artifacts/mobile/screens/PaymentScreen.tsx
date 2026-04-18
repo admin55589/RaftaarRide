@@ -13,9 +13,12 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
+  withRepeat,
+  withSequence,
   withSpring,
   withTiming,
   runOnJS,
+  Easing,
 } from "react-native-reanimated";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,30 +30,81 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { useVoiceAI } from "@/hooks/useVoiceAI";
 
 function SuccessTick() {
-  const colors = useColors();
-  const scale = useSharedValue(0);
-  const opacity = useSharedValue(0);
+  const outerScale = useSharedValue(0);
+  const outerOpacity = useSharedValue(0);
+  const middleScale = useSharedValue(0);
+  const innerScale = useSharedValue(0);
+  const checkScale = useSharedValue(0);
+  const checkOpacity = useSharedValue(0);
+  const pulseScale = useSharedValue(1);
+  const pulseOpacity = useSharedValue(0.5);
 
   useEffect(() => {
-    opacity.value = withTiming(1, { duration: 300 });
-    scale.value = withSpring(1, { damping: 10, stiffness: 200 });
+    outerOpacity.value = withTiming(1, { duration: 200 });
+    outerScale.value = withSpring(1, { damping: 12, stiffness: 180 });
+
+    middleScale.value = withDelay(120, withSpring(1, { damping: 14, stiffness: 200 }));
+    innerScale.value = withDelay(220, withSpring(1, { damping: 12, stiffness: 220 }));
+
+    checkScale.value = withDelay(350, withSpring(1, { damping: 8, stiffness: 260 }));
+    checkOpacity.value = withDelay(350, withTiming(1, { duration: 250 }));
+
+    pulseScale.value = withDelay(
+      500,
+      withRepeat(
+        withSequence(
+          withTiming(1.15, { duration: 900, easing: Easing.out(Easing.ease) }),
+          withTiming(1, { duration: 900, easing: Easing.in(Easing.ease) })
+        ),
+        -1,
+        false
+      )
+    );
+    pulseOpacity.value = withDelay(
+      500,
+      withRepeat(
+        withSequence(
+          withTiming(0.15, { duration: 900 }),
+          withTiming(0.45, { duration: 900 })
+        ),
+        -1,
+        false
+      )
+    );
   }, []);
 
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
+  const outerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: outerScale.value }],
+    opacity: outerOpacity.value,
+  }));
+  const middleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: middleScale.value }],
+  }));
+  const innerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: innerScale.value }],
+  }));
+  const checkStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkScale.value }],
+    opacity: checkOpacity.value,
+  }));
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+    opacity: pulseOpacity.value,
   }));
 
   return (
-    <Animated.View
-      style={[
-        styles.successCircle,
-        { backgroundColor: colors.success + "22", borderColor: colors.success },
-        animStyle,
-      ]}
-    >
-      <Feather name="check" size={40} color={colors.success} />
-    </Animated.View>
+    <View style={styles.tickWrapper}>
+      <Animated.View style={[styles.pulseRing, pulseStyle]} />
+      <Animated.View style={[styles.outerRing, outerStyle]}>
+        <Animated.View style={[styles.middleRing, middleStyle]}>
+          <Animated.View style={[styles.innerCircle, innerStyle]}>
+            <Animated.View style={checkStyle}>
+              <Feather name="check" size={42} color="#0A0A0F" strokeWidth={3} />
+            </Animated.View>
+          </Animated.View>
+        </Animated.View>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -299,13 +353,51 @@ const styles = StyleSheet.create({
     gap: 20,
     paddingTop: 20,
   },
-  successCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
+  tickWrapper: {
+    width: 160,
+    height: 160,
     alignItems: "center",
     justifyContent: "center",
+  },
+  pulseRing: {
+    position: "absolute",
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: "#22C55E",
+  },
+  outerRing: {
+    width: 136,
+    height: 136,
+    borderRadius: 68,
+    backgroundColor: "rgba(34,197,94,0.15)",
+    borderWidth: 2,
+    borderColor: "rgba(34,197,94,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  middleRing: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    backgroundColor: "rgba(34,197,94,0.2)",
+    borderWidth: 1.5,
+    borderColor: "rgba(34,197,94,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  innerCircle: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: "#22C55E",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#22C55E",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 16,
+    elevation: 16,
   },
   successTitle: {
     fontFamily: "Inter_700Bold",
