@@ -27,6 +27,15 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
 
+## SMS / OTP Integration Note
+
+Real SMS OTP delivery requires Twilio (or similar). The user dismissed the Twilio Replit integration.
+To enable real SMS:
+- Option A: Complete the Twilio integration via Replit (user must authorize)
+- Option B: Provide TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE as secrets
+Currently the OTP is generated server-side, stored in DB, and returned in dev mode (`res.otp`).
+In production, the OTP is NOT sent via SMS — it must be manually read from server logs.
+
 ## Artifacts
 
 ### RaftaarRide Mobile App (`artifacts/mobile`)
