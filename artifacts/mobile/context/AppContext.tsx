@@ -55,6 +55,8 @@ interface AppContextType {
   setPickup: (p: string) => void;
   destination: string;
   setDestination: (d: string) => void;
+  currentLocationAddress: string;
+  setCurrentLocationAddress: (addr: string) => void;
   estimatedPrice: number;
   setEstimatedPrice: (p: number) => void;
   estimatedTime: number;
@@ -121,6 +123,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [rideMode, setRideMode] = useState<RideMode>("economy");
   const [pickup, setPickup] = useState("Connaught Place, New Delhi");
   const [destination, setDestination] = useState("");
+  const [currentLocationAddress, setCurrentLocationAddress] = useState("Connaught Place, New Delhi");
   const [estimatedPrice, setEstimatedPrice] = useState(180);
   const [estimatedTime, setEstimatedTime] = useState(12);
   const [assignedDriver, setAssignedDriver] = useState<Driver | null>(null);
@@ -162,6 +165,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setPickup,
         destination,
         setDestination,
+        currentLocationAddress,
+        setCurrentLocationAddress,
         estimatedPrice,
         setEstimatedPrice,
         estimatedTime,

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -7,6 +7,7 @@ import {
   TextInput,
   View,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import Animated, {
   FadeInDown,
@@ -20,6 +21,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as Location from "expo-location";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
@@ -77,10 +79,11 @@ function SuggestionChip({
 export function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { setScreen, setDestination, isDriverMode, setIsDriverMode } = useApp();
+  const { setScreen, setDestination, isDriverMode, setIsDriverMode, currentLocationAddress, setCurrentLocationAddress, setPickup } = useApp();
   const { user, logout } = useAuth();
   const userName = user?.name ?? "Aarav";
-  const [inputValue, setInputValue] = React.useState("");
+  const [inputValue, setInputValue] = useState("");
+  const [locating, setLocating] = useState(false);
 
   const dotScale = useSharedValue(1);
 
@@ -98,6 +101,29 @@ export function HomeScreen() {
   const dotStyle = useAnimatedStyle(() => ({
     transform: [{ scale: dotScale.value }],
   }));
+
+  const handleLocateMe = async () => {
+    setLocating(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        setLocating(false);
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const [geo] = await Location.reverseGeocodeAsync({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      });
+      if (geo) {
+        const parts = [geo.name, geo.street, geo.subregion ?? geo.district, geo.city].filter(Boolean);
+        const addr = parts.slice(0, 3).join(", ") || "Current Location";
+        setCurrentLocationAddress(addr);
+        setPickup(addr);
+      }
+    } catch (_) {}
+    setLocating(false);
+  };
 
   const handleDestinationSelect = (dest: string) => {
     setDestination(dest);
@@ -117,12 +143,17 @@ export function HomeScreen() {
         ]}
       >
         <Animated.View entering={FadeInDown.springify()} style={styles.topBar}>
-          <View style={styles.locationRow}>
-            <Animated.View style={[styles.locationDot, { backgroundColor: colors.primary }, dotStyle]} />
+          <Pressable style={styles.locationRow} onPress={handleLocateMe}>
+            {locating ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Animated.View style={[styles.locationDot, { backgroundColor: colors.primary }, dotStyle]} />
+            )}
             <Text style={[styles.locationText, { color: colors.foreground }]} numberOfLines={1}>
-              Connaught Place, New Delhi
+              {currentLocationAddress}
             </Text>
-          </View>
+            <Feather name="navigation" size={14} color={colors.primary} />
+          </Pressable>
           <Pressable
             onPress={() => setIsDriverMode(!isDriverMode)}
             style={[styles.modeToggle, { backgroundColor: isDriverMode ? colors.primary : colors.secondary, borderColor: colors.border }]}

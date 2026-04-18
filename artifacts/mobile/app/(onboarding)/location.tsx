@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
@@ -11,17 +12,68 @@ import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
+import { useApp } from "@/context/AppContext";
 
 export default function LocationPermissionScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { setCurrentLocationAddress, setPickup } = useApp();
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<"idle" | "success" | "denied">("idle");
   const [mode, setMode] = useState<"precise" | "approximate">("precise");
+
+  const fetchAndStoreLocation = async () => {
+    try {
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: mode === "precise"
+          ? Location.Accuracy.High
+          : Location.Accuracy.Balanced,
+      });
+
+      const [geo] = await Location.reverseGeocodeAsync({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      });
+
+      if (geo) {
+        const parts = [
+          geo.name,
+          geo.street,
+          geo.subregion ?? geo.district,
+          geo.city,
+        ].filter(Boolean);
+
+        const addr = parts.slice(0, 3).join(", ") || "Current Location";
+        setCurrentLocationAddress(addr);
+        setPickup(addr);
+      }
+    } catch (_) {}
+  };
 
   const handleAllow = async () => {
     setLoading(true);
     try {
-      await Location.requestForegroundPermissionsAsync();
+      const { status: permStatus } = await Location.requestForegroundPermissionsAsync();
+      if (permStatus === "granted") {
+        await fetchAndStoreLocation();
+        setStatus("success");
+      } else {
+        setStatus("denied");
+      }
+    } catch (_) {
+      setStatus("denied");
+    }
+    setLoading(false);
+    router.push("/(onboarding)/notifications");
+  };
+
+  const handleOnce = async () => {
+    setLoading(true);
+    try {
+      const { status: permStatus } = await Location.requestForegroundPermissionsAsync();
+      if (permStatus === "granted") {
+        await fetchAndStoreLocation();
+      }
     } catch (_) {}
     setLoading(false);
     router.push("/(onboarding)/notifications");
@@ -59,7 +111,7 @@ export default function LocationPermissionScreen() {
         <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.infoCard}>
           <Feather name="shield" size={18} color="#8A8A9A" />
           <Text style={styles.infoText}>
-            Aapka location data third parties ke saath share ho sakta hai — ride tracking ke liye
+            Aapka location sirf ride tracking ke liye use hoga — kabhi bhi third party ke saath share nahi hoga
           </Text>
           <Feather name="chevron-right" size={16} color="#8A8A9A" />
         </Animated.View>
@@ -104,22 +156,26 @@ export default function LocationPermissionScreen() {
         <Animated.View entering={FadeInUp.delay(450).springify()} style={styles.buttonsWrap}>
           <Pressable style={styles.allowBtn} onPress={handleAllow} disabled={loading}>
             <LinearGradient colors={["#4A80F0", "#2560D0"]} style={styles.allowGrad}>
-              <Feather name="map-pin" size={18} color="#FFFFFF" />
+              {loading ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <Feather name="map-pin" size={18} color="#FFFFFF" />
+              )}
               <Text style={styles.allowText}>
-                {loading ? "Permission le rahe hain..." : "App use karte waqt allow karo"}
+                {loading ? "Location mil rahi hai..." : "Location Share Karo"}
               </Text>
             </LinearGradient>
           </Pressable>
 
-          <Pressable style={styles.outlineBtn} onPress={handleAllow}>
-            <Text style={styles.outlineText}>Sirf is baar</Text>
+          <Pressable style={styles.outlineBtn} onPress={handleOnce} disabled={loading}>
+            <Text style={styles.outlineText}>Sirf is baar allow karo</Text>
           </Pressable>
 
-          <Pressable style={styles.skipBtn} onPress={handleSkip}>
+          <Pressable style={styles.skipBtn} onPress={handleSkip} disabled={loading}>
             <Text style={styles.skipText}>Abhi nahi</Text>
           </Pressable>
 
-          <Pressable style={styles.manualBtn} onPress={handleSkip}>
+          <Pressable style={styles.manualBtn} onPress={handleSkip} disabled={loading}>
             <Feather name="edit-2" size={14} color="#8A8A9A" />
             <Text style={styles.manualText}>Pickup manually enter karo</Text>
           </Pressable>
