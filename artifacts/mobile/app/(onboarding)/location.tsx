@@ -166,19 +166,6 @@ export default function LocationPermissionScreen() {
               </Text>
             </LinearGradient>
           </Pressable>
-
-          <Pressable style={styles.outlineBtn} onPress={handleOnce} disabled={loading}>
-            <Text style={styles.outlineText}>Sirf is baar allow karo</Text>
-          </Pressable>
-
-          <Pressable style={styles.skipBtn} onPress={handleSkip} disabled={loading}>
-            <Text style={styles.skipText}>Abhi nahi</Text>
-          </Pressable>
-
-          <Pressable style={styles.manualBtn} onPress={handleSkip} disabled={loading}>
-            <Feather name="edit-2" size={14} color="#8A8A9A" />
-            <Text style={styles.manualText}>Pickup manually enter karo</Text>
-          </Pressable>
         </Animated.View>
       </View>
     </LinearGradient>
