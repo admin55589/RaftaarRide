@@ -31,11 +31,12 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === "auth";
+    const inOnboarding = segments[0] === "(onboarding)";
 
-    if (!isLoggedIn && !inAuthGroup) {
+    if (!isLoggedIn && !inAuthGroup && !inOnboarding) {
       router.replace("/auth/login");
     } else if (isLoggedIn && inAuthGroup) {
-      router.replace("/(tabs)");
+      router.replace("/(onboarding)/profile-setup");
     }
   }, [isLoggedIn, isLoading, segments]);
 
@@ -55,6 +56,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="auth" />
+      <Stack.Screen name="(onboarding)" />
       <Stack.Screen name="+not-found" />
     </Stack>
   );

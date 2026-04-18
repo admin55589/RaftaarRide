@@ -93,7 +93,7 @@ export default function OtpScreen() {
       });
       await login(res.token, res.user);
       announceWelcome(res.user.name);
-      router.replace("/(tabs)");
+      router.replace("/(onboarding)/profile-setup");
     } catch (err: any) {
       setError(err.message || "OTP galat hai");
       triggerShake();
