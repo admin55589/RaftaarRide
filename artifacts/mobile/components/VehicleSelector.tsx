@@ -13,50 +13,28 @@ import Animated, {
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/useColors";
 import { useApp, VehicleType } from "@/context/AppContext";
+import { calculateFare, getRideModeMultiplier, VEHICLE_PRICING, DEFAULT_DISTANCE_KM } from "@/lib/pricing";
 
-const VEHICLES = [
-  {
-    type: "bike" as VehicleType,
-    label: "Bike",
-    emoji: "🏍️",
-    priceMultiplier: 0.6,
-    timeMultiplier: 0.7,
-    description: "Fastest option",
-  },
-  {
-    type: "auto" as VehicleType,
-    label: "Auto",
-    emoji: "🛺",
-    priceMultiplier: 0.85,
-    timeMultiplier: 0.9,
-    description: "Budget friendly",
-  },
-  {
-    type: "cab" as VehicleType,
-    label: "Cab",
-    emoji: "🚗",
-    priceMultiplier: 1,
-    timeMultiplier: 1,
-    description: "Comfortable ride",
-  },
+const VEHICLES: { type: VehicleType; timeMultiplier: number }[] = [
+  { type: "bike", timeMultiplier: 0.7 },
+  { type: "auto", timeMultiplier: 0.9 },
+  { type: "cab",  timeMultiplier: 1.0 },
 ];
 
 function VehicleCard({ vehicle }: { vehicle: typeof VEHICLES[0] }) {
   const colors = useColors();
-  const { selectedVehicle, setSelectedVehicle, estimatedPrice, estimatedTime, rideMode } = useApp();
+  const { selectedVehicle, setSelectedVehicle, estimatedTime, rideMode, estimatedDistanceKm } = useApp();
   const scale = useSharedValue(1);
   const isSelected = selectedVehicle === vehicle.type;
 
   const vehicleColor =
-    vehicle.type === "bike"
-      ? colors.bikeColor
-      : vehicle.type === "auto"
-      ? colors.autoColor
-      : colors.cabColor;
+    vehicle.type === "bike" ? colors.bikeColor :
+    vehicle.type === "auto" ? colors.autoColor : colors.cabColor;
 
-  const rideModeMultiplier = rideMode === "economy" ? 1 : rideMode === "fast" ? 1.3 : 1.7;
-  const price = Math.round(estimatedPrice * vehicle.priceMultiplier * rideModeMultiplier);
+  const distanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
+  const fare = calculateFare(vehicle.type, distanceKm, 0, getRideModeMultiplier(rideMode));
   const time = Math.round(estimatedTime * vehicle.timeMultiplier);
+  const vp = VEHICLE_PRICING[vehicle.type];
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -77,10 +55,13 @@ function VehicleCard({ vehicle }: { vehicle: typeof VEHICLES[0] }) {
         ]}
       >
         <View style={[styles.iconBg, { backgroundColor: vehicleColor + "20" }]}>
-          <Text style={styles.vehicleEmoji}>{vehicle.emoji}</Text>
+          <Text style={styles.vehicleEmoji}>{vp.emoji}</Text>
         </View>
-        <Text style={[styles.label, { color: colors.foreground }]}>{vehicle.label}</Text>
-        <Text style={[styles.price, { color: vehicleColor }]}>₹{price}</Text>
+        <Text style={[styles.label, { color: colors.foreground }]}>{vp.label}</Text>
+        <Text style={[styles.price, { color: vehicleColor }]}>₹{fare.total}</Text>
+        {fare.savingsPct > 0 && (
+          <Text style={styles.savings}>↓{fare.savingsPct}% sasta</Text>
+        )}
         <Text style={[styles.time, { color: colors.mutedForeground }]}>{time} min</Text>
       </Pressable>
     </Animated.View>
@@ -127,6 +108,11 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 13,
+  },
+  savings: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 9,
+    color: "#22c55e",
   },
   price: {
     fontFamily: "Inter_700Bold",

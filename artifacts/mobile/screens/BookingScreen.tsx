@@ -12,6 +12,7 @@ import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp, MOCK_DRIVERS } from "@/context/AppContext";
+import { calculateFare, getRideModeMultiplier, DEFAULT_DISTANCE_KM } from "@/lib/pricing";
 import { GlassCard } from "@/components/GlassCard";
 import { VehicleSelector } from "@/components/VehicleSelector";
 import { RideModeSelector } from "@/components/RideModeSelector";
@@ -27,17 +28,18 @@ export function BookingScreen() {
     pickup,
     selectedVehicle,
     rideMode,
-    estimatedPrice,
     estimatedTime,
     setAssignedDriver,
     paymentMethod,
     setPaymentMethod,
+    estimatedDistanceKm,
   } = useApp();
 
-  const rideModeMultiplier = rideMode === "economy" ? 1 : rideMode === "fast" ? 1.3 : 1.7;
-  const vehicleMultiplier = selectedVehicle === "bike" ? 0.6 : selectedVehicle === "auto" ? 0.85 : 1;
-  const price = Math.round(estimatedPrice * vehicleMultiplier * rideModeMultiplier);
-  const duration = Math.round(estimatedTime * (selectedVehicle === "bike" ? 0.7 : selectedVehicle === "auto" ? 0.9 : 1));
+  const distanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
+  const fare = calculateFare(selectedVehicle, distanceKm, 0, getRideModeMultiplier(rideMode));
+  const price = fare.total;
+  const timeMultiplier = selectedVehicle === "bike" ? 0.7 : selectedVehicle === "auto" ? 0.9 : 1;
+  const duration = Math.round(estimatedTime * timeMultiplier);
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
 
@@ -140,9 +142,18 @@ export function BookingScreen() {
               <View style={styles.priceRow}>
                 <View style={styles.priceLabelRow}>
                   <Feather name="tag" size={13} color={colors.mutedForeground} />
-                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Estimated Fare</Text>
+                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>RaftaarRide Fare</Text>
                 </View>
                 <Text style={[styles.priceValue, { color: colors.primary }]}>₹{price}</Text>
+              </View>
+              <View style={styles.priceRow}>
+                <View style={styles.priceLabelRow}>
+                  <Feather name="trending-down" size={13} color="#22c55e" />
+                  <Text style={[styles.priceLabel, { color: "#22c55e" }]}>Rapido se sasta</Text>
+                </View>
+                <Text style={[styles.priceValue, { color: "#22c55e" }]}>
+                  ₹{fare.savings} ({fare.savingsPct}%)
+                </Text>
               </View>
               <View style={styles.priceRow}>
                 <View style={styles.priceLabelRow}>
@@ -156,7 +167,14 @@ export function BookingScreen() {
                   <Feather name="map-pin" size={13} color={colors.mutedForeground} />
                   <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Distance</Text>
                 </View>
-                <Text style={[styles.priceValue, { color: colors.foreground }]}>~8.2 km</Text>
+                <Text style={[styles.priceValue, { color: colors.foreground }]}>~{distanceKm} km</Text>
+              </View>
+              <View style={[styles.priceRow, { borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 8, marginTop: 4 }]}>
+                <View style={styles.priceLabelRow}>
+                  <Text style={{ fontSize: 11 }}>⏱️</Text>
+                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Waiting charge</Text>
+                </View>
+                <Text style={[styles.priceValue, { color: colors.mutedForeground }]}>₹0.5/min</Text>
               </View>
             </View>
 

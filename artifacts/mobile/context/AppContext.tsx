@@ -61,6 +61,8 @@ interface AppContextType {
   setEstimatedPrice: (p: number) => void;
   estimatedTime: number;
   setEstimatedTime: (t: number) => void;
+  estimatedDistanceKm: number;
+  setEstimatedDistanceKm: (d: number) => void;
   assignedDriver: Driver | null;
   setAssignedDriver: (d: Driver | null) => void;
   rideHistory: Ride[];
@@ -126,6 +128,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentLocationAddress, setCurrentLocationAddress] = useState("Connaught Place, New Delhi");
   const [estimatedPrice, setEstimatedPrice] = useState(180);
   const [estimatedTime, setEstimatedTime] = useState(12);
+  const [estimatedDistanceKm, setEstimatedDistanceKm] = useState(8.2);
   const [assignedDriver, setAssignedDriver] = useState<Driver | null>(null);
   const [rideHistory, setRideHistory] = useState<Ride[]>([]);
   const [isDriverMode, setIsDriverMode] = useState(false);
@@ -171,6 +174,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setEstimatedPrice,
         estimatedTime,
         setEstimatedTime,
+        estimatedDistanceKm,
+        setEstimatedDistanceKm,
         assignedDriver,
         setAssignedDriver,
         rideHistory,
