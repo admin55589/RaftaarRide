@@ -16,7 +16,8 @@ import { useAuth } from "@/context/AuthContext";
 import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
 import { useVoiceAI } from "@/hooks/useVoiceAI";
-import { ridesApi } from "@/lib/ridesApi";
+import { ridesApi, type DriverInfo } from "@/lib/ridesApi";
+import { connectSocket, joinRideRoom, getSocket, disconnectSocket } from "@/lib/socket";
 
 const MESSAGES = [
   "Finding nearby drivers...",
@@ -74,31 +75,59 @@ export function SearchingScreen() {
       setMsgIndex((i) => (i + 1) % MESSAGES.length);
     }, 3000);
 
+    let cleanedUp = false;
+
+    function handleDriverFound(driver: DriverInfo | null) {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      if (pollRef.current) clearInterval(pollRef.current);
+      clearInterval(timerRef.current!);
+      clearInterval(msgTimer);
+      const mockDriver = MOCK_DRIVERS.find((d) => d.vehicleType === selectedVehicle) ?? MOCK_DRIVERS[2];
+      setAssignedDriver({
+        ...mockDriver,
+        name: driver?.name ?? mockDriver.name,
+        vehicleNumber: driver?.vehicleNumber ?? mockDriver.vehicleNumber,
+        rating: driver ? (typeof driver.rating === "number" ? driver.rating : parseFloat(String(driver.rating)) || mockDriver.rating) : mockDriver.rating,
+        eta: driver?.eta ?? mockDriver.eta,
+      });
+      setScreen("driver_assigned");
+    }
+
+    function handleCancelled() {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      if (pollRef.current) clearInterval(pollRef.current);
+      clearInterval(timerRef.current!);
+      clearInterval(msgTimer);
+      setScreen("home");
+    }
+
     if (currentRideId && token) {
+      const socket = connectSocket();
+
+      joinRideRoom(currentRideId);
+
+      socket.on("ride:status", (data: { rideId: number; status: string; driver?: DriverInfo | null }) => {
+        if (data.rideId !== currentRideId) return;
+        if (data.status === "accepted") {
+          handleDriverFound(data.driver ?? null);
+        } else if (data.status === "cancelled") {
+          handleCancelled();
+        }
+      });
+
       pollRef.current = setInterval(async () => {
         try {
           const data = await ridesApi.getRide(token, currentRideId);
           if (data.ride.status === "accepted" && data.driver) {
-            clearInterval(pollRef.current!);
-            clearInterval(timerRef.current!);
-            clearInterval(msgTimer);
-            const mockDriver = MOCK_DRIVERS.find((d) => d.vehicleType === selectedVehicle) ?? MOCK_DRIVERS[2];
-            setAssignedDriver({
-              ...mockDriver,
-              name: data.driver.name ?? mockDriver.name,
-              vehicleNumber: data.driver.vehicleNumber ?? mockDriver.vehicleNumber,
-              rating: typeof data.driver.rating === "number" ? data.driver.rating : parseFloat(String(data.driver.rating)) || mockDriver.rating,
-              eta: data.driver.eta ?? mockDriver.eta,
-            });
-            setScreen("driver_assigned");
+            handleDriverFound(data.driver);
           } else if (data.ride.status === "cancelled") {
-            clearInterval(pollRef.current!);
-            clearInterval(timerRef.current!);
-            clearInterval(msgTimer);
-            setScreen("home");
+            handleCancelled();
           }
         } catch { }
-      }, 3000);
+      }, 5000);
+
     } else {
       const fallbackTimer = setTimeout(() => {
         clearInterval(timerRef.current!);
@@ -113,9 +142,12 @@ export function SearchingScreen() {
     }
 
     return () => {
+      cleanedUp = true;
       if (pollRef.current) clearInterval(pollRef.current);
       clearInterval(timerRef.current!);
       clearInterval(msgTimer);
+      const s = getSocket();
+      s.off("ride:status");
     };
   }, [currentRideId, token]);
 

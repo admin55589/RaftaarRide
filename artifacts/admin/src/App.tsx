@@ -10,6 +10,7 @@ import { UsersPage } from "@/pages/UsersPage";
 import { DriversPage } from "@/pages/DriversPage";
 import { RidesPage } from "@/pages/RidesPage";
 import NotFound from "@/pages/not-found";
+import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,6 +23,7 @@ const queryClient = new QueryClient({
 
 function AppLayout() {
   const { isAuthenticated } = useAuth();
+  const { isConnected } = useAdminRealtime();
 
   if (!isAuthenticated) {
     return <LoginPage />;
@@ -29,7 +31,7 @@ function AppLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
+      <Sidebar isLive={isConnected} />
       <main className="flex-1 overflow-y-auto">
         <Switch>
           <Route path="/" component={DashboardPage} />

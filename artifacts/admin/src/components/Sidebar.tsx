@@ -17,7 +17,11 @@ const nav = [
   { label: "Rides", href: "/rides", icon: MapPin },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isLive?: boolean;
+}
+
+export function Sidebar({ isLive = false }: SidebarProps) {
   const [location] = useLocation();
   const { logout } = useAuth();
 
@@ -27,9 +31,20 @@ export function Sidebar() {
         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
           <Zap className="w-4 h-4 text-primary-foreground" fill="currentColor" />
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <div className="text-sm font-bold text-foreground tracking-wide">RaftaarRide</div>
           <div className="text-xs text-muted-foreground">Admin Panel</div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span
+            className={cn(
+              "inline-block w-2 h-2 rounded-full transition-colors",
+              isLive ? "bg-green-500 animate-pulse" : "bg-muted-foreground/40"
+            )}
+          />
+          <span className={cn("text-[10px] font-semibold uppercase tracking-wide", isLive ? "text-green-500" : "text-muted-foreground/60")}>
+            {isLive ? "Live" : "Off"}
+          </span>
         </div>
       </div>
 

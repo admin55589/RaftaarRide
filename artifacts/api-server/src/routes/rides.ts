@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { ridesTable, driversTable } from "@workspace/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import jwt from "jsonwebtoken";
+import { emitRideUpdate, emitAdminUpdate } from "../lib/socket";
 
 const router: IRouter = Router();
 const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
@@ -102,20 +103,25 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       await db.update(driversTable).set({ isOnline: false }).where(eq(driversTable.id, matchedDriver.id));
     }
 
+    const driverPayload = matchedDriver ? {
+      id: matchedDriver.id,
+      name: matchedDriver.name,
+      phone: matchedDriver.phone,
+      vehicleType: matchedDriver.vehicleType,
+      vehicleNumber: matchedDriver.vehicleNumber,
+      rating: matchedDriver.rating,
+      eta: Math.floor(Math.random() * 5) + 2,
+    } : null;
+
+    emitRideUpdate(ride.id, "ride:status", { rideId: ride.id, status: ride.status, driver: driverPayload });
+    emitAdminUpdate("admin:ride:new", { ride, driver: driverPayload });
+
     res.status(200).json({
       success: true,
       rideId: ride.id,
       message: matchedDriver ? "Driver found! Ride booked successfully" : "Ride booked, searching for driver...",
       ride,
-      driver: matchedDriver ? {
-        id: matchedDriver.id,
-        name: matchedDriver.name,
-        phone: matchedDriver.phone,
-        vehicleType: matchedDriver.vehicleType,
-        vehicleNumber: matchedDriver.vehicleNumber,
-        rating: matchedDriver.rating,
-        eta: Math.floor(Math.random() * 5) + 2,
-      } : null,
+      driver: driverPayload,
     });
   } catch (err) {
     console.error("[rides] create error:", err);
@@ -163,6 +169,9 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
       await db.update(driversTable).set({ isOnline: true }).where(eq(driversTable.id, ride.driverId));
     }
 
+    emitRideUpdate(rideId, "ride:status", { rideId, status: "cancelled" });
+    emitAdminUpdate("admin:ride:updated", { rideId, status: "cancelled" });
+
     res.json({ success: true, ride: updated, message: "Ride cancelled successfully" });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
@@ -192,6 +201,9 @@ router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) 
         }).where(eq(driversTable.id, updated.driverId));
       }
     }
+
+    emitRideUpdate(rideId, "ride:status", { rideId, status });
+    emitAdminUpdate("admin:ride:updated", { rideId, status });
 
     res.json({ success: true, ride: updated, driverRating });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }

@@ -16,6 +16,7 @@ import { useApp } from "@/context/AppContext";
 import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
+import { connectSocket, joinRideRoom, getSocket } from "@/lib/socket";
 
 const STAGES = ["Pickup", "On Ride", "Arriving"];
 
@@ -68,10 +69,27 @@ function StageBar({ stage }: { stage: number }) {
 export function LiveTrackingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { assignedDriver, setScreen, addRideToHistory, destination, pickup, selectedVehicle, rideMode, estimatedPrice } = useApp();
+  const { assignedDriver, setScreen, addRideToHistory, destination, pickup, selectedVehicle, rideMode, estimatedPrice, currentRideId } = useApp();
   const [stage, setStage] = useState(0);
   const [progress, setProgress] = useState(0);
   const [timeLeft, setTimeLeft] = useState(12);
+  const [driverLiveLocation, setDriverLiveLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    if (!currentRideId) return;
+    const socket = connectSocket();
+    joinRideRoom(currentRideId);
+
+    function onDriverLocation(data: { lat: number; lng: number; driverId: number }) {
+      setDriverLiveLocation({ lat: data.lat, lng: data.lng });
+    }
+
+    socket.on("driver:location", onDriverLocation);
+
+    return () => {
+      socket.off("driver:location", onDriverLocation);
+    };
+  }, [currentRideId]);
 
   useEffect(() => {
     const tick = setInterval(() => {
