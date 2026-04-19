@@ -12,7 +12,9 @@ import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp, MOCK_DRIVERS } from "@/context/AppContext";
+import { useAuth } from "@/context/AuthContext";
 import { calculateFare, getRideModeMultiplier, DEFAULT_DISTANCE_KM } from "@/lib/pricing";
+import { ridesApi } from "@/lib/ridesApi";
 import { GlassCard } from "@/components/GlassCard";
 import { VehicleSelector } from "@/components/VehicleSelector";
 import { RideModeSelector } from "@/components/RideModeSelector";
@@ -22,6 +24,7 @@ import { MapView } from "@/components/MapView";
 export function BookingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { token } = useAuth();
   const {
     setScreen,
     destination,
@@ -33,6 +36,7 @@ export function BookingScreen() {
     paymentMethod,
     setPaymentMethod,
     estimatedDistanceKm,
+    setCurrentRideId,
   } = useApp();
 
   const distanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
@@ -43,11 +47,26 @@ export function BookingScreen() {
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
 
-  const handleBookRide = useCallback(() => {
+  const handleBookRide = useCallback(async () => {
     const driver = MOCK_DRIVERS.find((d) => d.vehicleType === selectedVehicle) ?? MOCK_DRIVERS[2];
     setAssignedDriver(driver);
     setScreen("searching");
-  }, [selectedVehicle]);
+
+    if (token) {
+      try {
+        const ride = await ridesApi.createRide(token, {
+          pickup,
+          destination,
+          vehicleType: selectedVehicle,
+          rideMode,
+          price,
+        });
+        setCurrentRideId(ride.id);
+      } catch (err) {
+        console.warn("[booking] ride save failed:", err);
+      }
+    }
+  }, [selectedVehicle, token, pickup, destination, rideMode, price]);
 
   const PAYMENT_METHODS = [
     { label: "UPI", icon: "📱" },

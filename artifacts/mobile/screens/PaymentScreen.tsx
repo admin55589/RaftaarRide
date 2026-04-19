@@ -21,6 +21,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
+import { useAuth } from "@/context/AuthContext";
+import { ridesApi } from "@/lib/ridesApi";
+import { calculateFare, getRideModeMultiplier, DEFAULT_DISTANCE_KM } from "@/lib/pricing";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { RazorpayWebView } from "@/components/RazorpayWebView";
@@ -68,16 +71,17 @@ function StarRating() {
 export function PaymentScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { setScreen, selectedVehicle, rideMode, estimatedPrice, estimatedTime, paymentMethod, assignedDriver, destination, pickup, addRideToHistory, userName } = useApp();
+  const { token } = useAuth();
+  const { setScreen, selectedVehicle, rideMode, estimatedTime, estimatedDistanceKm, paymentMethod, assignedDriver, destination, pickup, addRideToHistory, currentRideId, setCurrentRideId } = useApp();
   const [paid, setPaid] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [razorpayOrder, setRazorpayOrder] = useState<RazorpayOrder | null>(null);
   const { announcePaymentSuccess } = useVoiceAI();
 
-  const vehicleMultiplier = selectedVehicle === "bike" ? 0.6 : selectedVehicle === "auto" ? 0.85 : 1;
-  const rideModeMultiplier = rideMode === "economy" ? 1 : rideMode === "fast" ? 1.3 : 1.7;
-  const price = Math.round(estimatedPrice * vehicleMultiplier * rideModeMultiplier);
-  const duration = Math.round(estimatedTime * (selectedVehicle === "bike" ? 0.7 : 1));
+  const distanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
+  const fare = calculateFare(selectedVehicle, distanceKm, 0, getRideModeMultiplier(rideMode));
+  const price = fare.total;
+  const duration = Math.round(estimatedTime * (selectedVehicle === "bike" ? 0.7 : selectedVehicle === "auto" ? 0.9 : 1));
 
   const completeRide = (paidAmount: number) => {
     setPaid(true);
@@ -92,10 +96,17 @@ export function PaymentScreen() {
       rideMode,
       price: paidAmount,
       duration,
-      distance: "8.2 km",
+      distance: `${distanceKm} km`,
       date: new Date().toISOString(),
       driver,
     });
+
+    if (token && currentRideId) {
+      ridesApi.updateStatus(token, currentRideId, "completed").catch((e) =>
+        console.warn("[payment] status update failed:", e)
+      );
+      setCurrentRideId(null);
+    }
   };
 
   const handlePay = async () => {

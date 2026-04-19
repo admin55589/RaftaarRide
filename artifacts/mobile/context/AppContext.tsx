@@ -76,6 +76,8 @@ interface AppContextType {
   savedPlaces: SavedPlace[];
   userName: string;
   setUserName: (n: string) => void;
+  currentRideId: number | null;
+  setCurrentRideId: (id: number | null) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -135,6 +137,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [driverEarnings, setDriverEarnings] = useState(1840);
   const [paymentMethod, setPaymentMethod] = useState("UPI");
   const [userName, setUserName] = useState("Aarav");
+  const [currentRideId, setCurrentRideId] = useState<number | null>(null);
 
   useEffect(() => {
     loadHistory();
@@ -189,6 +192,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         savedPlaces: SAVED_PLACES,
         userName,
         setUserName,
+        currentRideId,
+        setCurrentRideId,
       }}
     >
       {children}
