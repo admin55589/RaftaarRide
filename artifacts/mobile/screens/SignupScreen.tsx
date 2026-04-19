@@ -27,11 +27,18 @@ export default function SignupScreen() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [gender, setGender] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const GENDERS = [
+    { value: "male", label: "👨 Male" },
+    { value: "female", label: "👩 Female" },
+    { value: "other", label: "🧑 Other" },
+  ];
 
   const handleSignup = async () => {
     setError("");
@@ -48,6 +55,7 @@ export default function SignupScreen() {
         phone: formatted,
         email: email.trim() || undefined,
         password,
+        gender: gender ?? undefined,
       });
       await login(res.token, res.user);
       announceWelcome(res.user.name);
@@ -120,6 +128,23 @@ export default function SignupScreen() {
                   maxLength={10}
                   returnKeyType="next"
                 />
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Gender</Text>
+              <View style={styles.genderRow}>
+                {GENDERS.map((g) => (
+                  <Pressable
+                    key={g.value}
+                    style={[styles.genderBtn, gender === g.value && styles.genderBtnActive]}
+                    onPress={() => setGender(g.value)}
+                  >
+                    <Text style={[styles.genderText, gender === g.value && styles.genderTextActive]}>
+                      {g.label}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
             </View>
 
@@ -259,4 +284,13 @@ const styles = StyleSheet.create({
   primaryText: { color: "#0A0A0F", fontWeight: "800", fontSize: 16 },
   loginLink: { marginTop: 20, alignItems: "center" },
   loginLinkText: { color: "#8A8A9A", fontSize: 14 },
+  genderRow: { flexDirection: "row", gap: 8 },
+  genderBtn: {
+    flex: 1, paddingVertical: 12, borderRadius: 12,
+    backgroundColor: "#16161E", borderWidth: 1.5, borderColor: "#2A2A38",
+    alignItems: "center",
+  },
+  genderBtnActive: { borderColor: "#F5A623", backgroundColor: "rgba(245,166,35,0.1)" },
+  genderText: { color: "#8A8A9A", fontWeight: "600", fontSize: 12 },
+  genderTextActive: { color: "#F5A623" },
 });

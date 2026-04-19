@@ -135,6 +135,7 @@ export const authApi = {
     phone: string;
     email?: string;
     password: string;
+    gender?: string;
   }): Promise<AuthResponse> => {
     if (isFirebaseReady && body.email) {
       try {
@@ -185,9 +186,9 @@ export const authApi = {
   },
 
   sendOtp: (phone: string) =>
-    post<{ message: string; otp?: string }>("/auth/send-otp", { phone }),
+    post<{ message: string; otp?: string; isNewUser?: boolean }>("/auth/send-otp", { phone }),
 
-  verifyOtp: (body: { phone: string; otp: string; name?: string }) =>
+  verifyOtp: (body: { phone: string; otp: string }) =>
     post<AuthResponse>("/auth/verify-otp", body),
 
   firebaseLogout,

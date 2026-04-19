@@ -30,6 +30,7 @@ router.get("/users/me", userAuth, async (req: Request, res: Response) => {
       phone: usersTable.phone,
       email: usersTable.email,
       photoUrl: usersTable.photoUrl,
+      gender: usersTable.gender,
       isVerified: usersTable.isVerified,
       status: usersTable.status,
       createdAt: usersTable.createdAt,
@@ -42,10 +43,10 @@ router.get("/users/me", userAuth, async (req: Request, res: Response) => {
 
 router.patch("/users/me", userAuth, async (req: Request, res: Response) => {
   const userId = (req as any).userId;
-  const { name, email, photoUrl } = req.body as { name?: string; email?: string; photoUrl?: string };
+  const { name, email, photoUrl, gender } = req.body as { name?: string; email?: string; photoUrl?: string; gender?: string };
 
-  if (!name && !email && photoUrl === undefined) {
-    res.status(400).json({ success: false, error: "Provide at least one field to update (name, email, photoUrl)" }); return;
+  if (!name && !email && photoUrl === undefined && gender === undefined) {
+    res.status(400).json({ success: false, error: "Provide at least one field to update" }); return;
   }
 
   if (photoUrl !== undefined && photoUrl !== null && photoUrl.length > MAX_PHOTO_SIZE_BYTES) {
@@ -56,6 +57,7 @@ router.patch("/users/me", userAuth, async (req: Request, res: Response) => {
   if (name?.trim()) updates.name = name.trim();
   if (email?.trim()) updates.email = email.trim().toLowerCase();
   if (photoUrl !== undefined) updates.photoUrl = photoUrl ?? null;
+  if (gender !== undefined) updates.gender = gender ?? null;
 
   try {
     const [updated] = await db.update(usersTable)
@@ -67,6 +69,7 @@ router.patch("/users/me", userAuth, async (req: Request, res: Response) => {
         phone: usersTable.phone,
         email: usersTable.email,
         photoUrl: usersTable.photoUrl,
+        gender: usersTable.gender,
         isVerified: usersTable.isVerified,
       });
 

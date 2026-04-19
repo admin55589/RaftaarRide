@@ -48,7 +48,7 @@ export default function LoginScreen() {
       const res = await authApi.sendOtp(formatted);
       router.push({
         pathname: "/auth/otp",
-        params: { phone: formatted, devOtp: res.otp ?? "" },
+        params: { phone: formatted, devOtp: res.otp ?? "", isNewUser: res.isNewUser ? "1" : "0" },
       });
     } catch (err: any) {
       setError(err.message || "OTP bhejne mein error");

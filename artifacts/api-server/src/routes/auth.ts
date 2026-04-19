@@ -14,11 +14,12 @@ function generateOTP(): string {
 }
 
 router.post("/auth/register", async (req: Request, res: Response) => {
-  const { name, phone, email, password } = req.body as {
+  const { name, phone, email, password, gender } = req.body as {
     name: string;
     phone: string;
     email?: string;
     password: string;
+    gender?: string;
   };
 
   if (!name || !phone || !password) {
@@ -52,6 +53,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
         phone,
         email: email || null,
         passwordHash,
+        gender: gender || null,
         isVerified: false,
         status: "active",
       })
@@ -71,6 +73,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
         phone: user.phone,
         email: user.email,
         photoUrl: user.photoUrl ?? null,
+        gender: user.gender ?? null,
         isVerified: user.isVerified,
       },
     });
@@ -128,6 +131,7 @@ router.post("/auth/login", async (req: Request, res: Response) => {
         phone: user.phone,
         email: user.email,
         photoUrl: user.photoUrl ?? null,
+        gender: user.gender ?? null,
         isVerified: user.isVerified,
       },
     });
@@ -155,7 +159,9 @@ router.post("/auth/send-otp", async (req: Request, res: Response) => {
       .where(eq(usersTable.phone, phone))
       .limit(1);
 
-    if (existing.length > 0) {
+    const isNewUser = existing.length === 0;
+
+    if (!isNewUser) {
       await db
         .update(usersTable)
         .set({ otpCode: otp, otpExpiresAt: expiresAt })
@@ -171,10 +177,11 @@ router.post("/auth/send-otp", async (req: Request, res: Response) => {
       });
     }
 
-    console.log(`[OTP] Phone: ${phone} → OTP: ${otp}`);
+    console.log(`[OTP] Phone: ${phone} → OTP: ${otp} (${isNewUser ? "new" : "existing"} user)`);
 
     res.json({
       message: "OTP sent successfully",
+      isNewUser,
       otp: process.env.NODE_ENV === "development" ? otp : undefined,
     });
   } catch (err) {
@@ -243,6 +250,7 @@ router.post("/auth/verify-otp", async (req: Request, res: Response) => {
         phone: user.phone,
         email: freshUser?.email ?? user.email,
         photoUrl: freshUser?.photoUrl ?? null,
+        gender: freshUser?.gender ?? null,
         isVerified: true,
       },
     });

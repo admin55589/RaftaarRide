@@ -20,7 +20,7 @@ import { useVoiceAI } from "@/hooks/useVoiceAI";
 export default function OtpScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const params = useLocalSearchParams<{ phone: string; devOtp?: string }>();
+  const params = useLocalSearchParams<{ phone: string; devOtp?: string; isNewUser?: string }>();
   const { login } = useAuth();
   const { announceWelcome } = useVoiceAI();
 
@@ -28,12 +28,12 @@ export default function OtpScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [resendTimer, setResendTimer] = useState(30);
-  const [name, setName] = useState("");
   const inputRefs = useRef<(TextInput | null)[]>([]);
   const shake = useSharedValue(0);
 
   const phone = params.phone ?? "";
   const devOtp = params.devOtp;
+  const isNewUser = params.isNewUser === "1";
 
   useEffect(() => {
     if (devOtp) {
@@ -85,14 +85,14 @@ export default function OtpScreen() {
     setError("");
     setLoading(true);
     try {
-      const res = await authApi.verifyOtp({
-        phone,
-        otp: code,
-        name: name.trim() || undefined,
-      });
+      const res = await authApi.verifyOtp({ phone, otp: code });
       await login(res.token, res.user);
       announceWelcome(res.user.name);
-      router.replace("/(onboarding)/profile-setup");
+      if (isNewUser) {
+        router.replace("/(onboarding)/profile-setup");
+      } else {
+        router.replace("/(tabs)");
+      }
     } catch (err: any) {
       setError(err.message || "OTP galat hai");
       triggerShake();
@@ -179,21 +179,6 @@ export default function OtpScreen() {
               ))}
             </Animated.View>
 
-            <Text style={[styles.label, { marginTop: 20 }]}>
-              Aapka Naam <Text style={styles.optional}>(optional)</Text>
-            </Text>
-            <View style={styles.inputWrap}>
-              <Text style={{ fontSize: 18, lineHeight: 22, marginRight: 10, color: "#8A8A9A" }}>👤</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Apna naam daalo"
-                placeholderTextColor="#8A8A9A"
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-              />
-            </View>
-
             {error ? (
               <Animated.View entering={FadeInUp.springify()} style={styles.errorBox}>
                 <Text style={{ fontSize: 14, lineHeight: 18 }}>⚠️</Text>
@@ -259,7 +244,6 @@ const styles = StyleSheet.create({
   devText: { color: "#F5A623", fontSize: 12 },
   form: {},
   label: { color: "#FFFFFF", fontWeight: "600", fontSize: 13, marginBottom: 12 },
-  optional: { color: "#8A8A9A", fontWeight: "400" },
   otpRow: { flexDirection: "row", gap: 10, marginBottom: 4 },
   otpBox: {
     flex: 1, height: 56, borderRadius: 14,
@@ -267,12 +251,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF", fontSize: 22, fontWeight: "700",
   },
   otpBoxFilled: { borderColor: "#F5A623", backgroundColor: "rgba(245,166,35,0.08)" },
-  inputWrap: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#16161E", borderRadius: 14,
-    borderWidth: 1, borderColor: "#2A2A38", paddingHorizontal: 14,
-  },
-  input: { flex: 1, paddingVertical: 14, color: "#FFFFFF", fontSize: 15 },
   errorBox: {
     flexDirection: "row", alignItems: "center",
     backgroundColor: "rgba(255,77,77,0.1)", borderRadius: 10, padding: 12, gap: 8, marginTop: 12,

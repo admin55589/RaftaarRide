@@ -17,6 +17,7 @@ export const usersTable = pgTable("users", {
   phone: text("phone").notNull().unique(),
   passwordHash: text("password_hash"),
   photoUrl: text("photo_url"),
+  gender: text("gender"),
   otpCode: text("otp_code"),
   otpExpiresAt: timestamp("otp_expires_at"),
   isVerified: boolean("is_verified").notNull().default(false),
