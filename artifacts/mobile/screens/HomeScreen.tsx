@@ -15,6 +15,8 @@ import {
 } from "react-native";
 import Animated, {
   FadeInDown,
+  SlideInUp,
+  SlideOutUp,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -94,10 +96,19 @@ export function HomeScreen() {
   const [editPhoto, setEditPhoto] = useState<string | null>(user?.photoUrl ?? null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [pickingPhoto, setPickingPhoto] = useState(false);
+  const [profileError, setProfileError] = useState("");
 
   const [showPickupEdit, setShowPickupEdit] = useState(false);
   const [editPickup, setEditPickup] = useState(currentLocationAddress);
   const [gpsLoading, setGpsLoading] = useState(false);
+
+  const [toast, setToast] = useState<{ show: boolean; title: string; subtitle: string; type: "success" | "error" }>({
+    show: false, title: "", subtitle: "", type: "success",
+  });
+  const showToast = (title: string, subtitle: string, type: "success" | "error" = "success") => {
+    setToast({ show: true, title, subtitle, type });
+    setTimeout(() => setToast((t) => ({ ...t, show: false })), 3200);
+  };
 
   const API_BASE = (() => {
     const domain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -138,7 +149,8 @@ export function HomeScreen() {
   };
 
   const handleSaveProfile = async () => {
-    if (!editName.trim()) { Alert.alert("Error", "Name khali nahi ho sakta"); return; }
+    if (!editName.trim()) { setProfileError("Naam khali nahi ho sakta ✍️"); return; }
+    setProfileError("");
     setSavingProfile(true);
     try {
       const res = await fetch(`${API_BASE}/users/me`, {
@@ -150,11 +162,11 @@ export function HomeScreen() {
       if (data.success) {
         updateUser({ ...user!, name: data.user.name, email: data.user.email, photoUrl: data.user.photoUrl });
         setShowProfileEdit(false);
-        Alert.alert("Done! ✅", "Profile update ho gayi");
+        showToast("Profile Update Ho Gayi! 🎉", `${data.user.name} — ab aap bilkul ready hain!`, "success");
       } else {
-        Alert.alert("Error", data.error ?? "Update failed");
+        setProfileError(data.error ?? "Update nahi ho payi, dobara try karo");
       }
-    } catch { Alert.alert("Error", "Network error — try again"); }
+    } catch { setProfileError("Network error — internet check karo 🔄"); }
     finally { setSavingProfile(false); }
   };
 
@@ -270,7 +282,7 @@ export function HomeScreen() {
         </Animated.View>
       </View>
 
-      <Modal visible={showProfileEdit} transparent animationType="slide" onRequestClose={() => setShowProfileEdit(false)}>
+      <Modal visible={showProfileEdit} transparent animationType="slide" onRequestClose={() => { setShowProfileEdit(false); setProfileError(""); }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <View style={styles.modalOverlay}>
             <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -279,7 +291,7 @@ export function HomeScreen() {
                   <Text style={{ fontSize: 22 }}>👤</Text>
                   <Text style={[styles.modalTitle, { color: colors.foreground }]}>Profile Update</Text>
                 </View>
-                <Pressable onPress={() => setShowProfileEdit(false)} style={styles.closeBtn}>
+                <Pressable onPress={() => { setShowProfileEdit(false); setProfileError(""); }} style={styles.closeBtn}>
                   <Text style={[styles.closeEmoji, { color: colors.mutedForeground }]}>✕</Text>
                 </Pressable>
               </View>
@@ -329,6 +341,12 @@ export function HomeScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
+              {profileError ? (
+                <View style={styles.profileErrorBox}>
+                  <Text style={{ fontSize: 14, lineHeight: 18 }}>⚠️</Text>
+                  <Text style={styles.profileErrorText}>{profileError}</Text>
+                </View>
+              ) : null}
               <Pressable
                 onPress={handleSaveProfile}
                 disabled={savingProfile}
@@ -460,11 +478,77 @@ export function HomeScreen() {
           </ScrollView>
         </GlassCard>
       </View>
+
+      {toast.show && (
+        <Animated.View
+          entering={SlideInUp.springify().damping(14)}
+          exiting={SlideOutUp.springify()}
+          style={[
+            styles.toastContainer,
+            { top: insets.top + 12 },
+            toast.type === "error" ? styles.toastError : styles.toastSuccess,
+          ]}
+        >
+          <Text style={styles.toastEmoji}>
+            {toast.type === "success" ? "✅" : "❌"}
+          </Text>
+          <View style={styles.toastTextWrap}>
+            <Text style={styles.toastTitle}>{toast.title}</Text>
+            <Text style={styles.toastSubtitle}>{toast.subtitle}</Text>
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  toastContainer: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    zIndex: 9999,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  toastSuccess: {
+    backgroundColor: "#0E1F13",
+    borderWidth: 1.5,
+    borderColor: "rgba(52,211,153,0.5)",
+  },
+  toastError: {
+    backgroundColor: "#1F0E0E",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,77,77,0.5)",
+  },
+  profileErrorBox: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: "rgba(255,77,77,0.1)", borderRadius: 10, padding: 10, gap: 8,
+    borderWidth: 1, borderColor: "rgba(255,77,77,0.3)",
+  },
+  profileErrorText: { color: "#FF4D4D", fontSize: 12, flex: 1 },
+  toastEmoji: { fontSize: 26 },
+  toastTextWrap: { flex: 1 },
+  toastTitle: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  toastSubtitle: {
+    color: "#B0B0C0",
+    fontSize: 12,
+    lineHeight: 17,
+  },
   container: { flex: 1 },
   topOverlay: {
     position: "absolute",
