@@ -190,7 +190,7 @@ export function BookingScreen() {
               <View style={styles.priceRow}>
                 <View style={styles.priceLabelRow}>
                   <Feather name="trending-down" size={13} color="#22c55e" />
-                  <Text style={[styles.priceLabel, { color: "#22c55e" }]}>Rapido se sasta</Text>
+                  <Text style={[styles.priceLabel, { color: "#22c55e" }]}>Sabse sasta</Text>
                 </View>
                 <Text style={[styles.priceValue, { color: "#22c55e" }]}>
                   ₹{fare.savings} ({fare.savingsPct}%)
