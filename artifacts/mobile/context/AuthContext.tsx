@@ -7,6 +7,7 @@ export interface AuthUser {
   name: string;
   phone: string;
   email?: string | null;
+  photoUrl?: string | null;
   isVerified: boolean;
   isFirebase?: boolean;
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -23,6 +24,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
+import * as ImagePicker from "expo-image-picker";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
@@ -89,7 +91,9 @@ export function HomeScreen() {
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [editName, setEditName] = useState(user?.name ?? "");
   const [editEmail, setEditEmail] = useState(user?.email ?? "");
+  const [editPhoto, setEditPhoto] = useState<string | null>(user?.photoUrl ?? null);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [pickingPhoto, setPickingPhoto] = useState(false);
 
   const [showPickupEdit, setShowPickupEdit] = useState(false);
   const [editPickup, setEditPickup] = useState(currentLocationAddress);
@@ -101,6 +105,38 @@ export function HomeScreen() {
     return "http://localhost:8080/api";
   })();
 
+  const handlePickPhoto = async () => {
+    if (pickingPhoto) return;
+    setPickingPhoto(true);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("Permission chahiye", "Gallery access allow karo settings mein");
+        setPickingPhoto(false);
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.4,
+        base64: true,
+      });
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        if (asset.base64) {
+          const dataUri = `data:image/jpeg;base64,${asset.base64}`;
+          if (dataUri.length > 500 * 1024) {
+            Alert.alert("Photo bahut badi hai", "Choti photo select karo (max 500KB)");
+          } else {
+            setEditPhoto(dataUri);
+          }
+        }
+      }
+    } catch { Alert.alert("Error", "Photo pick nahi ho payi"); }
+    setPickingPhoto(false);
+  };
+
   const handleSaveProfile = async () => {
     if (!editName.trim()) { Alert.alert("Error", "Name khali nahi ho sakta"); return; }
     setSavingProfile(true);
@@ -108,11 +144,11 @@ export function HomeScreen() {
       const res = await fetch(`${API_BASE}/users/me`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: editName.trim(), email: editEmail.trim() }),
+        body: JSON.stringify({ name: editName.trim(), email: editEmail.trim() || undefined, photoUrl: editPhoto }),
       });
       const data = await res.json();
       if (data.success) {
-        updateUser({ ...user!, name: data.user.name, email: data.user.email });
+        updateUser({ ...user!, name: data.user.name, email: data.user.email, photoUrl: data.user.photoUrl });
         setShowProfileEdit(false);
         Alert.alert("Done! ✅", "Profile update ho gayi");
       } else {
@@ -205,11 +241,20 @@ export function HomeScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => { setEditName(user?.name ?? ""); setEditEmail(user?.email ?? ""); setShowProfileEdit(true); }}
-            style={[styles.iconBtn, { backgroundColor: colors.primary + "22", borderColor: colors.primary + "55" }]}
+            onPress={() => {
+              setEditName(user?.name ?? "");
+              setEditEmail(user?.email ?? "");
+              setEditPhoto(user?.photoUrl ?? null);
+              setShowProfileEdit(true);
+            }}
+            style={[styles.profileTopBtn, { borderColor: colors.primary + "55" }]}
             hitSlop={8}
           >
-            <Text style={styles.iconBtnEmoji}>👤</Text>
+            {user?.photoUrl ? (
+              <Image source={{ uri: user.photoUrl }} style={styles.profileTopBtnImg} />
+            ) : (
+              <Text style={styles.iconBtnEmoji}>👤</Text>
+            )}
           </Pressable>
         </Animated.View>
 
@@ -239,8 +284,28 @@ export function HomeScreen() {
                 </Pressable>
               </View>
 
-              <View style={[styles.profileAvatarLarge, { backgroundColor: "rgba(245,166,35,0.12)", borderColor: "rgba(245,166,35,0.3)" }]}>
-                <Text style={{ fontSize: 36 }}>👤</Text>
+              <View style={styles.photoPickerWrapper}>
+                <Pressable onPress={handlePickPhoto} disabled={pickingPhoto} style={styles.photoPickerBtn}>
+                  {editPhoto ? (
+                    <Image source={{ uri: editPhoto }} style={styles.profileAvatarPhoto} />
+                  ) : (
+                    <View style={[styles.profileAvatarLarge, { backgroundColor: "rgba(245,166,35,0.12)", borderColor: "rgba(245,166,35,0.3)" }]}>
+                      <Text style={{ fontSize: 36 }}>👤</Text>
+                    </View>
+                  )}
+                  <View style={[styles.cameraOverlay, { backgroundColor: colors.primary }]}>
+                    {pickingPhoto ? (
+                      <ActivityIndicator size="small" color="#000" />
+                    ) : (
+                      <Text style={{ fontSize: 14 }}>📷</Text>
+                    )}
+                  </View>
+                </Pressable>
+                {editPhoto && (
+                  <Pressable onPress={() => setEditPhoto(null)} style={styles.removePhotoBtn}>
+                    <Text style={[{ fontSize: 11, color: colors.destructive, fontFamily: "Inter_500Medium" }]}>Remove</Text>
+                  </Pressable>
+                )}
               </View>
               <Text style={[styles.profilePhoneLabel, { color: colors.mutedForeground }]}>
                 📱 {user?.phone ?? "—"}
@@ -450,6 +515,53 @@ const styles = StyleSheet.create({
   iconBtnEmoji: {
     fontSize: 16,
     lineHeight: 20,
+  },
+  profileTopBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    overflow: "hidden",
+    backgroundColor: "rgba(245,166,35,0.15)",
+  },
+  profileTopBtnImg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  photoPickerWrapper: {
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
+  photoPickerBtn: {
+    position: "relative",
+    width: 80,
+    height: 80,
+  },
+  profileAvatarPhoto: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  cameraOverlay: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(0,0,0,0.3)",
+  },
+  removePhotoBtn: {
+    paddingVertical: 2,
+    paddingHorizontal: 8,
   },
   greetCard: {
     borderRadius: 20,

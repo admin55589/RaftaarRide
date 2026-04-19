@@ -1,11 +1,13 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { usersTable, promoCodesTable } from "@workspace/db/schema";
-import { eq, and, gt, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 
 const router: IRouter = Router();
 const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
+
+const MAX_PHOTO_SIZE_BYTES = 500 * 1024;
 
 interface JwtPayload { userId: number; phone: string; role: string; }
 
@@ -27,6 +29,7 @@ router.get("/users/me", userAuth, async (req: Request, res: Response) => {
       name: usersTable.name,
       phone: usersTable.phone,
       email: usersTable.email,
+      photoUrl: usersTable.photoUrl,
       isVerified: usersTable.isVerified,
       status: usersTable.status,
       createdAt: usersTable.createdAt,
@@ -39,24 +42,33 @@ router.get("/users/me", userAuth, async (req: Request, res: Response) => {
 
 router.patch("/users/me", userAuth, async (req: Request, res: Response) => {
   const userId = (req as any).userId;
-  const { name, email } = req.body as { name?: string; email?: string };
+  const { name, email, photoUrl } = req.body as { name?: string; email?: string; photoUrl?: string };
 
-  if (!name && !email) {
-    res.status(400).json({ success: false, error: "Provide at least name or email to update" }); return;
+  if (!name && !email && photoUrl === undefined) {
+    res.status(400).json({ success: false, error: "Provide at least one field to update (name, email, photoUrl)" }); return;
   }
 
-  const updates: Record<string, string> = {};
+  if (photoUrl !== undefined && photoUrl !== null && photoUrl.length > MAX_PHOTO_SIZE_BYTES) {
+    res.status(400).json({ success: false, error: "Photo size too large. Please use a smaller image (max 500KB)." }); return;
+  }
+
+  const updates: Record<string, string | null> = {};
   if (name?.trim()) updates.name = name.trim();
   if (email?.trim()) updates.email = email.trim().toLowerCase();
+  if (photoUrl !== undefined) updates.photo_url = photoUrl ?? null;
 
   try {
-    const [updated] = await db.update(usersTable).set(updates).where(eq(usersTable.id, userId)).returning({
-      id: usersTable.id,
-      name: usersTable.name,
-      phone: usersTable.phone,
-      email: usersTable.email,
-      isVerified: usersTable.isVerified,
-    });
+    const [updated] = await db.update(usersTable)
+      .set(updates as any)
+      .where(eq(usersTable.id, userId))
+      .returning({
+        id: usersTable.id,
+        name: usersTable.name,
+        phone: usersTable.phone,
+        email: usersTable.email,
+        photoUrl: usersTable.photoUrl,
+        isVerified: usersTable.isVerified,
+      });
 
     if (!updated) { res.status(404).json({ success: false, error: "User not found" }); return; }
     res.json({ success: true, user: updated, message: "Profile updated successfully" });
