@@ -211,6 +211,16 @@ export default function LoginScreen() {
                 Naya account banao →
               </Text>
             </Pressable>
+
+            <View style={[styles.divider, { marginTop: 20 }]}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>Driver ho?</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <Pressable style={styles.driverBtn} onPress={() => router.push("/driver-auth/login")}>
+              <Text style={styles.driverBtnText}>🚗  Driver Login / Register</Text>
+            </Pressable>
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(600).springify()} style={styles.footer}>
@@ -324,4 +334,13 @@ const styles = StyleSheet.create({
   secondaryBtnText: { color: "#F5A623", fontWeight: "700", fontSize: 15 },
   footer: { marginTop: 40, alignItems: "center" },
   footerText: { color: "#8A8A9A", fontSize: 12, textAlign: "center", lineHeight: 18 },
+  driverBtn: {
+    borderWidth: 1.5,
+    borderColor: "#22c55e",
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.07)",
+  },
+  driverBtnText: { color: "#22c55e", fontWeight: "700", fontSize: 15 },
 });

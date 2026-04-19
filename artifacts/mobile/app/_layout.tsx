@@ -17,6 +17,7 @@ import { ActivityIndicator, View } from "react-native";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { DriverAuthProvider, useDriverAuth } from "@/context/DriverAuthContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -37,23 +38,39 @@ function HistorySyncer() {
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, isLoading } = useAuth();
+  const { isDriverLoggedIn, isDriverLoading } = useDriverAuth();
   const segments = useSegments();
   const router = useRouter();
 
+  const anyLoading = isLoading || isDriverLoading;
+  const inAuthGroup = segments[0] === "auth";
+  const inDriverAuthGroup = segments[0] === "driver-auth";
+  const inOnboarding = segments[0] === "(onboarding)";
+  const inProtectedArea = !inAuthGroup && !inDriverAuthGroup && !inOnboarding;
+
   useEffect(() => {
-    if (isLoading) return;
+    if (anyLoading) return;
 
-    const inAuthGroup = segments[0] === "auth";
-    const inOnboarding = segments[0] === "(onboarding)";
-
-    if (!isLoggedIn && !inAuthGroup && !inOnboarding) {
-      router.replace("/auth/login");
-    } else if (isLoggedIn && inAuthGroup) {
-      router.replace("/(onboarding)/profile-setup");
+    if (isDriverLoggedIn) {
+      if (inAuthGroup || inDriverAuthGroup) {
+        router.replace("/(tabs)");
+      }
+      return;
     }
-  }, [isLoggedIn, isLoading, segments]);
 
-  if (isLoading) {
+    if (isLoggedIn) {
+      if (inAuthGroup || inDriverAuthGroup) {
+        router.replace("/(onboarding)/profile-setup");
+      }
+      return;
+    }
+
+    if (!isLoggedIn && !isDriverLoggedIn && inProtectedArea) {
+      router.replace("/auth/login");
+    }
+  }, [isLoggedIn, isDriverLoggedIn, anyLoading, segments]);
+
+  if (anyLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: "#0A0A0F", alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator color="#F5A623" size="large" />
@@ -69,6 +86,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="auth" />
+      <Stack.Screen name="driver-auth" />
       <Stack.Screen name="(onboarding)" />
       <Stack.Screen name="+not-found" />
     </Stack>
@@ -76,8 +94,6 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  // Load Inter fonts in background — don't block app render.
-  // Expo Go already has @expo/vector-icons fonts pre-bundled (no wait needed).
   useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -86,11 +102,8 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    // Hide splash immediately — don't wait for fonts
     SplashScreen.hideAsync();
   }, []);
-
-  // Show app right away; Inter fonts load silently in background
 
   return (
     <SafeAreaProvider>
@@ -99,12 +112,14 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <AuthProvider>
-                <AppProvider>
-                  <HistorySyncer />
-                  <AuthGuard>
-                    <RootLayoutNav />
-                  </AuthGuard>
-                </AppProvider>
+                <DriverAuthProvider>
+                  <AppProvider>
+                    <HistorySyncer />
+                    <AuthGuard>
+                      <RootLayoutNav />
+                    </AuthGuard>
+                  </AppProvider>
+                </DriverAuthProvider>
               </AuthProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>

@@ -2,6 +2,7 @@ import React from "react";
 import { View, StyleSheet } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
+import { useDriverAuth } from "@/context/DriverAuthContext";
 import { HomeScreen } from "@/screens/HomeScreen";
 import { BookingScreen } from "@/screens/BookingScreen";
 import { SearchingScreen } from "@/screens/SearchingScreen";
@@ -13,8 +14,13 @@ import { DriverModeScreen } from "@/screens/DriverModeScreen";
 export default function MainScreen() {
   const colors = useColors();
   const { screen } = useApp();
+  const { isDriverLoggedIn } = useDriverAuth();
 
   const renderScreen = () => {
+    if (isDriverLoggedIn) {
+      return <DriverModeScreen />;
+    }
+
     switch (screen) {
       case "home":
         return <HomeScreen />;
@@ -43,7 +49,5 @@ export default function MainScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
 });

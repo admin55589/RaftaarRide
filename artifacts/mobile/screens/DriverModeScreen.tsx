@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
+import { useDriverAuth } from "@/context/DriverAuthContext";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { MapView } from "@/components/MapView";
@@ -196,9 +197,10 @@ export function DriverModeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { setScreen, driverEarnings, setDriverEarnings } = useApp();
+  const { driver, isDriverLoggedIn, driverLogout } = useDriverAuth();
   const [isOnline, setIsOnline] = useState(true);
   const [requests, setRequests] = useState(MOCK_REQUESTS);
-  const [ridesCompleted, setRidesCompleted] = useState(7);
+  const ridesCompleted = driver ? driver.totalRides : 7;
 
   const dotScale = useSharedValue(1);
   useEffect(() => {
@@ -229,10 +231,18 @@ export function DriverModeScreen() {
 
       <View style={[styles.header, { paddingTop: topPad + 8, paddingHorizontal: 16 }]}>
         <Pressable
-          onPress={() => setScreen("home")}
+          onPress={() => {
+            if (isDriverLoggedIn) {
+              driverLogout();
+            } else {
+              setScreen("home");
+            }
+          }}
           style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
         >
-          <Text style={{ fontSize: 20, color: colors.foreground, lineHeight: 24 }}>←</Text>
+          <Text style={{ fontSize: 16, color: colors.foreground, lineHeight: 20 }}>
+            {isDriverLoggedIn ? "🚪" : "←"}
+          </Text>
         </Pressable>
         <GlassCard style={styles.onlineToggle} padding={10}>
           <Animated.View style={[styles.onlineDot, { backgroundColor: isOnline ? colors.success : colors.destructive }, isOnline ? dotStyle : {}]} />
@@ -251,12 +261,26 @@ export function DriverModeScreen() {
       </View>
 
       <Animated.View entering={FadeInDown.springify()} style={[styles.sheet, { paddingBottom: bottomPad + 12 }]}>
+        {driver && (
+          <View style={styles.driverInfo}>
+            <View style={styles.driverAvatar}>
+              <Text style={{ fontSize: 20 }}>👤</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.driverName, { color: colors.foreground }]}>{driver.name}</Text>
+              <Text style={[styles.driverVehicle, { color: colors.mutedForeground }]}>
+                {driver.vehicleNumber} • {driver.vehicleType.charAt(0).toUpperCase() + driver.vehicleType.slice(1)}
+              </Text>
+            </View>
+          </View>
+        )}
+
         <GlassCard style={styles.statsCard} padding={16}>
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Text style={styles.statIcon}>💰</Text>
-              <EarningsCounter value={driverEarnings} />
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Today's Earnings</Text>
+              <EarningsCounter value={driverEarnings || parseFloat(driver?.totalEarnings ?? "0")} />
+              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Total Earnings</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.stat}>
@@ -267,7 +291,7 @@ export function DriverModeScreen() {
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.stat}>
               <Text style={styles.statIcon}>⭐</Text>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>4.9</Text>
+              <Text style={[styles.statValue, { color: colors.foreground }]}>{driver?.rating ?? "4.5"}</Text>
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Rating</Text>
             </View>
           </View>
@@ -302,6 +326,25 @@ export function DriverModeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  driverInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 4,
+    marginBottom: 12,
+  },
+  driverAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(245,166,35,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(245,166,35,0.3)",
+  },
+  driverName: { fontSize: 15, fontWeight: "700" },
+  driverVehicle: { fontSize: 12, marginTop: 1 },
   header: {
     position: "absolute",
     top: 0,
