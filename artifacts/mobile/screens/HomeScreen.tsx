@@ -328,14 +328,6 @@ export function HomeScreen() {
         </Pressable>
       </View>
 
-      <Pressable
-        style={[
-          styles.sosButton,
-          { backgroundColor: colors.destructive, bottom: (Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom) + 220 },
-        ]}
-      >
-        <Text style={[styles.sosText, { color: colors.destructiveForeground }]}>SOS</Text>
-      </Pressable>
     </View>
   );
 }
@@ -545,21 +537,6 @@ const styles = StyleSheet.create({
   driverFabText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 13,
-  },
-  sosButton: {
-    position: "absolute",
-    right: 16,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 20,
-  },
-  sosText: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 13,
-    letterSpacing: 0.5,
   },
   modalOverlay: {
     flex: 1,
