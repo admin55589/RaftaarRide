@@ -260,7 +260,7 @@ export function HomeScreen() {
         </Modal>
       </View>
 
-      <View style={styles.bottomSheet}>
+      <View style={[styles.bottomSheet, { paddingBottom: insets.bottom + 16 }]}>
         <GlassCard style={styles.bottomCard} padding={0}>
           <View style={styles.searchContainer}>
             <View style={[styles.searchBar, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
@@ -321,7 +321,7 @@ export function HomeScreen() {
 
         <Pressable
           onPress={() => setScreen("driver_mode")}
-          style={[styles.driverFab, { backgroundColor: colors.card, borderColor: colors.glassBorder }]}
+          style={[styles.driverFab, { backgroundColor: colors.card, borderColor: colors.glassBorder, bottom: insets.bottom + 20 }]}
         >
           <Text style={{ fontSize: 18 }}>🚘</Text>
           <Text style={[styles.driverFabText, { color: colors.foreground }]}>Driver</Text>
@@ -331,7 +331,7 @@ export function HomeScreen() {
       <Pressable
         style={[
           styles.sosButton,
-          { backgroundColor: colors.destructive, bottom: Platform.OS === "web" ? 34 + 220 : 220 },
+          { backgroundColor: colors.destructive, bottom: (Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom) + 220 },
         ]}
       >
         <Text style={[styles.sosText, { color: colors.destructiveForeground }]}>SOS</Text>

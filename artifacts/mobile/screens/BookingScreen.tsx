@@ -145,7 +145,7 @@ export function BookingScreen() {
             </View>
           </Animated.View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 12 }}>
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>RIDE TYPE</Text>
               <VehicleSelector />

@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
   Easing,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp, MOCK_DRIVERS } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
@@ -53,6 +54,7 @@ function RadarPulse({ delay, size }: { delay: number; size: number }) {
 
 export function SearchingScreen() {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const { setScreen, setAssignedDriver, selectedVehicle, currentRideId, setCurrentRideId } = useApp();
   const [msgIndex, setMsgIndex] = React.useState(0);
@@ -155,7 +157,7 @@ export function SearchingScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <MapView showRadar />
 
-      <Animated.View entering={FadeIn.springify()} style={styles.bottomSheet}>
+      <Animated.View entering={FadeIn.springify()} style={[styles.bottomSheet, { paddingBottom: insets.bottom + 16 }]}>
         <GlassCard style={styles.card} padding={24}>
           <View style={styles.radarContainer}>
             <RadarPulse delay={0} size={80} />
