@@ -7,7 +7,7 @@ import {
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { Feather } from "@expo/vector-icons";
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
@@ -50,7 +50,7 @@ export default function NotificationPermissionScreen() {
         <Animated.View entering={FadeInDown.delay(350).springify()} style={styles.benefitsCard}>
           <View style={styles.benefitRow}>
             <View style={styles.benefitIcon}>
-              <Feather name="map-pin" size={20} color="#F5A623" />
+              <Text style={{ fontSize: 20, lineHeight: 24 }}>📍</Text>
             </View>
             <View style={styles.benefitText}>
               <Text style={styles.benefitTitle}>Real-time Driver Updates</Text>
@@ -64,7 +64,7 @@ export default function NotificationPermissionScreen() {
 
           <View style={styles.benefitRow}>
             <View style={styles.benefitIcon}>
-              <Feather name="volume-2" size={20} color="#F5A623" />
+              <Text style={{ fontSize: 20, lineHeight: 24 }}>🔊</Text>
             </View>
             <View style={styles.benefitText}>
               <Text style={styles.benefitTitle}>Offers aur News</Text>
@@ -78,7 +78,7 @@ export default function NotificationPermissionScreen() {
         <Animated.View entering={FadeInUp.delay(450).springify()} style={styles.buttonsWrap}>
           <Pressable style={styles.allowBtn} onPress={handleAllow}>
             <LinearGradient colors={["#F5A623", "#E09010"]} style={styles.allowGrad}>
-              <Feather name="bell" size={18} color="#0A0A0F" />
+              <Text style={{ fontSize: 18, lineHeight: 22 }}>🔔</Text>
               <Text style={styles.allowText}>Allow Karo</Text>
             </LinearGradient>
           </Pressable>

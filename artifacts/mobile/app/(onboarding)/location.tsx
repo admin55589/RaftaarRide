@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { Feather } from "@expo/vector-icons";
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
@@ -111,11 +111,11 @@ export default function LocationPermissionScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.infoCard}>
-          <Feather name="shield" size={18} color="#8A8A9A" />
+          <Text style={{ fontSize: 18, lineHeight: 22, color: "#8A8A9A" }}>🛡️</Text>
           <Text style={styles.infoText}>
             Aapka location sirf ride tracking ke liye use hoga — kabhi bhi third party ke saath share nahi hoga
           </Text>
-          <Feather name="chevron-right" size={16} color="#8A8A9A" />
+          <Text style={{ fontSize: 16, lineHeight: 20, color: "#8A8A9A" }}>›</Text>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.modeRow}>
@@ -132,7 +132,7 @@ export default function LocationPermissionScreen() {
             </Text>
             {mode === "precise" && (
               <View style={styles.modeCheck}>
-                <Feather name="check-circle" size={16} color="#F5A623" />
+                <Text style={{ fontSize: 16, lineHeight: 20, color: "#F5A623" }}>✅</Text>
               </View>
             )}
           </Pressable>
@@ -149,7 +149,7 @@ export default function LocationPermissionScreen() {
             </Text>
             {mode === "approximate" && (
               <View style={styles.modeCheck}>
-                <Feather name="check-circle" size={16} color="#F5A623" />
+                <Text style={{ fontSize: 16, lineHeight: 20, color: "#F5A623" }}>✅</Text>
               </View>
             )}
           </Pressable>
@@ -161,7 +161,7 @@ export default function LocationPermissionScreen() {
               {loading ? (
                 <ActivityIndicator color="#FFF" size="small" />
               ) : (
-                <Feather name="map-pin" size={18} color="#FFFFFF" />
+                <Text style={{ fontSize: 18, lineHeight: 22 }}>📍</Text>
               )}
               <Text style={styles.allowText}>
                 {loading ? "Location mil rahi hai..." : "Location Share Karo"}
@@ -178,7 +178,7 @@ export default function LocationPermissionScreen() {
           </Pressable>
 
           <Pressable style={styles.manualBtn} onPress={handleSkip} disabled={loading}>
-            <Feather name="edit-2" size={14} color="#8A8A9A" />
+            <Text style={{ fontSize: 14, lineHeight: 18, color: "#8A8A9A" }}>✏️</Text>
             <Text style={styles.manualText}>Pickup manually enter karo</Text>
           </Pressable>
         </Animated.View>

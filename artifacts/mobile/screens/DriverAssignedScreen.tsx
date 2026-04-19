@@ -19,7 +19,6 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
@@ -50,7 +49,7 @@ function AvatarCircle({ initials }: { initials: string }) {
   }, []);
   const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return (
-    <Animated.View style={[{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primary + "33", borderWidth: 2, borderColor: colors.primary, alignItems: "center", justifyContent: "center" }, style]}>
+    <Animated.View style={[{ width: 64, height: 64, borderRadius: 32, backgroundColor: "rgba(245,166,35,0.2)", borderWidth: 2, borderColor: colors.primary, alignItems: "center", justifyContent: "center" }, style]}>
       <Text style={{ fontFamily: "Inter_700Bold", fontSize: 20, color: colors.primary }}>{initials}</Text>
     </Animated.View>
   );
@@ -156,8 +155,8 @@ export function DriverAssignedScreen() {
 
           <View style={styles.content}>
             <Animated.View entering={FadeInDown.springify()} style={styles.etaRow}>
-              <View style={[styles.etaBadge, { backgroundColor: vehicleColor + "22", borderColor: vehicleColor }]}>
-                <Feather name="clock" size={16} color={vehicleColor} />
+              <View style={[styles.etaBadge, { backgroundColor: "rgba(245,166,35,0.13)", borderColor: vehicleColor }]}>
+                <Text style={{ fontSize: 15 }}>🕐</Text>
                 <Text style={[styles.etaText, { color: vehicleColor }]}>
                   {driver.eta} min away
                 </Text>
@@ -207,8 +206,8 @@ export function DriverAssignedScreen() {
             </Animated.View>
 
             <View style={[styles.sosRow, { paddingBottom: Math.max(insets.bottom, Platform.OS === "web" ? 34 : 0) + 4 }]}>
-              <Pressable style={[styles.sosBtn, { backgroundColor: colors.destructive + "22", borderColor: colors.destructive }]}>
-                <Feather name="alert-triangle" size={14} color={colors.destructive} />
+              <Pressable style={[styles.sosBtn, { backgroundColor: "rgba(239,68,68,0.13)", borderColor: colors.destructive }]}>
+                <Text style={{ fontSize: 14 }}>⚠️</Text>
                 <Text style={[styles.sosText, { color: colors.destructive }]}>SOS</Text>
               </Pressable>
               <Pressable
@@ -216,12 +215,12 @@ export function DriverAssignedScreen() {
                 style={({ pressed }) => [
                   styles.shareBtn,
                   {
-                    backgroundColor: pressed ? colors.primary + "22" : colors.secondary,
+                    backgroundColor: pressed ? "rgba(245,166,35,0.13)" : colors.secondary,
                     borderColor: pressed ? colors.primary : colors.border,
                   },
                 ]}
               >
-                <Feather name="share-2" size={14} color={colors.primary} />
+                <Text style={{ fontSize: 14 }}>📤</Text>
                 <Text style={[styles.shareText, { color: colors.primary }]}>Share Location</Text>
               </Pressable>
             </View>

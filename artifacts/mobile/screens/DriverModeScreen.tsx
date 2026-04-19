@@ -16,7 +16,6 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
@@ -78,7 +77,7 @@ function RideRequest({
     <Animated.View entering={FadeInDown.springify()}>
       <GlassCard style={styles.requestCard} padding={16}>
         <View style={styles.requestHeader}>
-          <View style={[styles.requestBadge, { backgroundColor: colors.primary + "22", borderColor: colors.primary }]}>
+          <View style={[styles.requestBadge, { backgroundColor: "rgba(245,166,35,0.13)", borderColor: colors.primary }]}>
             <Text style={{ fontSize: 14 }}>🚗</Text>
             <Text style={[styles.requestBadgeText, { color: colors.primary }]}>New Ride</Text>
           </View>
@@ -105,11 +104,11 @@ function RideRequest({
 
         <View style={styles.requestMeta}>
           <View style={[styles.metaChip, { backgroundColor: colors.secondary }]}>
-            <Feather name="map-pin" size={12} color={colors.mutedForeground} />
+            <Text style={{ fontSize: 11 }}>📍</Text>
             <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{request.distance}</Text>
           </View>
           <View style={[styles.metaChip, { backgroundColor: colors.secondary }]}>
-            <Feather name="clock" size={12} color={colors.mutedForeground} />
+            <Text style={{ fontSize: 11 }}>🕐</Text>
             <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{request.eta} min away</Text>
           </View>
           <View style={[styles.metaChip, { backgroundColor: colors.primary + "22" }]}>
@@ -122,13 +121,13 @@ function RideRequest({
             onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); onReject(); }}
             style={[styles.rejectBtn, { borderColor: colors.destructive }]}
           >
-            <Feather name="x" size={22} color={colors.destructive} />
+            <Text style={{ fontSize: 22, color: colors.destructive }}>✕</Text>
           </Pressable>
           <Pressable
             onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); onAccept(); }}
             style={[styles.acceptBtn, { backgroundColor: colors.success }]}
           >
-            <Feather name="check" size={22} color={colors.successForeground} />
+            <Text style={{ fontSize: 22, color: colors.successForeground }}>✓</Text>
             <Text style={[styles.acceptText, { color: colors.successForeground }]}>Accept</Text>
           </Pressable>
         </View>
@@ -177,7 +176,7 @@ export function DriverModeScreen() {
           onPress={() => setScreen("home")}
           style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
         >
-          <Feather name="arrow-left" size={20} color={colors.foreground} />
+          <Text style={{ fontSize: 20, color: colors.foreground, lineHeight: 24 }}>←</Text>
         </Pressable>
         <GlassCard style={styles.onlineToggle} padding={10}>
           <Animated.View style={[styles.onlineDot, { backgroundColor: isOnline ? colors.success : colors.destructive }, isOnline ? dotStyle : {}]} />
@@ -233,7 +232,7 @@ export function DriverModeScreen() {
             </>
           ) : (
             <View style={styles.emptyState}>
-              <Feather name="radio" size={32} color={colors.mutedForeground} />
+              <Text style={{ fontSize: 32 }}>📡</Text>
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
                 {isOnline ? "Waiting for ride requests..." : "Go online to receive requests"}
               </Text>

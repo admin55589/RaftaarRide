@@ -14,7 +14,6 @@ import { useApp, MOCK_DRIVERS } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
-import { Feather } from "@expo/vector-icons";
 import { useVoiceAI } from "@/hooks/useVoiceAI";
 import { ridesApi } from "@/lib/ridesApi";
 
@@ -162,8 +161,8 @@ export function SearchingScreen() {
             <RadarPulse delay={0} size={80} />
             <RadarPulse delay={833} size={140} />
             <RadarPulse delay={1666} size={200} />
-            <View style={[styles.centerIcon, { backgroundColor: colors.primary + "22", borderColor: colors.primary }]}>
-              <Feather name="navigation" size={28} color={colors.primary} />
+            <View style={[styles.centerIcon, { backgroundColor: "rgba(245,166,35,0.13)", borderColor: colors.primary }]}>
+              <Text style={{ fontSize: 28 }}>🧭</Text>
             </View>
           </View>
 
@@ -190,9 +189,9 @@ export function SearchingScreen() {
 
           <Pressable
             onPress={handleCancel}
-            style={[styles.cancelBtn, { borderColor: colors.destructive + "80" }]}
+            style={[styles.cancelBtn, { borderColor: "rgba(239,68,68,0.5)" }]}
           >
-            <Feather name="x" size={14} color={colors.destructive} />
+            <Text style={{ fontSize: 14, color: colors.destructive }}>✕</Text>
             <Text style={[styles.cancelText, { color: colors.destructive }]}>Ride Cancel Karo</Text>
           </Pressable>
         </GlassCard>

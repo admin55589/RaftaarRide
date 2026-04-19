@@ -9,7 +9,6 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
-import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
@@ -37,7 +36,7 @@ function StageBar({ stage }: { stage: number }) {
               ]}
             >
               {i < stage && (
-                <Feather name="check" size={10} color={colors.primaryForeground} />
+                <Text style={{ fontSize: 9, color: colors.primaryForeground, lineHeight: 12 }}>✓</Text>
               )}
               {i === stage && (
                 <View style={[styles.stageDotInner, { backgroundColor: colors.primaryForeground }]} />
@@ -165,12 +164,12 @@ export function LiveTrackingScreen() {
             </View>
 
             <View style={styles.sosRow}>
-              <Pressable style={[styles.sosBtn, { backgroundColor: colors.destructive + "22", borderColor: colors.destructive }]}>
-                <Feather name="alert-triangle" size={14} color={colors.destructive} />
+              <Pressable style={[styles.sosBtn, { backgroundColor: "rgba(239,68,68,0.13)", borderColor: colors.destructive }]}>
+                <Text style={{ fontSize: 14 }}>⚠️</Text>
                 <Text style={[styles.sosText, { color: colors.destructive }]}>Emergency SOS</Text>
               </Pressable>
               <Pressable style={[styles.shareBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-                <Feather name="share-2" size={14} color={colors.mutedForeground} />
+                <Text style={{ fontSize: 14 }}>📤</Text>
               </Pressable>
             </View>
           </View>

@@ -21,7 +21,6 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { useColors } from "@/hooks/useColors";
@@ -31,9 +30,9 @@ import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
 
 const SUGGESTIONS = [
-  { label: "Office", sub: "Connaught Place", icon: "briefcase" },
-  { label: "Home", sub: "Sector 62, Noida", icon: "home" },
-  { label: "Airport", sub: "T3, IGI Airport", icon: "send" },
+  { label: "Office", sub: "Connaught Place", icon: "💼" },
+  { label: "Home", sub: "Sector 62, Noida", icon: "🏠" },
+  { label: "Airport", sub: "T3, IGI Airport", icon: "✈️" },
 ];
 
 const HOUR = new Date().getHours();
@@ -66,8 +65,8 @@ function SuggestionChip({
         onPress={onPress}
         style={[styles.suggestion, { backgroundColor: colors.secondary, borderColor: colors.border }]}
       >
-        <View style={[styles.suggestionIcon, { backgroundColor: colors.primary + "20" }]}>
-          <Feather name={icon as any} size={16} color={colors.primary} />
+        <View style={[styles.suggestionIcon, { backgroundColor: "rgba(245,166,35,0.12)" }]}>
+          <Text style={styles.suggestionEmoji}>{icon}</Text>
         </View>
         <View style={styles.suggestionText}>
           <Text style={[styles.suggestionLabel, { color: colors.foreground }]}>{label}</Text>
@@ -185,7 +184,7 @@ export function HomeScreen() {
             <Text style={[styles.locationText, { color: colors.foreground }]} numberOfLines={1}>
               {currentLocationAddress}
             </Text>
-            <Feather name="navigation" size={14} color={colors.primary} />
+            <Text style={[styles.navEmoji, { color: colors.primary }]}>🧭</Text>
           </Pressable>
           <Pressable
             onPress={() => setIsDriverMode(!isDriverMode)}
@@ -205,7 +204,7 @@ export function HomeScreen() {
                 onPress={() => { setEditName(user?.name ?? ""); setEditEmail(user?.email ?? ""); setShowProfileEdit(true); }}
                 style={[styles.editProfileBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
               >
-                <Feather name="edit-2" size={13} color={colors.mutedForeground} />
+                <Text style={styles.editEmoji}>✏️</Text>
               </Pressable>
             </View>
             <Text style={[styles.greetTitle, { color: colors.foreground }]}>
@@ -219,8 +218,8 @@ export function HomeScreen() {
             <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.modalHeader}>
                 <Text style={[styles.modalTitle, { color: colors.foreground }]}>Profile Update Karo</Text>
-                <Pressable onPress={() => setShowProfileEdit(false)}>
-                  <Feather name="x" size={20} color={colors.mutedForeground} />
+                <Pressable onPress={() => setShowProfileEdit(false)} style={styles.closeBtn}>
+                  <Text style={[styles.closeEmoji, { color: colors.mutedForeground }]}>✕</Text>
                 </Pressable>
               </View>
               <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>Naam</Text>
@@ -253,7 +252,7 @@ export function HomeScreen() {
                 )}
               </Pressable>
               <Pressable onPress={logout} style={styles.logoutBtn}>
-                <Feather name="log-out" size={14} color={colors.destructive} />
+                <Text style={{ fontSize: 14 }}>🚪</Text>
                 <Text style={[styles.logoutText, { color: colors.destructive }]}>Logout</Text>
               </Pressable>
             </View>
@@ -265,7 +264,7 @@ export function HomeScreen() {
         <GlassCard style={styles.bottomCard} padding={0}>
           <View style={styles.searchContainer}>
             <View style={[styles.searchBar, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-              <Feather name="search" size={18} color={colors.mutedForeground} style={{ marginRight: 10 }} />
+              <Text style={styles.searchEmoji}>🔍</Text>
               <TextInput
                 placeholder="Search destination..."
                 placeholderTextColor={colors.mutedForeground}
@@ -278,8 +277,8 @@ export function HomeScreen() {
                 style={[styles.searchInput, { color: colors.foreground }]}
               />
               {inputValue.length > 0 && (
-                <Pressable onPress={() => setInputValue("")}>
-                  <Feather name="x" size={16} color={colors.mutedForeground} />
+                <Pressable onPress={() => setInputValue("")} style={styles.clearBtn}>
+                  <Text style={[styles.clearEmoji, { color: colors.mutedForeground }]}>✕</Text>
                 </Pressable>
               )}
             </View>
@@ -311,10 +310,10 @@ export function HomeScreen() {
                 style={[styles.recentItem, { borderColor: colors.border }]}
               >
                 <View style={[styles.recentIcon, { backgroundColor: colors.muted }]}>
-                  <Feather name="clock" size={14} color={colors.mutedForeground} />
+                  <Text style={styles.recentClockEmoji}>🕐</Text>
                 </View>
                 <Text style={[styles.recentLabel, { color: colors.foreground }]}>{place}</Text>
-                <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+                <Text style={[styles.chevronEmoji, { color: colors.mutedForeground }]}>›</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -376,6 +375,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
   },
+  navEmoji: {
+    fontSize: 14,
+  },
   modeToggle: {
     width: 40,
     height: 40,
@@ -395,6 +397,25 @@ const styles = StyleSheet.create({
   greetTitle: {
     fontFamily: "Inter_700Bold",
     fontSize: 20,
+  },
+  editProfileBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editEmoji: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  closeEmoji: {
+    fontSize: 18,
+    lineHeight: 22,
   },
   bottomSheet: {
     position: "absolute",
@@ -420,11 +441,22 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 48,
+    gap: 10,
+  },
+  searchEmoji: {
+    fontSize: 16,
   },
   searchInput: {
     flex: 1,
     fontFamily: "Inter_400Regular",
     fontSize: 15,
+  },
+  clearBtn: {
+    padding: 4,
+  },
+  clearEmoji: {
+    fontSize: 15,
+    lineHeight: 20,
   },
   suggestionsScroll: {
     maxHeight: 280,
@@ -456,6 +488,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  suggestionEmoji: {
+    fontSize: 17,
+  },
   suggestionText: {
     flex: 1,
   },
@@ -482,10 +517,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  recentClockEmoji: {
+    fontSize: 14,
+  },
   recentLabel: {
     flex: 1,
     fontFamily: "Inter_400Regular",
     fontSize: 14,
+  },
+  chevronEmoji: {
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: "300",
   },
   driverFab: {
     position: "absolute",
@@ -517,14 +560,6 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     fontSize: 13,
     letterSpacing: 0.5,
-  },
-  editProfileBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
   modalOverlay: {
     flex: 1,

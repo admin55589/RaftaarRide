@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { Feather } from "@expo/vector-icons";
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
@@ -78,7 +78,7 @@ export default function ProfileSetupScreen() {
           <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.form}>
             <Text style={styles.label}>Aapka Naam *</Text>
             <View style={[styles.inputWrap, error ? styles.inputError : null]}>
-              <Feather name="user" size={18} color="#8A8A9A" style={{ marginRight: 10 }} />
+              <Text style={{ fontSize: 18, lineHeight: 22, marginRight: 10, color: "#8A8A9A" }}>👤</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Apna poora naam likhein"
@@ -90,7 +90,7 @@ export default function ProfileSetupScreen() {
             </View>
             {error ? (
               <Animated.View entering={FadeInUp.springify()} style={styles.errorBox}>
-                <Feather name="alert-circle" size={14} color="#FF4D4D" />
+                <Text style={{ fontSize: 14, lineHeight: 18 }}>⚠️</Text>
                 <Text style={styles.errorText}>{error}</Text>
               </Animated.View>
             ) : null}
@@ -118,7 +118,7 @@ export default function ProfileSetupScreen() {
                 <Text style={styles.checkLabel}>WhatsApp pe updates lein</Text>
               </View>
               <View style={[styles.checkbox, whatsapp && styles.checkboxActive]}>
-                {whatsapp && <Feather name="check" size={14} color="#0A0A0F" />}
+                {whatsapp && <Text style={{ fontSize: 13, color: "#0A0A0F", lineHeight: 16 }}>✓</Text>}
               </View>
             </Pressable>
 
@@ -128,13 +128,13 @@ export default function ProfileSetupScreen() {
                 <Text style={styles.checkLabel}>Referral code hai?</Text>
               </View>
               <View style={[styles.checkbox, hasReferral && styles.checkboxActive]}>
-                {hasReferral && <Feather name="check" size={14} color="#0A0A0F" />}
+                {hasReferral && <Text style={{ fontSize: 13, color: "#0A0A0F", lineHeight: 16 }}>✓</Text>}
               </View>
             </Pressable>
 
             {hasReferral && (
               <Animated.View entering={FadeInDown.springify()} style={[styles.inputWrap, { marginTop: 12 }]}>
-                <Feather name="gift" size={18} color="#8A8A9A" style={{ marginRight: 10 }} />
+                <Text style={{ fontSize: 18, lineHeight: 22, marginRight: 10, color: "#8A8A9A" }}>🎁</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Referral code daalo"

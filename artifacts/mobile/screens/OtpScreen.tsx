@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp, useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
@@ -136,7 +135,7 @@ export default function OtpScreen() {
         <View style={[styles.inner, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}>
           <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
             <Pressable onPress={() => router.back()} style={styles.backBtn}>
-              <Feather name="arrow-left" size={22} color="#FFFFFF" />
+              <Text style={{ fontSize: 20, color: "#FFFFFF", lineHeight: 24 }}>←</Text>
             </Pressable>
           </Animated.View>
 
@@ -156,7 +155,7 @@ export default function OtpScreen() {
 
           {devOtp ? (
             <Animated.View entering={FadeInDown.delay(350).springify()} style={styles.devBanner}>
-              <Feather name="info" size={14} color="#F5A623" />
+              <Text style={{ fontSize: 14, color: "#F5A623" }}>ℹ️</Text>
               <Text style={styles.devText}>Dev Mode: OTP auto-filled ({devOtp})</Text>
             </Animated.View>
           ) : null}
@@ -184,7 +183,7 @@ export default function OtpScreen() {
               Aapka Naam <Text style={styles.optional}>(optional)</Text>
             </Text>
             <View style={styles.inputWrap}>
-              <Feather name="user" size={18} color="#8A8A9A" style={{ marginRight: 10 }} />
+              <Text style={{ fontSize: 18, lineHeight: 22, marginRight: 10, color: "#8A8A9A" }}>👤</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Apna naam daalo"
@@ -197,7 +196,7 @@ export default function OtpScreen() {
 
             {error ? (
               <Animated.View entering={FadeInUp.springify()} style={styles.errorBox}>
-                <Feather name="alert-circle" size={14} color="#FF4D4D" />
+                <Text style={{ fontSize: 14, lineHeight: 18 }}>⚠️</Text>
                 <Text style={styles.errorText}>{error}</Text>
               </Animated.View>
             ) : null}

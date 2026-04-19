@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
@@ -73,7 +72,7 @@ export default function SignupScreen() {
         >
           <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
             <Pressable onPress={() => router.back()} style={styles.backBtn}>
-              <Feather name="arrow-left" size={22} color="#FFFFFF" />
+              <Text style={{ fontSize: 20, color: "#FFFFFF", lineHeight: 24 }}>←</Text>
             </Pressable>
             <View style={styles.logoRow}>
               <View style={styles.logoIcon}>
@@ -92,7 +91,7 @@ export default function SignupScreen() {
             <View style={styles.field}>
               <Text style={styles.label}>Poora Naam *</Text>
               <View style={styles.inputWrap}>
-                <Feather name="user" size={18} color="#8A8A9A" style={styles.icon} />
+                <Text style={[styles.icon, { fontSize: 18, lineHeight: 22 }]}>👤</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Aapka naam"
@@ -127,7 +126,7 @@ export default function SignupScreen() {
             <View style={styles.field}>
               <Text style={styles.label}>Email (optional)</Text>
               <View style={styles.inputWrap}>
-                <Feather name="mail" size={18} color="#8A8A9A" style={styles.icon} />
+                <Text style={[styles.icon, { fontSize: 18, lineHeight: 22 }]}>✉️</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="aapka@email.com"
@@ -144,7 +143,7 @@ export default function SignupScreen() {
             <View style={styles.field}>
               <Text style={styles.label}>Password *</Text>
               <View style={styles.inputWrap}>
-                <Feather name="lock" size={18} color="#8A8A9A" style={styles.icon} />
+                <Text style={[styles.icon, { fontSize: 18, lineHeight: 22 }]}>🔒</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Min. 6 characters"
@@ -155,7 +154,7 @@ export default function SignupScreen() {
                   returnKeyType="next"
                 />
                 <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                  <Feather name={showPassword ? "eye-off" : "eye"} size={18} color="#8A8A9A" />
+                  <Text style={{ fontSize: 17, lineHeight: 22, color: "#8A8A9A" }}>{showPassword ? "🙈" : "👁"}</Text>
                 </Pressable>
               </View>
             </View>
@@ -163,7 +162,7 @@ export default function SignupScreen() {
             <View style={styles.field}>
               <Text style={styles.label}>Password Confirm Karo *</Text>
               <View style={styles.inputWrap}>
-                <Feather name="lock" size={18} color="#8A8A9A" style={styles.icon} />
+                <Text style={[styles.icon, { fontSize: 18, lineHeight: 22 }]}>🔒</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Password dobara daalo"
@@ -179,7 +178,7 @@ export default function SignupScreen() {
 
             {error ? (
               <Animated.View entering={FadeInUp.springify()} style={styles.errorBox}>
-                <Feather name="alert-circle" size={14} color="#FF4D4D" />
+                <Text style={{ fontSize: 14, lineHeight: 18 }}>⚠️</Text>
                 <Text style={styles.errorText}>{error}</Text>
               </Animated.View>
             ) : null}

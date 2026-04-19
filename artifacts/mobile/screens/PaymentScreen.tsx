@@ -16,7 +16,6 @@ import Animated, {
   withDelay,
   withSpring,
 } from "react-native-reanimated";
-import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
@@ -175,14 +174,14 @@ export function PaymentScreen() {
 
             <Animated.View entering={FadeInDown.delay(500).springify()} style={[styles.receiptCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {[
-                { icon: "tag", label: "Amount Paid", value: `₹${price}` },
-                { icon: "clock", label: "Duration", value: `${duration} min` },
-                { icon: "map-pin", label: "Distance", value: "8.2 km" },
-                { icon: "credit-card", label: "Payment", value: paymentMethod },
+                { icon: "🏷️", label: "Amount Paid", value: `₹${price}` },
+                { icon: "🕐", label: "Duration", value: `${duration} min` },
+                { icon: "📍", label: "Distance", value: "8.2 km" },
+                { icon: "💳", label: "Payment", value: paymentMethod },
               ].map(({ icon, label, value }) => (
                 <View key={label} style={[styles.receiptRow, { borderColor: colors.border }]}>
                   <View style={styles.receiptLabelRow}>
-                    <Feather name={icon as any} size={13} color={colors.mutedForeground} />
+                    <Text style={styles.receiptIcon}>{icon}</Text>
                     <Text style={[styles.receiptLabel, { color: colors.mutedForeground }]}>{label}</Text>
                   </View>
                   <Text style={[styles.receiptValue, { color: colors.foreground }]}>{value}</Text>
@@ -209,13 +208,13 @@ export function PaymentScreen() {
               <View style={[styles.amountDivider, { backgroundColor: colors.border }]} />
               <View style={styles.amountDetails}>
                 {[
-                  { icon: "tag", label: "Base Fare", value: Math.round(price * 0.7) },
-                  { icon: "map-pin", label: "Distance", value: Math.round(price * 0.25) },
-                  { icon: "percent", label: "Convenience Fee", value: Math.round(price * 0.05) },
+                  { icon: "🏷️", label: "Base Fare", value: Math.round(price * 0.7) },
+                  { icon: "📍", label: "Distance", value: Math.round(price * 0.25) },
+                  { icon: "%", label: "Convenience Fee", value: Math.round(price * 0.05) },
                 ].map(({ icon, label, value }) => (
                   <View key={label} style={styles.amountRow}>
                     <View style={styles.amountLabelRow}>
-                      <Feather name={icon as any} size={12} color={colors.mutedForeground} />
+                      <Text style={styles.amountIcon}>{icon}</Text>
                       <Text style={[styles.amountDetailLabel, { color: colors.mutedForeground }]}>{label}</Text>
                     </View>
                     <Text style={[styles.amountDetailValue, { color: colors.foreground }]}>₹{value}</Text>
@@ -228,8 +227,8 @@ export function PaymentScreen() {
               <Text style={[styles.methodTitle, { color: colors.mutedForeground }]}>PAYMENT METHOD</Text>
               <GlassCard style={styles.methodCard} padding={16}>
                 <View style={styles.methodRow}>
-                  <View style={[styles.methodIcon, { backgroundColor: colors.primary + "22" }]}>
-                    <Feather name="credit-card" size={20} color={colors.primary} />
+                  <View style={[styles.methodIcon, { backgroundColor: "rgba(245,166,35,0.13)" }]}>
+                    <Text style={{ fontSize: 20 }}>💳</Text>
                   </View>
                   <View style={styles.methodInfo}>
                     <Text style={[styles.methodName, { color: colors.foreground }]}>{paymentMethod}</Text>
@@ -237,7 +236,7 @@ export function PaymentScreen() {
                       {paymentMethod === "UPI" ? "Linked account" : paymentMethod === "Cash" ? "Pay to driver" : "Saved card"}
                     </Text>
                   </View>
-                  <Feather name="check-circle" size={20} color={colors.primary} />
+                  <Text style={{ fontSize: 20 }}>✅</Text>
                 </View>
               </GlassCard>
             </View>
@@ -419,6 +418,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
+  },
+  receiptIcon: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  amountIcon: {
+    fontSize: 12,
+    lineHeight: 16,
+    width: 16,
+    textAlign: "center",
   },
   receiptLabel: {
     fontFamily: "Inter_400Regular",
