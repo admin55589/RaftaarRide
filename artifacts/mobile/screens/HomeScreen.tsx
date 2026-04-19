@@ -37,9 +37,9 @@ import { GlassCard } from "@/components/GlassCard";
 
 function getGreeting(t: (k: any) => string) {
   const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return t("good_morning");
-  if (hour >= 12 && hour < 17) return t("good_afternoon");
-  if (hour >= 17 && hour < 21) return t("good_evening");
+  if (hour < 12) return t("good_morning");
+  if (hour < 17) return t("good_afternoon");
+  if (hour < 20) return t("good_evening");
   return t("good_night");
 }
 
