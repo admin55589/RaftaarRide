@@ -58,10 +58,6 @@ export default function ProfileSetupScreen() {
     router.replace("/(tabs)");
   };
 
-  const handleSkip = () => {
-    router.replace("/(tabs)");
-  };
-
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <LinearGradient colors={["#0A0A0F", "#12121A", "#0A0A0F"]} style={styles.container}>
@@ -133,9 +129,6 @@ export default function ProfileSetupScreen() {
               </LinearGradient>
             </Pressable>
 
-            <Pressable onPress={handleSkip} style={styles.skipBtn}>
-              <Text style={styles.skipText}>Baad mein karenge →</Text>
-            </Pressable>
           </Animated.View>
         </ScrollView>
       </LinearGradient>
@@ -178,6 +171,4 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.6 },
   primaryGrad: { paddingVertical: 16, alignItems: "center" },
   primaryText: { color: "#0A0A0F", fontWeight: "800", fontSize: 16 },
-  skipBtn: { marginTop: 16, alignItems: "center", paddingVertical: 10 },
-  skipText: { color: "#8A8A9A", fontSize: 14 },
 });
