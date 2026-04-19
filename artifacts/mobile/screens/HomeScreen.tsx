@@ -35,8 +35,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
 
-function getGreeting(t: (k: any) => string) {
-  const hour = new Date().getHours();
+function getGreeting(t: (k: any) => string, hour: number) {
   if (hour < 12) return t("good_morning");
   if (hour < 17) return t("good_afternoon");
   if (hour < 20) return t("good_evening");
@@ -92,6 +91,19 @@ export function HomeScreen() {
     { label: t("suggestion_home"), sub: t("suggestion_home_sub"), icon: "🏠" },
     { label: t("suggestion_airport"), sub: t("suggestion_airport_sub"), icon: "✈️" },
   ];
+  const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
+
+  useEffect(() => {
+    const now = new Date();
+    const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+    const timeout = setTimeout(() => {
+      setCurrentHour(new Date().getHours());
+      const interval = setInterval(() => setCurrentHour(new Date().getHours()), 60000);
+      return () => clearInterval(interval);
+    }, msUntilNextMinute);
+    return () => clearTimeout(timeout);
+  }, []);
+
   const [inputValue, setInputValue] = useState("");
   const [locating, setLocating] = useState(false);
 
@@ -296,7 +308,7 @@ export function HomeScreen() {
         <Animated.View entering={FadeInDown.delay(100).springify()}>
           <GlassCard style={styles.greetCard} padding={16}>
             <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
-              {getGreeting(t)}, {userName} 👋
+              {getGreeting(t, currentHour)}, {userName} 👋
             </Text>
             <Text style={[styles.greetTitle, { color: colors.foreground }]}>
               {t("where_going")}
