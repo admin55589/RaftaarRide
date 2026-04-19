@@ -8,7 +8,6 @@ import {
   Platform,
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
-import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp, MOCK_DRIVERS } from "@/context/AppContext";
@@ -96,7 +95,7 @@ export function BookingScreen() {
           onPress={() => setScreen("home")}
           style={[styles.back, { backgroundColor: colors.card, borderColor: colors.border }]}
         >
-          <Feather name="arrow-left" size={20} color={colors.foreground} />
+          <Text style={[styles.backArrow, { color: colors.foreground }]}>←</Text>
         </Pressable>
       </View>
 
@@ -187,11 +186,11 @@ export function BookingScreen() {
             </View>
 
             {surgeInfo.isActive && (
-              <View style={[styles.surgeBanner, { backgroundColor: "#f59e0b22", borderColor: "#f59e0b55" }]}>
+              <View style={[styles.surgeBanner, { backgroundColor: "rgba(245,158,11,0.13)", borderColor: "rgba(245,158,11,0.33)" }]}>
                 <Text style={{ fontSize: 14 }}>⚡</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.surgeTitle, { color: "#f59e0b" }]}>Surge Pricing — {surgeInfo.label}</Text>
-                  <Text style={[styles.surgeSubtitle, { color: "#f59e0b99" }]}>{surgeInfo.reason}</Text>
+                  <Text style={[styles.surgeSubtitle, { color: "rgba(245,158,11,0.6)" }]}>{surgeInfo.reason}</Text>
                 </View>
               </View>
             )}
@@ -199,14 +198,14 @@ export function BookingScreen() {
             <View style={[styles.priceSummary, { borderColor: colors.border }]}>
               <View style={styles.priceRow}>
                 <View style={styles.priceLabelRow}>
-                  <Feather name="tag" size={13} color={colors.mutedForeground} />
+                  <Text style={styles.priceIcon}>🏷️</Text>
                   <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>RaftaarRide Fare</Text>
                 </View>
                 <Text style={[styles.priceValue, { color: colors.primary }]}>₹{price}</Text>
               </View>
               <View style={styles.priceRow}>
                 <View style={styles.priceLabelRow}>
-                  <Feather name="trending-down" size={13} color="#22c55e" />
+                  <Text style={styles.priceIcon}>📉</Text>
                   <Text style={[styles.priceLabel, { color: "#22c55e" }]}>Sabse sasta</Text>
                 </View>
                 <Text style={[styles.priceValue, { color: "#22c55e" }]}>
@@ -215,14 +214,14 @@ export function BookingScreen() {
               </View>
               <View style={styles.priceRow}>
                 <View style={styles.priceLabelRow}>
-                  <Feather name="clock" size={13} color={colors.mutedForeground} />
+                  <Text style={styles.priceIcon}>🕐</Text>
                   <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Duration</Text>
                 </View>
                 <Text style={[styles.priceValue, { color: colors.foreground }]}>{duration} min</Text>
               </View>
               <View style={styles.priceRow}>
                 <View style={styles.priceLabelRow}>
-                  <Feather name="map-pin" size={13} color={colors.mutedForeground} />
+                  <Text style={styles.priceIcon}>📍</Text>
                   <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Distance</Text>
                 </View>
                 <Text style={[styles.priceValue, { color: colors.foreground }]}>~{distanceKm} km</Text>
@@ -412,6 +411,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+  },
+  priceIcon: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  backArrow: {
+    fontSize: 22,
+    lineHeight: 24,
+    fontWeight: "300",
   },
   priceLabel: {
     fontFamily: "Inter_400Regular",
