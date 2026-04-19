@@ -9,6 +9,8 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { UsersPage } from "@/pages/UsersPage";
 import { DriversPage } from "@/pages/DriversPage";
 import { RidesPage } from "@/pages/RidesPage";
+import { KYCPage } from "@/pages/KYCPage";
+import { WithdrawalsPage } from "@/pages/WithdrawalsPage";
 import NotFound from "@/pages/not-found";
 import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 
@@ -38,6 +40,8 @@ function AppLayout() {
           <Route path="/users" component={UsersPage} />
           <Route path="/drivers" component={DriversPage} />
           <Route path="/rides" component={RidesPage} />
+          <Route path="/kyc" component={KYCPage} />
+          <Route path="/withdrawals" component={WithdrawalsPage} />
           <Route component={NotFound} />
         </Switch>
       </main>

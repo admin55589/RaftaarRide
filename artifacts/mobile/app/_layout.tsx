@@ -19,6 +19,7 @@ import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { DriverAuthProvider, useDriverAuth } from "@/context/DriverAuthContext";
 import { NotificationProvider } from "@/context/NotificationContext";
+import { LanguageProvider } from "@/context/LanguageContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -112,18 +113,20 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
-              <AuthProvider>
-                <DriverAuthProvider>
-                  <AppProvider>
-                    <NotificationProvider>
-                      <HistorySyncer />
-                      <AuthGuard>
-                        <RootLayoutNav />
-                      </AuthGuard>
-                    </NotificationProvider>
-                  </AppProvider>
-                </DriverAuthProvider>
-              </AuthProvider>
+              <LanguageProvider>
+                <AuthProvider>
+                  <DriverAuthProvider>
+                    <AppProvider>
+                      <NotificationProvider>
+                        <HistorySyncer />
+                        <AuthGuard>
+                          <RootLayoutNav />
+                        </AuthGuard>
+                      </NotificationProvider>
+                    </AppProvider>
+                  </DriverAuthProvider>
+                </AuthProvider>
+              </LanguageProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

@@ -1,6 +1,12 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { usersTable, driversTable, ridesTable } from "@workspace/db/schema";
+import {
+  usersTable,
+  driversTable,
+  ridesTable,
+  driverKycTable,
+  withdrawalRequestsTable,
+} from "@workspace/db/schema";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 
@@ -281,6 +287,155 @@ router.patch("/admin/rides/:id/assign", authMiddleware, async (req: Request, res
     status: updated.status,
     createdAt: updated.createdAt.toISOString(),
   });
+});
+
+router.get("/admin/kyc", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const kycList = await db
+      .select({
+        id: driverKycTable.id,
+        driverId: driverKycTable.driverId,
+        driverName: driversTable.name,
+        driverPhone: driversTable.phone,
+        driverEmail: driversTable.email,
+        vehicleType: driversTable.vehicleType,
+        vehicleNumber: driversTable.vehicleNumber,
+        aadhaarFront: driverKycTable.aadhaarFront,
+        aadhaarBack: driverKycTable.aadhaarBack,
+        licenseFront: driverKycTable.licenseFront,
+        licenseBack: driverKycTable.licenseBack,
+        rcFront: driverKycTable.rcFront,
+        selfie: driverKycTable.selfie,
+        status: driverKycTable.status,
+        rejectionReason: driverKycTable.rejectionReason,
+        verifiedAt: driverKycTable.verifiedAt,
+        verifiedBy: driverKycTable.verifiedBy,
+        createdAt: driverKycTable.createdAt,
+      })
+      .from(driverKycTable)
+      .leftJoin(driversTable, eq(driverKycTable.driverId, driversTable.id))
+      .orderBy(desc(driverKycTable.createdAt));
+
+    res.json(kycList);
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+router.patch("/admin/kyc/:id/verify", authMiddleware, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const { action, rejectionReason } = req.body as { action: "approve" | "reject"; rejectionReason?: string };
+
+  if (!["approve", "reject"].includes(action)) {
+    res.status(400).json({ message: "Action 'approve' ya 'reject' hona chahiye" });
+    return;
+  }
+
+  try {
+    const [kyc] = await db.select().from(driverKycTable).where(eq(driverKycTable.id, id)).limit(1);
+    if (!kyc) { res.status(404).json({ message: "KYC record nahi mila" }); return; }
+
+    const newStatus = action === "approve" ? "verified" : "rejected";
+
+    const [updated] = await db.update(driverKycTable)
+      .set({
+        status: newStatus,
+        rejectionReason: action === "reject" ? (rejectionReason ?? "Documents valid nahi hain") : null,
+        verifiedAt: action === "approve" ? new Date() : null,
+        verifiedBy: "admin",
+      })
+      .where(eq(driverKycTable.id, id))
+      .returning();
+
+    await db.update(driversTable)
+      .set({
+        kycStatus: newStatus,
+        status: action === "approve" ? "active" : driversTable.status,
+      })
+      .where(eq(driversTable.id, kyc.driverId));
+
+    res.json({ success: true, kyc: updated, message: action === "approve" ? "KYC approve ho gaya!" : "KYC reject ho gaya" });
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+router.get("/admin/withdrawals", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const withdrawals = await db
+      .select({
+        id: withdrawalRequestsTable.id,
+        driverId: withdrawalRequestsTable.driverId,
+        driverName: driversTable.name,
+        driverPhone: driversTable.phone,
+        amount: withdrawalRequestsTable.amount,
+        method: withdrawalRequestsTable.method,
+        accountDetails: withdrawalRequestsTable.accountDetails,
+        status: withdrawalRequestsTable.status,
+        processedAt: withdrawalRequestsTable.processedAt,
+        processedBy: withdrawalRequestsTable.processedBy,
+        rejectionReason: withdrawalRequestsTable.rejectionReason,
+        transactionRef: withdrawalRequestsTable.transactionRef,
+        createdAt: withdrawalRequestsTable.createdAt,
+      })
+      .from(withdrawalRequestsTable)
+      .leftJoin(driversTable, eq(withdrawalRequestsTable.driverId, driversTable.id))
+      .orderBy(desc(withdrawalRequestsTable.createdAt));
+
+    res.json(withdrawals.map((w) => ({
+      ...w,
+      amount: Number(w.amount),
+    })));
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+router.patch("/admin/withdrawals/:id", authMiddleware, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const { action, transactionRef, rejectionReason } = req.body as {
+    action: "approve" | "reject";
+    transactionRef?: string;
+    rejectionReason?: string;
+  };
+
+  if (!["approve", "reject"].includes(action)) {
+    res.status(400).json({ message: "Action 'approve' ya 'reject' hona chahiye" });
+    return;
+  }
+
+  try {
+    const [wr] = await db.select().from(withdrawalRequestsTable)
+      .where(eq(withdrawalRequestsTable.id, id)).limit(1);
+    if (!wr) { res.status(404).json({ message: "Withdrawal request nahi mili" }); return; }
+
+    if (wr.status !== "pending") {
+      res.status(400).json({ message: "Yeh request already process ho chuki hai" });
+      return;
+    }
+
+    const [updated] = await db.update(withdrawalRequestsTable)
+      .set({
+        status: action === "approve" ? "approved" : "rejected",
+        processedAt: new Date(),
+        processedBy: "admin",
+        transactionRef: action === "approve" ? (transactionRef ?? `TXN${Date.now()}`) : null,
+        rejectionReason: action === "reject" ? (rejectionReason ?? "Admin ne reject kiya") : null,
+      })
+      .where(eq(withdrawalRequestsTable.id, id))
+      .returning();
+
+    if (action === "reject") {
+      const [driver] = await db.select({ walletBalance: driversTable.walletBalance })
+        .from(driversTable).where(eq(driversTable.id, wr.driverId)).limit(1);
+      if (driver) {
+        const refundBalance = Number(driver.walletBalance) + Number(wr.amount);
+        await db.update(driversTable)
+          .set({ walletBalance: String(refundBalance) })
+          .where(eq(driversTable.id, wr.driverId));
+      }
+    }
+
+    res.json({
+      success: true,
+      withdrawal: { ...updated, amount: Number(updated.amount) },
+      message: action === "approve" ? "Withdrawal approve — payment process ho rahi hai" : "Withdrawal reject — amount refund ho gaya",
+    });
+  } catch { res.status(500).json({ message: "Server error" }); }
 });
 
 export default router;

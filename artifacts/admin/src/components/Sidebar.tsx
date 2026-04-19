@@ -6,6 +6,8 @@ import {
   MapPin,
   LogOut,
   Zap,
+  FileCheck,
+  Wallet,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
@@ -15,6 +17,8 @@ const nav = [
   { label: "Users", href: "/users", icon: Users },
   { label: "Drivers", href: "/drivers", icon: Car },
   { label: "Rides", href: "/rides", icon: MapPin },
+  { label: "KYC Verification", href: "/kyc", icon: FileCheck },
+  { label: "Withdrawals", href: "/withdrawals", icon: Wallet },
 ];
 
 interface SidebarProps {

@@ -32,6 +32,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { useDriverAuth } from "@/context/DriverAuthContext";
 import { useNotification } from "@/context/NotificationContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { MapView } from "@/components/MapView";
@@ -222,6 +223,7 @@ export function DriverModeScreen() {
   const { setScreen, driverEarnings, setDriverEarnings } = useApp();
   const { driver, isDriverLoggedIn, driverLogout, driverToken, updateDriver } = useDriverAuth();
   const { showNotification } = useNotification();
+  const { lang, toggleLanguage } = useLanguage();
   const [isOnline, setIsOnline] = useState(true);
   const [requests, setRequests] = useState(MOCK_REQUESTS);
   const ridesCompleted = driver ? driver.totalRides : 7;
@@ -376,10 +378,19 @@ export function DriverModeScreen() {
             </Text>
           </Pressable>
 
+          <Pressable
+            onPress={toggleLanguage}
+            style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <Text style={{ fontSize: 13, color: colors.foreground, fontWeight: "700" }}>
+              {lang === "hi" ? "EN" : "हि"}
+            </Text>
+          </Pressable>
+
           <GlassCard style={styles.onlineToggle} padding={10}>
             <Animated.View style={[styles.onlineDot, { backgroundColor: isOnline ? colors.success : colors.destructive }, isOnline ? dotStyle : {}]} />
             <Text style={[styles.onlineLabel, { color: colors.foreground }]}>
-              {isOnline ? "Online" : "Offline"}
+              {isOnline ? (lang === "hi" ? "Online" : "Online") : (lang === "hi" ? "Offline" : "Offline")}
             </Text>
             <Pressable
               onPress={() => { setIsOnline(!isOnline); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}

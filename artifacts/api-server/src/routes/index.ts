@@ -6,6 +6,9 @@ import driverAuthRouter from "./driver-auth";
 import paymentRouter from "./payment";
 import ridesRouter from "./rides";
 import usersRouter from "./users";
+import walletRouter from "./wallet";
+import kycRouter from "./kyc";
+import scheduledRouter from "./scheduled";
 
 const router: IRouter = Router();
 
@@ -16,5 +19,8 @@ router.use(adminRouter);
 router.use(paymentRouter);
 router.use(ridesRouter);
 router.use(usersRouter);
+router.use(walletRouter);
+router.use(kycRouter);
+router.use(scheduledRouter);
 
 export default router;

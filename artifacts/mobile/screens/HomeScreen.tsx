@@ -30,6 +30,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
 
@@ -87,6 +88,7 @@ export function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { setScreen, setDestination, currentLocationAddress, setCurrentLocationAddress, setPickup } = useApp();
   const { user, token, logout, updateUser } = useAuth();
+  const { lang, toggleLanguage } = useLanguage();
   const userName = user?.name ?? "Aarav";
   const [inputValue, setInputValue] = useState("");
   const [locating, setLocating] = useState(false);
@@ -251,6 +253,14 @@ export function HomeScreen() {
             hitSlop={8}
           >
             <Text style={styles.iconBtnEmoji}>✏️</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={toggleLanguage}
+            style={[styles.iconBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
+            hitSlop={8}
+          >
+            <Text style={styles.iconBtnEmoji}>{lang === "hi" ? "EN" : "हि"}</Text>
           </Pressable>
 
           <Pressable
