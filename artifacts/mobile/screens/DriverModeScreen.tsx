@@ -38,6 +38,17 @@ const MOCK_REQUESTS = [
   { id: "2", from: "Lajpat Nagar", to: "Hauz Khas", distance: "5 km", price: 120, eta: 2 },
 ];
 
+function getVehicleIcon(vehicleType?: string): string {
+  switch ((vehicleType ?? "").toLowerCase()) {
+    case "bike":    return "🏍️";
+    case "auto":    return "🛺";
+    case "suv":     return "🚙";
+    case "prime":
+    case "car":     return "🚗";
+    default:        return "🚗";
+  }
+}
+
 function EarningsCounter({ value }: { value: number }) {
   const colors = useColors();
   const displayVal = useSharedValue(0);
@@ -118,10 +129,12 @@ function CircleTimer({ countdown, total = 20 }: { countdown: number; total?: num
 
 function RideRequest({
   request,
+  vehicleType,
   onAccept,
   onReject,
 }: {
   request: typeof MOCK_REQUESTS[0];
+  vehicleType?: string;
   onAccept: () => void;
   onReject: () => void;
 }) {
@@ -148,7 +161,7 @@ function RideRequest({
       <GlassCard style={styles.requestCard} padding={16}>
         <View style={styles.requestHeader}>
           <View style={[styles.requestBadge, { backgroundColor: "rgba(245,166,35,0.13)", borderColor: colors.primary }]}>
-            <Text style={{ fontSize: 14 }}>🚗</Text>
+            <Text style={{ fontSize: 14 }}>{getVehicleIcon(vehicleType)}</Text>
             <Text style={[styles.requestBadgeText, { color: colors.primary }]}>New Ride</Text>
           </View>
           <CircleTimer countdown={countdown} />
@@ -365,7 +378,7 @@ export function DriverModeScreen() {
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.stat}>
-              <Text style={styles.statIcon}>🚗</Text>
+              <Text style={styles.statIcon}>{getVehicleIcon(driver?.vehicleType)}</Text>
               <Text style={[styles.statValue, { color: colors.foreground }]}>{ridesCompleted}</Text>
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Rides</Text>
             </View>
@@ -386,6 +399,7 @@ export function DriverModeScreen() {
                 <RideRequest
                   key={r.id}
                   request={r}
+                  vehicleType={driver?.vehicleType}
                   onAccept={() => handleAccept(r.id)}
                   onReject={() => handleReject(r.id)}
                 />
