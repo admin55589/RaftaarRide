@@ -106,8 +106,12 @@ export function BookingScreen() {
 
           <Animated.View entering={FadeInDown.springify()} style={styles.routeCard}>
             <View style={styles.routeRow}>
-              <View style={[styles.routeIconBox, { backgroundColor: colors.primary + "22" }]}>
-                <Feather name="navigation" size={14} color={colors.primary} />
+              <View style={styles.routeIconCol}>
+                <View style={[styles.routeIconBox, { backgroundColor: "rgba(245,166,35,0.2)" }]}>
+                  <View style={[styles.routeCircleOuter, { borderColor: colors.primary }]}>
+                    <View style={[styles.routeCircleInner, { backgroundColor: colors.primary }]} />
+                  </View>
+                </View>
               </View>
               <View style={styles.routeInfo}>
                 <Text style={[styles.routeLabel, { color: colors.mutedForeground }]}>PICKUP</Text>
@@ -120,8 +124,11 @@ export function BookingScreen() {
               <View style={[styles.routeLine, { backgroundColor: colors.border }]} />
             </View>
             <View style={styles.routeRow}>
-              <View style={[styles.routeIconBox, { backgroundColor: "#22c55e22" }]}>
-                <Feather name="map-pin" size={14} color="#22c55e" />
+              <View style={styles.routeIconCol}>
+                <View style={[styles.routeIconBox, { backgroundColor: "rgba(34,197,94,0.2)" }]}>
+                  <View style={[styles.routeSquare, { backgroundColor: "#22c55e", borderRadius: 3 }]} />
+                  <View style={[styles.routePinTail, { backgroundColor: "#22c55e" }]} />
+                </View>
               </View>
               <View style={styles.routeInfo}>
                 <Text style={[styles.routeLabel, { color: colors.mutedForeground }]}>DESTINATION</Text>
@@ -130,7 +137,11 @@ export function BookingScreen() {
                 </Text>
               </View>
               <Pressable onPress={() => setScreen("home")} style={styles.editBtn}>
-                <Feather name="edit-2" size={14} color={colors.mutedForeground} />
+                <View style={[styles.editIconBox, { borderColor: colors.border, backgroundColor: colors.secondary }]}>
+                  <View style={[styles.editLine, { backgroundColor: colors.mutedForeground }]} />
+                  <View style={[styles.editLine, { backgroundColor: colors.mutedForeground, width: 10 }]} />
+                  <View style={[styles.editLine, { backgroundColor: colors.mutedForeground, width: 8 }]} />
+                </View>
               </Pressable>
             </View>
           </Animated.View>
@@ -283,12 +294,39 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 6,
   },
+  routeIconCol: {
+    width: 32,
+    alignItems: "center",
+  },
   routeIconBox: {
     width: 32,
     height: 32,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
+  },
+  routeCircleOuter: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  routeCircleInner: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  routeSquare: {
+    width: 10,
+    height: 10,
+    marginBottom: 1,
+  },
+  routePinTail: {
+    width: 2,
+    height: 4,
+    borderRadius: 1,
   },
   routeLineContainer: {
     paddingLeft: 15,
@@ -299,10 +337,22 @@ const styles = StyleSheet.create({
     height: 14,
   },
   editBtn: {
-    width: 32,
-    height: 32,
+    marginLeft: 4,
+  },
+  editIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+    gap: 2,
+    paddingVertical: 6,
+  },
+  editLine: {
+    width: 12,
+    height: 1.5,
+    borderRadius: 1,
   },
   routeInfo: {
     flex: 1,
