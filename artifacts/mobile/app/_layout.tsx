@@ -18,6 +18,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { DriverAuthProvider, useDriverAuth } from "@/context/DriverAuthContext";
+import { NotificationProvider } from "@/context/NotificationContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -114,10 +115,12 @@ export default function RootLayout() {
               <AuthProvider>
                 <DriverAuthProvider>
                   <AppProvider>
-                    <HistorySyncer />
-                    <AuthGuard>
-                      <RootLayoutNav />
-                    </AuthGuard>
+                    <NotificationProvider>
+                      <HistorySyncer />
+                      <AuthGuard>
+                        <RootLayoutNav />
+                      </AuthGuard>
+                    </NotificationProvider>
                   </AppProvider>
                 </DriverAuthProvider>
               </AuthProvider>

@@ -31,6 +31,7 @@ import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { useDriverAuth } from "@/context/DriverAuthContext";
+import { useNotification } from "@/context/NotificationContext";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { MapView } from "@/components/MapView";
@@ -220,6 +221,7 @@ export function DriverModeScreen() {
   const insets = useSafeAreaInsets();
   const { setScreen, driverEarnings, setDriverEarnings } = useApp();
   const { driver, isDriverLoggedIn, driverLogout, driverToken, updateDriver } = useDriverAuth();
+  const { showNotification } = useNotification();
   const [isOnline, setIsOnline] = useState(true);
   const [requests, setRequests] = useState(MOCK_REQUESTS);
   const ridesCompleted = driver ? driver.totalRides : 7;
@@ -285,6 +287,37 @@ export function DriverModeScreen() {
     finally { setSavingProfile(false); }
   };
 
+  const prevRequestCount = React.useRef(requests.length);
+  useEffect(() => {
+    if (!isOnline) return;
+    if (requests.length > prevRequestCount.current) {
+      const newReq = requests[requests.length - 1];
+      showNotification({
+        title: `Naya Ride Request! ${getVehicleIcon(driver?.vehicleType)}`,
+        body: `${newReq.from} → ${newReq.to} • ₹${newReq.price}`,
+        type: "ride",
+        icon: getVehicleIcon(driver?.vehicleType),
+        duration: 5000,
+      });
+    }
+    prevRequestCount.current = requests.length;
+  }, [requests, isOnline]);
+
+  useEffect(() => {
+    if (isOnline && requests.length > 0) {
+      const timer = setTimeout(() => {
+        showNotification({
+          title: `${requests.length} Ride Request${requests.length > 1 ? "s" : ""} Waiting! 🔔`,
+          body: "Aap online hain — requests check karo",
+          type: "warning",
+          icon: "🔔",
+          duration: 4500,
+        });
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isOnline]);
+
   const dotScale = useSharedValue(1);
   useEffect(() => {
     dotScale.value = withRepeat(
@@ -295,13 +328,28 @@ export function DriverModeScreen() {
   const dotStyle = useAnimatedStyle(() => ({ transform: [{ scale: dotScale.value }] }));
 
   const handleAccept = (id: string) => {
+    const req = requests.find((r) => r.id === id);
     setRequests((rs) => rs.filter((r) => r.id !== id));
-    const price = requests.find((r) => r.id === id)?.price ?? 0;
+    const price = req?.price ?? 0;
     setDriverEarnings((e) => e + price);
+    showNotification({
+      title: "Ride Accept Ho Gayi! ✅",
+      body: `${req?.from ?? ""} → ${req?.to ?? ""} • ₹${price} milenge`,
+      type: "success",
+      icon: "✅",
+      duration: 4000,
+    });
   };
 
   const handleReject = (id: string) => {
     setRequests((rs) => rs.filter((r) => r.id !== id));
+    showNotification({
+      title: "Request Reject Ki",
+      body: "Agli request ka intezaar karo",
+      type: "warning",
+      icon: "⏭️",
+      duration: 3000,
+    });
   };
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;

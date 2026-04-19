@@ -18,6 +18,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { useVoiceAI } from "@/hooks/useVoiceAI";
 import { ridesApi, type DriverInfo } from "@/lib/ridesApi";
 import { connectSocket, joinRideRoom, getSocket, disconnectSocket } from "@/lib/socket";
+import { useNotification } from "@/context/NotificationContext";
 
 const MESSAGES = [
   "Finding nearby drivers...",
@@ -61,6 +62,7 @@ export function SearchingScreen() {
   const [msgIndex, setMsgIndex] = React.useState(0);
   const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
   const { announceSearching } = useVoiceAI();
+  const { showNotification } = useNotification();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -84,12 +86,21 @@ export function SearchingScreen() {
       clearInterval(timerRef.current!);
       clearInterval(msgTimer);
       const mockDriver = MOCK_DRIVERS.find((d) => d.vehicleType === selectedVehicle) ?? MOCK_DRIVERS[2];
+      const driverName = driver?.name ?? mockDriver.name;
+      const eta = driver?.eta ?? mockDriver.eta;
       setAssignedDriver({
         ...mockDriver,
-        name: driver?.name ?? mockDriver.name,
+        name: driverName,
         vehicleNumber: driver?.vehicleNumber ?? mockDriver.vehicleNumber,
         rating: driver ? (typeof driver.rating === "number" ? driver.rating : parseFloat(String(driver.rating)) || mockDriver.rating) : mockDriver.rating,
-        eta: driver?.eta ?? mockDriver.eta,
+        eta,
+      });
+      showNotification({
+        title: "Driver Mil Gaya! 🎉",
+        body: `${driverName} ${eta} min mein aapke paas pahunchega`,
+        type: "success",
+        icon: "🚗",
+        duration: 5000,
       });
       setScreen("driver_assigned");
     }
@@ -100,6 +111,13 @@ export function SearchingScreen() {
       if (pollRef.current) clearInterval(pollRef.current);
       clearInterval(timerRef.current!);
       clearInterval(msgTimer);
+      showNotification({
+        title: "Ride Cancel Ho Gayi",
+        body: "Dobara try karo — drivers available hain",
+        type: "error",
+        icon: "❌",
+        duration: 4000,
+      });
       setScreen("home");
     }
 

@@ -17,6 +17,7 @@ import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { connectSocket, joinRideRoom, getSocket } from "@/lib/socket";
+import { useNotification } from "@/context/NotificationContext";
 
 const STAGES = ["Pickup", "On Ride", "Arriving"];
 
@@ -70,6 +71,7 @@ export function LiveTrackingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { assignedDriver, setScreen, addRideToHistory, destination, pickup, selectedVehicle, rideMode, estimatedPrice, currentRideId } = useApp();
+  const { showNotification } = useNotification();
   const [stage, setStage] = useState(0);
   const [progress, setProgress] = useState(0);
   const [timeLeft, setTimeLeft] = useState(12);
@@ -98,14 +100,35 @@ export function LiveTrackingScreen() {
         if (next >= 0.35 && stage === 0) {
           setStage(1);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          showNotification({
+            title: "Driver Aa Gaya! 📍",
+            body: "Aapka driver pickup point pe hai — bahar aao!",
+            type: "ride",
+            icon: "📍",
+            duration: 5000,
+          });
         }
         if (next >= 0.7 && stage <= 1) {
           setStage(2);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          showNotification({
+            title: "Ride Shuru Ho Gayi! 🚀",
+            body: "Manzil ki taraf chal padhe — safe journey!",
+            type: "info",
+            icon: "🚀",
+            duration: 4000,
+          });
         }
         if (next >= 1) {
           clearInterval(tick);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          showNotification({
+            title: "Safar Complete! 🎉",
+            body: "Apni manzil pe pahunch gaye — enjoy karo!",
+            type: "success",
+            icon: "🎉",
+            duration: 4000,
+          });
           setTimeout(() => setScreen("payment"), 800);
           return 1;
         }
