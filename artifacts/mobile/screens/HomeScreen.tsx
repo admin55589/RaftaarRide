@@ -35,18 +35,12 @@ import { useTheme } from "@/context/ThemeContext";
 import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
 
-const SUGGESTIONS = [
-  { label: "Office", sub: "Connaught Place", icon: "💼" },
-  { label: "Home", sub: "Sector 62, Noida", icon: "🏠" },
-  { label: "Airport", sub: "T3, IGI Airport", icon: "✈️" },
-];
-
-function getGreeting() {
+function getGreeting(t: (k: any) => string) {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good Morning 🌅";
-  if (hour < 17) return "Good Afternoon ☀️";
-  if (hour < 20) return "Good Evening 🌆";
-  return "Good Night 🌙";
+  if (hour < 12) return t("good_morning");
+  if (hour < 17) return t("good_afternoon");
+  if (hour < 20) return t("good_evening");
+  return t("good_night");
 }
 
 function SuggestionChip({
@@ -89,9 +83,15 @@ export function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { setScreen, setDestination, currentLocationAddress, setCurrentLocationAddress, setPickup } = useApp();
   const { user, token, logout, updateUser } = useAuth();
-  const { lang, toggleLanguage } = useLanguage();
+  const { lang, toggleLanguage, t } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
   const userName = user?.name ?? "Aarav";
+
+  const SUGGESTIONS = [
+    { label: t("suggestion_office"), sub: t("suggestion_office_sub"), icon: "💼" },
+    { label: t("suggestion_home"), sub: t("suggestion_home_sub"), icon: "🏠" },
+    { label: t("suggestion_airport"), sub: t("suggestion_airport_sub"), icon: "✈️" },
+  ];
   const [inputValue, setInputValue] = useState("");
   const [locating, setLocating] = useState(false);
 
@@ -296,10 +296,10 @@ export function HomeScreen() {
         <Animated.View entering={FadeInDown.delay(100).springify()}>
           <GlassCard style={styles.greetCard} padding={16}>
             <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
-              {getGreeting()}, {userName} 👋
+              {getGreeting(t)}, {userName} 👋
             </Text>
             <Text style={[styles.greetTitle, { color: colors.foreground }]}>
-              Where are you heading?
+              {t("where_going")}
             </Text>
           </GlassCard>
         </Animated.View>
@@ -312,7 +312,7 @@ export function HomeScreen() {
               <View style={styles.modalHeader}>
                 <View style={styles.modalTitleRow}>
                   <Text style={{ fontSize: 22 }}>👤</Text>
-                  <Text style={[styles.modalTitle, { color: colors.foreground }]}>Profile Update</Text>
+                  <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("profile_update")}</Text>
                 </View>
                 <Pressable onPress={() => { setShowProfileEdit(false); setProfileError(""); }} style={styles.closeBtn}>
                   <Text style={[styles.closeEmoji, { color: colors.mutedForeground }]}>✕</Text>
@@ -338,7 +338,7 @@ export function HomeScreen() {
                 </Pressable>
                 {editPhoto && (
                   <Pressable onPress={() => setEditPhoto(null)} style={styles.removePhotoBtn}>
-                    <Text style={[{ fontSize: 11, color: colors.destructive, fontFamily: "Inter_500Medium" }]}>Remove</Text>
+                    <Text style={[{ fontSize: 11, color: colors.destructive, fontFamily: "Inter_500Medium" }]}>{t("remove")}</Text>
                   </Pressable>
                 )}
               </View>
@@ -346,15 +346,15 @@ export function HomeScreen() {
                 📱 {user?.phone ?? "—"}
               </Text>
 
-              <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>Naam</Text>
+              <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>{t("name_label")}</Text>
               <TextInput
                 style={[styles.modalInput, { backgroundColor: colors.secondary, color: colors.foreground, borderColor: colors.border }]}
                 value={editName}
                 onChangeText={setEditName}
-                placeholder="Apna naam likho"
+                placeholder={t("name_placeholder")}
                 placeholderTextColor={colors.mutedForeground}
               />
-              <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>Email (optional)</Text>
+              <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>{t("email_optional")}</Text>
               <TextInput
                 style={[styles.modalInput, { backgroundColor: colors.secondary, color: colors.foreground, borderColor: colors.border }]}
                 value={editEmail}
@@ -378,12 +378,12 @@ export function HomeScreen() {
                 {savingProfile ? (
                   <ActivityIndicator color="#000" size="small" />
                 ) : (
-                  <Text style={styles.modalSaveBtnText}>✅ Save Karo</Text>
+                  <Text style={styles.modalSaveBtnText}>✅ {t("save")}</Text>
                 )}
               </Pressable>
               <Pressable onPress={logout} style={styles.logoutBtn}>
                 <Text style={{ fontSize: 14 }}>🚪</Text>
-                <Text style={[styles.logoutText, { color: colors.destructive }]}>Logout</Text>
+                <Text style={[styles.logoutText, { color: colors.destructive }]}>{t("logout")}</Text>
               </Pressable>
             </View>
           </View>
@@ -397,19 +397,19 @@ export function HomeScreen() {
               <View style={styles.modalHeader}>
                 <View style={styles.modalTitleRow}>
                   <Text style={{ fontSize: 20 }}>📍</Text>
-                  <Text style={[styles.modalTitle, { color: colors.foreground }]}>Pickup Location</Text>
+                  <Text style={[styles.modalTitle, { color: colors.foreground }]}>{t("pickup_location")}</Text>
                 </View>
                 <Pressable onPress={() => setShowPickupEdit(false)} style={styles.closeBtn}>
                   <Text style={[styles.closeEmoji, { color: colors.mutedForeground }]}>✕</Text>
                 </Pressable>
               </View>
 
-              <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>Apna pickup address type karo</Text>
+              <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>{t("enter_address")}</Text>
               <TextInput
                 style={[styles.modalInput, styles.pickupInput, { backgroundColor: colors.secondary, color: colors.foreground, borderColor: colors.border }]}
                 value={editPickup}
                 onChangeText={setEditPickup}
-                placeholder="e.g. Connaught Place, New Delhi"
+                placeholder={t("pickup_placeholder")}
                 placeholderTextColor={colors.mutedForeground}
                 multiline
                 numberOfLines={2}
@@ -426,7 +426,7 @@ export function HomeScreen() {
                 ) : (
                   <>
                     <Text style={{ fontSize: 16 }}>📡</Text>
-                    <Text style={[styles.gpsBtnText, { color: colors.foreground }]}>GPS se current location use karo</Text>
+                    <Text style={[styles.gpsBtnText, { color: colors.foreground }]}>{t("gps_label")}</Text>
                   </>
                 )}
               </Pressable>
@@ -435,7 +435,7 @@ export function HomeScreen() {
                 onPress={handleSavePickup}
                 style={[styles.modalSaveBtn, { backgroundColor: colors.primary }]}
               >
-                <Text style={styles.modalSaveBtnText}>📍 Set Pickup</Text>
+                <Text style={styles.modalSaveBtnText}>{t("set_pickup")}</Text>
               </Pressable>
             </View>
           </View>
@@ -448,7 +448,7 @@ export function HomeScreen() {
             <View style={[styles.searchBar, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
               <Text style={styles.searchEmoji}>🔍</Text>
               <TextInput
-                placeholder="Search destination..."
+                placeholder={t("search_dest")}
                 placeholderTextColor={colors.mutedForeground}
                 value={inputValue}
                 onChangeText={setInputValue}
@@ -472,7 +472,7 @@ export function HomeScreen() {
             contentContainerStyle={styles.suggestionsContent}
           >
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-              Quick Select
+              {t("quick_select").toUpperCase()}
             </Text>
             {SUGGESTIONS.map((s) => (
               <SuggestionChip
@@ -483,9 +483,9 @@ export function HomeScreen() {
             ))}
 
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 16 }]}>
-              Recent Rides
+              {t("recent_rides").toUpperCase()}
             </Text>
-            {["DLF Cyber Hub", "Lajpat Nagar Market", "Hauz Khas Village"].map((place) => (
+            {[t("recent_dlf"), t("recent_lajpat"), t("recent_hauz")].map((place) => (
               <Pressable
                 key={place}
                 onPress={() => handleDestinationSelect(place)}

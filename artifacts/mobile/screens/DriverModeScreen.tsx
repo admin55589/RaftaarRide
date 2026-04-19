@@ -224,7 +224,7 @@ export function DriverModeScreen() {
   const { setScreen, driverEarnings, setDriverEarnings } = useApp();
   const { driver, isDriverLoggedIn, driverLogout, driverToken, updateDriver } = useDriverAuth();
   const { showNotification } = useNotification();
-  const { lang, toggleLanguage } = useLanguage();
+  const { lang, toggleLanguage, t } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
   const [isOnline, setIsOnline] = useState(true);
   const [requests, setRequests] = useState(MOCK_REQUESTS);
@@ -399,14 +399,14 @@ export function DriverModeScreen() {
           <GlassCard style={styles.onlineToggle} padding={10}>
             <Animated.View style={[styles.onlineDot, { backgroundColor: isOnline ? colors.success : colors.destructive }, isOnline ? dotStyle : {}]} />
             <Text style={[styles.onlineLabel, { color: colors.foreground }]}>
-              {isOnline ? (lang === "hi" ? "Online" : "Online") : (lang === "hi" ? "Offline" : "Offline")}
+              {isOnline ? t("online") : t("offline")}
             </Text>
             <Pressable
               onPress={() => { setIsOnline(!isOnline); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
               style={[styles.toggleBtn, { backgroundColor: isOnline ? colors.success + "22" : colors.secondary, borderColor: isOnline ? colors.success : colors.border }]}
             >
               <Text style={[styles.toggleBtnText, { color: isOnline ? colors.success : colors.mutedForeground }]}>
-                {isOnline ? "Go Offline" : "Go Online"}
+                {isOnline ? t("go_offline_btn") : t("go_online_btn")}
               </Text>
             </Pressable>
           </GlassCard>
