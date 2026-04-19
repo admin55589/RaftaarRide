@@ -16,6 +16,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
+import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
@@ -40,6 +41,70 @@ function EarningsCounter({ value }: { value: number }) {
     <Text style={[styles.earningsValue, { color: colors.primary }]}>
       ₹{value.toLocaleString()}
     </Text>
+  );
+}
+
+const TIMER_SIZE = 64;
+const TIMER_RADIUS = 26;
+const CIRCUMFERENCE = 2 * Math.PI * TIMER_RADIUS;
+
+function CircleTimer({ countdown, total = 20 }: { countdown: number; total?: number }) {
+  const progress = countdown / total;
+  const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
+  const progressColor = countdown > 10 ? "#22c55e" : countdown > 5 ? "#F5A623" : "#ef4444";
+  const bgColor = countdown > 10 ? "rgba(34,197,94,0.08)" : countdown > 5 ? "rgba(245,166,35,0.08)" : "rgba(239,68,68,0.08)";
+
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    if (countdown <= 5 && countdown > 0) {
+      pulse.value = withRepeat(
+        withSequence(withTiming(1.12, { duration: 280 }), withTiming(1, { duration: 280 })),
+        -1, false
+      );
+    } else {
+      pulse.value = withTiming(1, { duration: 200 });
+    }
+  }, [countdown <= 5]);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulse.value }],
+  }));
+
+  const cx = TIMER_SIZE / 2;
+  const cy = TIMER_SIZE / 2;
+
+  return (
+    <Animated.View style={[{ width: TIMER_SIZE, height: TIMER_SIZE, alignItems: "center", justifyContent: "center" }, pulseStyle]}>
+      <Svg width={TIMER_SIZE} height={TIMER_SIZE} style={{ position: "absolute" }}>
+        <Defs>
+          <SvgGradient id="timerGrad" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={progressColor} stopOpacity="1" />
+            <Stop offset="1" stopColor={progressColor} stopOpacity="0.7" />
+          </SvgGradient>
+        </Defs>
+        <Circle
+          cx={cx} cy={cy} r={TIMER_RADIUS}
+          stroke="rgba(255,255,255,0.08)"
+          strokeWidth={5}
+          fill={bgColor}
+        />
+        <Circle
+          cx={cx} cy={cy} r={TIMER_RADIUS}
+          stroke="url(#timerGrad)"
+          strokeWidth={5}
+          fill="none"
+          strokeDasharray={`${CIRCUMFERENCE} ${CIRCUMFERENCE}`}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          rotation={-90}
+          origin={`${cx}, ${cy}`}
+        />
+      </Svg>
+      <View style={{ alignItems: "center" }}>
+        <Text style={{ color: progressColor, fontWeight: "800", fontSize: 16, lineHeight: 19 }}>{countdown}</Text>
+        <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 9, lineHeight: 11, marginTop: 1 }}>sec</Text>
+      </View>
+    </Animated.View>
   );
 }
 
@@ -70,9 +135,6 @@ function RideRequest({
     }
   }, [countdown]);
 
-  const progress = countdown / 20;
-  const progressColor = countdown > 10 ? colors.success : countdown > 5 ? colors.primary : colors.destructive;
-
   return (
     <Animated.View entering={FadeInDown.springify()}>
       <GlassCard style={styles.requestCard} padding={16}>
@@ -81,13 +143,7 @@ function RideRequest({
             <Text style={{ fontSize: 14 }}>🚗</Text>
             <Text style={[styles.requestBadgeText, { color: colors.primary }]}>New Ride</Text>
           </View>
-          <View style={styles.countdown}>
-            <Text style={[styles.countdownText, { color: progressColor }]}>{countdown}s</Text>
-          </View>
-        </View>
-
-        <View style={[styles.progressBg, { backgroundColor: colors.secondary }]}>
-          <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: progressColor }]} />
+          <CircleTimer countdown={countdown} />
         </View>
 
         <View style={styles.routeInfo}>
@@ -368,24 +424,6 @@ const styles = StyleSheet.create({
   requestBadgeText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 12,
-  },
-  countdown: {
-    minWidth: 32,
-    alignItems: "center",
-  },
-  countdownText: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 16,
-  },
-  progressBg: {
-    height: 4,
-    borderRadius: 2,
-    overflow: "hidden",
-    marginBottom: 12,
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: 2,
   },
   routeInfo: {
     gap: 0,
