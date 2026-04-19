@@ -96,31 +96,31 @@ export function WalletScreen() {
   const validatePaymentDetails = () => {
     if (selectedMethod === "upi" || selectedMethod === "paytm") {
       if (!upiId.includes("@")) {
-        showNotification({ title: lang === "hi" ? "UPI ID galat hai" : "Invalid UPI ID", body: "example@upi format mein daalen", type: "error", icon: "❌" });
+        showNotification({ title: t("upi_invalid"), body: "example@upi format mein daalen", type: "error", icon: "❌" });
         return false;
       }
     }
     if (selectedMethod === "card") {
       if (cardNumber.replace(/\s/g, "").length < 16) {
-        showNotification({ title: lang === "hi" ? "Card number galat" : "Invalid card number", body: "16-digit card number daalen", type: "error", icon: "❌" });
+        showNotification({ title: t("card_invalid"), body: "16-digit card number daalen", type: "error", icon: "❌" });
         return false;
       }
       if (!cardExpiry.includes("/")) {
-        showNotification({ title: lang === "hi" ? "Expiry galat" : "Invalid expiry", body: "MM/YY format mein daalen", type: "error", icon: "❌" });
+        showNotification({ title: t("expiry_invalid"), body: "MM/YY format mein daalen", type: "error", icon: "❌" });
         return false;
       }
       if (cardCvv.length < 3) {
-        showNotification({ title: lang === "hi" ? "CVV galat" : "Invalid CVV", body: "3-digit CVV daalen", type: "error", icon: "❌" });
+        showNotification({ title: t("cvv_invalid"), body: "3-digit CVV daalen", type: "error", icon: "❌" });
         return false;
       }
     }
     if (selectedMethod === "netbanking") {
       if (bankAccount.length < 8) {
-        showNotification({ title: lang === "hi" ? "Account number galat" : "Invalid account number", body: "Account number daalen", type: "error", icon: "❌" });
+        showNotification({ title: t("account_invalid"), body: "Account number daalen", type: "error", icon: "❌" });
         return false;
       }
       if (bankIfsc.length < 11) {
-        showNotification({ title: lang === "hi" ? "IFSC code galat" : "Invalid IFSC", body: "11-character IFSC daalen", type: "error", icon: "❌" });
+        showNotification({ title: t("ifsc_code"), body: "11-character IFSC daalen", type: "error", icon: "❌" });
         return false;
       }
     }
@@ -130,7 +130,7 @@ export function WalletScreen() {
   const handlePayNow = async () => {
     const amt = Number(topupAmount);
     if (!amt || amt < 10 || amt > 50000) {
-      showNotification({ title: "Invalid Amount", body: "₹10 se ₹50,000 ke beech amount daalen", type: "error", icon: "❌" });
+      showNotification({ title: t("upi_invalid"), body: "₹10 se ₹50,000 ke beech amount daalen", type: "error", icon: "❌" });
       return;
     }
     if (!validatePaymentDetails()) return;
@@ -162,7 +162,7 @@ export function WalletScreen() {
           setUpiId(""); setCardNumber(""); setCardExpiry(""); setCardCvv(""); setBankAccount(""); setBankIfsc("");
         }, 1800);
 
-        showNotification({ title: "₹" + amt + " Add Ho Gaye! 🎉", body: lang === "hi" ? "Aapka wallet top-up successful!" : "Wallet top-up successful!", type: "success", icon: "💰" });
+        showNotification({ title: "₹" + amt + " Add Ho Gaye! 🎉", body: t("topup_success"), type: "success", icon: "💰" });
       } else {
         setPayStep("idle");
         setShowPayModal(false);
@@ -219,7 +219,7 @@ export function WalletScreen() {
     if (selectedMethod === "upi" || selectedMethod === "paytm") {
       return (
         <>
-          <Text style={s.label}>{lang === "hi" ? "UPI ID daalen:" : "Enter UPI ID:"}</Text>
+          <Text style={s.label}>{t("enter_upi_label")}</Text>
           <TextInput
             style={[s.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
             placeholder={selectedMethod === "paytm" ? "9876543210@paytm" : "name@upi"}
@@ -235,26 +235,26 @@ export function WalletScreen() {
     if (selectedMethod === "card") {
       return (
         <>
-          <Text style={s.label}>{lang === "hi" ? "Card Number:" : "Card Number:"}</Text>
+          <Text style={s.label}>{t("card_number")}</Text>
           <TextInput
             style={[s.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
             placeholder="4111 1111 1111 1111"
             placeholderTextColor={colors.textSecondary}
             value={cardNumber}
-            onChangeText={(t) => setCardNumber(t.replace(/[^0-9]/g, "").replace(/(.{4})/g, "$1 ").trim())}
+            onChangeText={(v) => setCardNumber(v.replace(/[^0-9]/g, "").replace(/(.{4})/g, "$1 ").trim())}
             keyboardType="numeric"
             maxLength={19}
           />
           <View style={s.row2}>
             <View style={{ flex: 1 }}>
-              <Text style={s.label}>{lang === "hi" ? "Expiry (MM/YY):" : "Expiry (MM/YY):"}</Text>
+              <Text style={s.label}>{t("expiry_label")}</Text>
               <TextInput
                 style={[s.inputSmall, { backgroundColor: inputBg, borderColor: inputBorder }]}
                 placeholder="12/27"
                 placeholderTextColor={colors.textSecondary}
                 value={cardExpiry}
-                onChangeText={(t) => {
-                  const clean = t.replace(/[^0-9]/g, "");
+                onChangeText={(v) => {
+                  const clean = v.replace(/[^0-9]/g, "");
                   setCardExpiry(clean.length > 2 ? `${clean.slice(0, 2)}/${clean.slice(2, 4)}` : clean);
                 }}
                 keyboardType="numeric"
@@ -281,7 +281,7 @@ export function WalletScreen() {
     if (selectedMethod === "netbanking") {
       return (
         <>
-          <Text style={s.label}>{lang === "hi" ? "Account Number:" : "Account Number:"}</Text>
+          <Text style={s.label}>{t("account_number_label")}</Text>
           <TextInput
             style={[s.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
             placeholder="00112345678901"
@@ -290,13 +290,13 @@ export function WalletScreen() {
             onChangeText={setBankAccount}
             keyboardType="numeric"
           />
-          <Text style={s.label}>IFSC Code:</Text>
+          <Text style={s.label}>{t("ifsc_code")}</Text>
           <TextInput
             style={[s.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
             placeholder="SBIN0001234"
             placeholderTextColor={colors.textSecondary}
             value={bankIfsc}
-            onChangeText={(t) => setBankIfsc(t.toUpperCase())}
+            onChangeText={(v) => setBankIfsc(v.toUpperCase())}
             autoCapitalize="characters"
             maxLength={11}
           />
@@ -315,23 +315,23 @@ export function WalletScreen() {
               <>
                 <ActivityIndicator color={colors.primary} size="large" />
                 <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700", marginTop: 20, fontFamily: "Inter_700Bold" }}>
-                  {lang === "hi" ? "Payment Process ho rahi hai..." : "Processing Payment..."}
+                  {t("processing_payment")}
                 </Text>
                 <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 8, textAlign: "center", fontFamily: "Inter_400Regular" }}>
-                  {METHODS.find(m => m.id === selectedMethod)?.icon} {lang === "hi" ? "Kripya wait karein" : "Please wait"}
+                  {METHODS.find(m => m.id === selectedMethod)?.icon} {t("please_wait")}
                 </Text>
               </>
             ) : (
               <>
                 <Text style={{ fontSize: 56 }}>✅</Text>
                 <Text style={{ color: colors.success, fontSize: 20, fontWeight: "700", marginTop: 12, fontFamily: "Inter_700Bold" }}>
-                  {lang === "hi" ? "Payment Successful!" : "Payment Successful!"}
+                  {t("payment_success")}
                 </Text>
                 <Text style={{ color: colors.text, fontSize: 28, fontWeight: "800", marginTop: 8, fontFamily: "Inter_700Bold" }}>
                   ₹{topupAmount}
                 </Text>
                 <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 6, fontFamily: "Inter_400Regular" }}>
-                  {lang === "hi" ? "Wallet mein add ho gaya" : "Added to wallet"}
+                  {t("added_to_wallet")}
                 </Text>
               </>
             )}
@@ -342,7 +342,7 @@ export function WalletScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.delay(50)} style={s.header}>
           <Text style={s.title}>💰 {t("wallet")}</Text>
-          <Text style={s.subtitle}>{lang === "hi" ? "Aapka RaftaarRide Wallet" : "Your RaftaarRide Wallet"}</Text>
+          <Text style={s.subtitle}>{t("your_wallet")}</Text>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100)} style={[s.balanceCard, { backgroundColor: colors.primary }]}>
@@ -353,7 +353,7 @@ export function WalletScreen() {
             ) : (
               <Text style={s.balanceAmount}>₹{balance.toFixed(2)}</Text>
             )}
-            <Text style={s.balanceSub}>{lang === "hi" ? "Kisi bhi ride mein use karein" : "Use for any ride"}</Text>
+            <Text style={s.balanceSub}>{t("use_for_ride")}</Text>
           </Animated.View>
         </Animated.View>
 
@@ -367,19 +367,19 @@ export function WalletScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.actionBtn, { backgroundColor: colors.glassBackground }]}
-            onPress={() => showNotification({ title: lang === "hi" ? "Ride Karo" : "Go Ride", body: lang === "hi" ? "Wallet se payment ride mein auto-deduct hoti hai" : "Wallet balance is auto-deducted during rides", type: "info", icon: "ℹ️" })}
+            onPress={() => showNotification({ title: t("use_on_ride_title"), body: t("use_on_ride_body"), type: "info", icon: "ℹ️" })}
           >
             <Text style={{ fontSize: 22 }}>🚗</Text>
-            <Text style={[s.actionBtnText, { color: colors.textSecondary }]}>{lang === "hi" ? "Ride pe Use Karo" : "Use on Ride"}</Text>
+            <Text style={[s.actionBtnText, { color: colors.textSecondary }]}>{t("use_on_ride_btn")}</Text>
           </TouchableOpacity>
         </Animated.View>
 
         {showTopup && (
           <Animated.View entering={FadeInUp.duration(300)}>
             <GlassCard style={s.topupBox}>
-              <Text style={s.sectionTitle}>{lang === "hi" ? "💳 Wallet Recharge Karein" : "💳 Recharge Wallet"}</Text>
+              <Text style={s.sectionTitle}>{t("recharge_wallet")}</Text>
 
-              <Text style={s.label}>{lang === "hi" ? "Quick amount select karein:" : "Select quick amount:"}</Text>
+              <Text style={s.label}>{t("select_quick_amt")}</Text>
               <View style={s.quickRow}>
                 {QUICK_AMOUNTS.map((a) => (
                   <TouchableOpacity
@@ -397,7 +397,7 @@ export function WalletScreen() {
                 ))}
               </View>
 
-              <Text style={s.label}>{lang === "hi" ? "Ya custom amount daalen (₹10 – ₹50,000):" : "Or enter custom amount (₹10 – ₹50,000):"}</Text>
+              <Text style={s.label}>{t("custom_amount")}</Text>
               <TextInput
                 style={[s.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
                 placeholder="e.g. 350"
@@ -407,7 +407,7 @@ export function WalletScreen() {
                 keyboardType="numeric"
               />
 
-              <Text style={s.label}>{lang === "hi" ? "Payment Method chunein:" : "Choose Payment Method:"}</Text>
+              <Text style={s.label}>{t("choose_method")}</Text>
               <View style={s.methodRow}>
                 {METHODS.map((m) => (
                   <TouchableOpacity
@@ -429,7 +429,7 @@ export function WalletScreen() {
               {renderPaymentDetails()}
 
               <PrimaryButton
-                title={topping ? (lang === "hi" ? "Process ho raha hai..." : "Processing...") : (lang === "hi" ? `₹${topupAmount || "0"} Pay Karein` : `Pay ₹${topupAmount || "0"}`)}
+                title={topping ? t("processing") : `${t("add_money")} ₹${topupAmount || "0"}`}
                 onPress={handlePayNow}
                 disabled={topping || !topupAmount}
               />
@@ -438,13 +438,13 @@ export function WalletScreen() {
         )}
 
         <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
-          <Text style={s.sectionTitle}>💳 {lang === "hi" ? "Transaction History" : "Transaction History"}</Text>
+          <Text style={s.sectionTitle}>💳 {t("transaction_history")}</Text>
         </View>
 
         {loading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
         ) : transactions.length === 0 ? (
-          <Text style={s.emptyText}>{lang === "hi" ? "Koi transaction nahi abhi tak" : "No transactions yet"}</Text>
+          <Text style={s.emptyText}>{t("no_transactions")}</Text>
         ) : (
           transactions.map((txn, i) => (
             <Animated.View key={txn.id} entering={FadeInDown.delay(i * 40)}>

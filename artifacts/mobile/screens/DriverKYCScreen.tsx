@@ -25,8 +25,8 @@ const DOC_FIELDS = [
   { key: "aadhaarBack", label_hi: "आधार कार्ड (Back)", label_en: "Aadhaar Card (Back)", icon: "🪪" },
   { key: "licenseFront", label_hi: "Driving License (Front)", label_en: "Driving License (Front)", icon: "📄" },
   { key: "licenseBack", label_hi: "Driving License (Back)", label_en: "Driving License (Back)", icon: "📄" },
-  { key: "rcFront", label_hi: "RC Book / Vehicle Registration", label_en: "RC Book / Vehicle Registration", icon: "🚗" },
-  { key: "selfie", label_hi: "Driver Selfie (Face Visible)", label_en: "Driver Selfie (Face Visible)", icon: "🤳" },
+  { key: "rcFront", label_hi: "RC Book / वाहन पंजीकरण", label_en: "RC Book / Vehicle Registration", icon: "🚗" },
+  { key: "selfie", label_hi: "ड्राइवर सेल्फी (चेहरा दिखे)", label_en: "Driver Selfie (Face Visible)", icon: "🤳" },
 ] as const;
 
 type DocKey = typeof DOC_FIELDS[number]["key"];
@@ -82,7 +82,7 @@ export function DriverKYCScreen() {
   const pickImage = async (field: DocKey) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      showNotification({ title: "Permission Required", body: "Gallery access chahiye documents upload karne ke liye", type: "error", icon: "📷" });
+      showNotification({ title: t("submit"), body: "Gallery access chahiye documents upload karne ke liye", type: "error", icon: "📷" });
       return;
     }
 
@@ -105,7 +105,11 @@ export function DriverKYCScreen() {
       }
 
       setDocs((prev) => ({ ...prev, [field]: b64 }));
-      showNotification({ title: "Image Selected ✅", body: DOC_FIELDS.find((d) => d.key === field)?.[`label_${lang}` as "label_hi"] ?? field, type: "success", icon: "✅", duration: 2000 });
+      showNotification({
+        title: `Image Selected ✅`,
+        body: DOC_FIELDS.find((d) => d.key === field)?.[lang === "hi" ? "label_hi" : "label_en"] ?? field,
+        type: "success", icon: "✅", duration: 2000
+      });
     }
   };
 
@@ -113,7 +117,7 @@ export function DriverKYCScreen() {
     const requiredFields: DocKey[] = ["aadhaarFront", "aadhaarBack", "licenseFront", "licenseBack", "rcFront", "selfie"];
     const missing = requiredFields.filter((f) => !docs[f]);
     if (missing.length > 0) {
-      showNotification({ title: "Documents Missing", body: `${missing.length} documents upload karne baaki hain`, type: "error", icon: "📄" });
+      showNotification({ title: t("kyc_documents"), body: `${missing.length} documents upload karne baaki hain`, type: "error", icon: "📄" });
       return;
     }
 
@@ -142,10 +146,10 @@ export function DriverKYCScreen() {
     } finally { setSubmitting(false); }
   };
 
-  const statusConfig: Record<string, { bg: string; icon: string; label_hi: string; label_en: string }> = {
-    pending: { bg: "#F59E0B", icon: "⏳", label_hi: "Review Pending", label_en: "Under Review" },
-    verified: { bg: "#4ADE80", icon: "✅", label_hi: "KYC Verified!", label_en: "KYC Verified!" },
-    rejected: { bg: "#F87171", icon: "❌", label_hi: "KYC Rejected", label_en: "KYC Rejected" },
+  const statusConfig: Record<string, { bg: string; icon: string; label: string }> = {
+    pending: { bg: "#F59E0B", icon: "⏳", label: t("kyc_pending") },
+    verified: { bg: "#4ADE80", icon: "✅", label: t("kyc_verified") },
+    rejected: { bg: "#F87171", icon: "❌", label: t("kyc_rejected") },
   };
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
@@ -190,22 +194,20 @@ export function DriverKYCScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.delay(50)} style={styles.header}>
           <Text style={styles.title}>📋 {t("kyc_documents")}</Text>
-          <Text style={styles.subtitle}>
-            {lang === "hi" ? "Drive karne ke liye documents verify karwayein" : "Verify your documents to start driving"}
-          </Text>
+          <Text style={styles.subtitle}>{t("kyc_subtitle")}</Text>
         </Animated.View>
 
         {sc && (
           <Animated.View entering={FadeInDown.delay(80)} style={[styles.statusBanner, { backgroundColor: sc.bg }]}>
             <Text style={styles.statusIcon}>{sc.icon}</Text>
             <View>
-              <Text style={styles.statusText}>{sc[`label_${lang}` as "label_hi"]}</Text>
+              <Text style={styles.statusText}>{sc.label}</Text>
               {kycData?.rejectionReason && (
                 <Text style={styles.statusSub}>{kycData.rejectionReason}</Text>
               )}
               {kycData?.verifiedAt && (
                 <Text style={styles.statusSub}>
-                  {lang === "hi" ? "Verify:" : "Verified:"} {new Date(kycData.verifiedAt).toLocaleDateString("en-IN")}
+                  {t("verified_on")} {new Date(kycData.verifiedAt).toLocaleDateString("en-IN")}
                 </Text>
               )}
             </View>
@@ -214,11 +216,7 @@ export function DriverKYCScreen() {
 
         {!isVerified && (
           <Animated.View entering={FadeInDown.delay(100)} style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              {lang === "hi"
-                ? "📌 Sabhi 6 documents upload karna zaroori hai. Documents clear aur readable hone chahiye. Max 500KB per image."
-                : "📌 All 6 documents are required. Documents must be clear and readable. Max 500KB per image."}
-            </Text>
+            <Text style={styles.infoText}>{t("kyc_info")}</Text>
           </Animated.View>
         )}
 
@@ -227,8 +225,8 @@ export function DriverKYCScreen() {
             <GlassCard style={styles.docRow}>
               <View style={styles.docHeader}>
                 <Text style={styles.docIcon}>{field.icon}</Text>
-                <Text style={styles.docLabel}>{field[`label_${lang}` as "label_hi"]}</Text>
-                {docs[field.key] && <Text style={styles.docStatus}>✅ {lang === "hi" ? "Added" : "Added"}</Text>}
+                <Text style={styles.docLabel}>{field[lang === "hi" ? "label_hi" : "label_en"]}</Text>
+                {docs[field.key] && <Text style={styles.docStatus}>✅ {t("added_label")}</Text>}
               </View>
 
               <TouchableOpacity
@@ -243,9 +241,7 @@ export function DriverKYCScreen() {
                   <>
                     <Text style={styles.uploadIcon}>📤</Text>
                     <Text style={styles.uploadText}>
-                      {isVerified
-                        ? (lang === "hi" ? "KYC verified hai" : "KYC is verified")
-                        : (lang === "hi" ? "Tap karke upload karein" : "Tap to upload")}
+                      {isVerified ? t("kyc_is_verified") : t("tap_to_upload")}
                     </Text>
                   </>
                 )}
@@ -257,14 +253,14 @@ export function DriverKYCScreen() {
         {!isVerified && (
           <Animated.View entering={FadeInDown.delay(400)} style={styles.submitArea}>
             <Text style={{ color: colors.textSecondary, fontSize: 12, textAlign: "center", marginBottom: 14, fontFamily: "Inter_400Regular" }}>
-              {Object.values(docs).filter(Boolean).length}/6 {lang === "hi" ? "documents upload kiye" : "documents uploaded"}
+              {Object.values(docs).filter(Boolean).length}/6 {t("docs_uploaded")}
             </Text>
             <PrimaryButton
               title={submitting
-                ? (lang === "hi" ? "Submit ho raha hai..." : "Submitting...")
+                ? t("submitting")
                 : currentStatus === "not_submitted"
-                ? (lang === "hi" ? "📋 KYC Submit Karein" : "📋 Submit KYC")
-                : (lang === "hi" ? "🔄 Documents Resubmit Karein" : "🔄 Resubmit Documents")}
+                ? t("kyc_submit")
+                : t("kyc_resubmit")}
               onPress={handleSubmit}
               disabled={submitting}
             />

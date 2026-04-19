@@ -83,14 +83,14 @@ export function ScheduledRidesScreen() {
 
   const handleSubmit = async () => {
     if (!formPickup || !formDest || !formDate || !formTime) {
-      showNotification({ title: "Incomplete Details", body: "Sabhi fields fill karein", type: "error", icon: "⚠️" });
+      showNotification({ title: t("ride_details"), body: "Sabhi fields fill karein", type: "error", icon: "⚠️" });
       return;
     }
 
     const scheduledAt = new Date(`${formDate}T${formTime}:00`);
     const minTime = new Date(Date.now() + 30 * 60 * 1000);
     if (scheduledAt < minTime) {
-      showNotification({ title: "Invalid Time", body: "Kam se kam 30 minute baad schedule karein", type: "error", icon: "⏰" });
+      showNotification({ title: t("time_label"), body: "Kam se kam 30 minute baad schedule karein", type: "error", icon: "⏰" });
       return;
     }
 
@@ -141,7 +141,7 @@ export function ScheduledRidesScreen() {
       const data = await res.json();
       if (data.success) {
         setRides((r) => r.map((ride) => ride.id === id ? { ...ride, status: "cancelled" } : ride));
-        showNotification({ title: "Ride Cancel Ho Gayi", body: "Scheduled ride cancel kar di gayi", type: "warning", icon: "🚫" });
+        showNotification({ title: t("cancel"), body: "Scheduled ride cancel kar di gayi", type: "warning", icon: "🚫" });
       }
     } catch { }
   };
@@ -178,6 +178,7 @@ export function ScheduledRidesScreen() {
     cancelBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: "#F87171" },
     emptyText: { textAlign: "center", color: colors.textSecondary, fontSize: 14, marginTop: 40, fontFamily: "Inter_400Regular" },
     emptyIcon: { textAlign: "center", fontSize: 48, marginBottom: 12 },
+    fieldLabel: { color: colors.textSecondary, fontSize: 12, marginBottom: 8, fontFamily: "Inter_400Regular" },
   });
 
   const formatScheduled = (d: string) => {
@@ -192,7 +193,7 @@ export function ScheduledRidesScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.delay(50)} style={styles.header}>
           <Text style={styles.title}>📅 {t("schedule_ride")}</Text>
-          <Text style={styles.subtitle}>{lang === "hi" ? "Advance mein ride book karein" : "Book a ride in advance"}</Text>
+          <Text style={styles.subtitle}>{t("advance_book")}</Text>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100)}>
@@ -202,7 +203,7 @@ export function ScheduledRidesScreen() {
           >
             <Text style={{ fontSize: 18 }}>{showForm ? "✕" : "➕"}</Text>
             <Text style={{ color: showForm ? colors.primary : "#000", fontSize: 15, fontWeight: "700", fontFamily: "Inter_700Bold" }}>
-              {showForm ? (lang === "hi" ? "Band Karein" : "Close") : (lang === "hi" ? "Nayi Scheduled Ride" : "New Scheduled Ride")}
+              {showForm ? t("close") : t("new_scheduled")}
             </Text>
           </TouchableOpacity>
         </Animated.View>
@@ -210,26 +211,24 @@ export function ScheduledRidesScreen() {
         {showForm && (
           <Animated.View entering={FadeInUp.duration(300)}>
             <GlassCard style={styles.form}>
-              <Text style={styles.sectionTitle}>{lang === "hi" ? "Ride Details" : "Ride Details"}</Text>
+              <Text style={styles.sectionTitle}>{t("ride_details")}</Text>
 
               <TextInput
                 style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
-                placeholder={lang === "hi" ? "Pickup location..." : "Pickup location..."}
+                placeholder={t("pickup_location_ph")}
                 placeholderTextColor={colors.textSecondary}
                 value={formPickup}
                 onChangeText={setFormPickup}
               />
               <TextInput
                 style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
-                placeholder={lang === "hi" ? "Destination..." : "Destination..."}
+                placeholder={t("destination_ph")}
                 placeholderTextColor={colors.textSecondary}
                 value={formDest}
                 onChangeText={setFormDest}
               />
 
-              <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 8, fontFamily: "Inter_400Regular" }}>
-                {lang === "hi" ? "Date (YYYY-MM-DD):" : "Date (YYYY-MM-DD):"}
-              </Text>
+              <Text style={styles.fieldLabel}>{t("date_label")}</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
                 placeholder={getMinDate()}
@@ -238,9 +237,7 @@ export function ScheduledRidesScreen() {
                 onChangeText={setFormDate}
               />
 
-              <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 8, fontFamily: "Inter_400Regular" }}>
-                {lang === "hi" ? "Time (HH:MM):" : "Time (HH:MM):"}
-              </Text>
+              <Text style={styles.fieldLabel}>{t("time_label")}</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
                 placeholder="09:30"
@@ -249,9 +246,7 @@ export function ScheduledRidesScreen() {
                 onChangeText={setFormTime}
               />
 
-              <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 8, fontFamily: "Inter_400Regular" }}>
-                {lang === "hi" ? "Vehicle type:" : "Vehicle type:"}
-              </Text>
+              <Text style={styles.fieldLabel}>{t("vehicle_type")}</Text>
               <View style={styles.vehicleRow}>
                 {Object.entries(VEHICLE_ICONS).map(([v, icon]) => (
                   <TouchableOpacity
@@ -272,7 +267,7 @@ export function ScheduledRidesScreen() {
 
               <TextInput
                 style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
-                placeholder={lang === "hi" ? "Special instructions (optional)..." : "Special instructions (optional)..."}
+                placeholder={t("special_instructions")}
                 placeholderTextColor={colors.textSecondary}
                 value={formNotes}
                 onChangeText={setFormNotes}
@@ -280,7 +275,7 @@ export function ScheduledRidesScreen() {
               />
 
               <PrimaryButton
-                title={submitting ? (lang === "hi" ? "Schedule ho raha hai..." : "Scheduling...") : (lang === "hi" ? "📅 Ride Schedule Karein" : "📅 Schedule Ride")}
+                title={submitting ? t("scheduling") : t("schedule_btn")}
                 onPress={handleSubmit}
                 disabled={submitting}
               />
@@ -293,10 +288,8 @@ export function ScheduledRidesScreen() {
         ) : rides.length === 0 ? (
           <Animated.View entering={FadeInDown.delay(200)}>
             <Text style={styles.emptyIcon}>📅</Text>
-            <Text style={styles.emptyText}>{lang === "hi" ? "Koi scheduled ride nahi abhi tak" : "No scheduled rides yet"}</Text>
-            <Text style={[styles.emptyText, { fontSize: 12, marginTop: 6 }]}>
-              {lang === "hi" ? "Upar button se schedule karein" : "Use the button above to schedule"}
-            </Text>
+            <Text style={styles.emptyText}>{t("no_scheduled_yet")}</Text>
+            <Text style={[styles.emptyText, { fontSize: 12, marginTop: 6 }]}>{t("use_btn_above")}</Text>
           </Animated.View>
         ) : (
           rides.map((ride, i) => (

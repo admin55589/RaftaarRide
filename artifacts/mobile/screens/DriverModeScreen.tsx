@@ -144,6 +144,7 @@ function RideRequest({
   onReject: () => void;
 }) {
   const colors = useColors();
+  const { t } = useLanguage();
   const [countdown, setCountdown] = useState(20);
   const onRejectRef = React.useRef(onReject);
   onRejectRef.current = onReject;
@@ -167,7 +168,7 @@ function RideRequest({
         <View style={styles.requestHeader}>
           <View style={[styles.requestBadge, { backgroundColor: "rgba(245,166,35,0.13)", borderColor: colors.primary }]}>
             <Text style={{ fontSize: 14 }}>{getVehicleIcon(vehicleType)}</Text>
-            <Text style={[styles.requestBadgeText, { color: colors.primary }]}>New Ride</Text>
+            <Text style={[styles.requestBadgeText, { color: colors.primary }]}>{t("new_ride")}</Text>
           </View>
           <CircleTimer countdown={countdown} />
         </View>
@@ -191,7 +192,7 @@ function RideRequest({
           </View>
           <View style={[styles.metaChip, { backgroundColor: colors.secondary }]}>
             <Text style={{ fontSize: 11 }}>🕐</Text>
-            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{request.eta} min away</Text>
+            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{request.eta} {t("min_away")}</Text>
           </View>
           <View style={[styles.metaChip, { backgroundColor: colors.primary + "22" }]}>
             <Text style={[styles.metaPrice, { color: colors.primary }]}>₹{request.price}</Text>
@@ -210,7 +211,7 @@ function RideRequest({
             style={[styles.acceptBtn, { backgroundColor: colors.success }]}
           >
             <Text style={{ fontSize: 22, color: colors.successForeground }}>✓</Text>
-            <Text style={[styles.acceptText, { color: colors.successForeground }]}>Accept</Text>
+            <Text style={[styles.acceptText, { color: colors.successForeground }]}>{t("accept")}</Text>
           </Pressable>
         </View>
       </GlassCard>
