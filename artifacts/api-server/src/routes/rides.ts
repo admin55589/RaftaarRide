@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { ridesTable, driversTable } from "@workspace/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, inArray } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { emitRideUpdate, emitAdminUpdate } from "../lib/socket";
 
@@ -132,8 +132,26 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
 router.get("/rides/my", userAuth, async (req: Request, res: Response) => {
   const userId = (req as any).userId;
   try {
-    const rides = await db.select().from(ridesTable).where(eq(ridesTable.userId, userId)).orderBy(desc(ridesTable.createdAt)).limit(30);
-    res.json({ success: true, rides });
+    const rides = await db
+      .select()
+      .from(ridesTable)
+      .where(eq(ridesTable.userId, userId))
+      .orderBy(desc(ridesTable.createdAt))
+      .limit(50);
+
+    const driverIds = [...new Set(rides.filter((r) => r.driverId).map((r) => r.driverId!))] as number[];
+    const drivers = driverIds.length > 0
+      ? await db.select().from(driversTable).where(inArray(driversTable.id, driverIds))
+      : [];
+
+    const driverMap = new Map(drivers.map((d) => [d.id, d]));
+
+    const ridesWithDrivers = rides.map((r) => ({
+      ...r,
+      driver: r.driverId ? (driverMap.get(r.driverId) ?? null) : null,
+    }));
+
+    res.json({ success: true, rides: ridesWithDrivers });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 

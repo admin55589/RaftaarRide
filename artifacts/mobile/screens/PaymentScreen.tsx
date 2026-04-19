@@ -71,7 +71,7 @@ export function PaymentScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { token, user: authUser } = useAuth();
-  const { setScreen, selectedVehicle, rideMode, estimatedTime, estimatedDistanceKm, paymentMethod, assignedDriver, destination, pickup, addRideToHistory, currentRideId, setCurrentRideId } = useApp();
+  const { setScreen, selectedVehicle, rideMode, estimatedTime, estimatedDistanceKm, paymentMethod, assignedDriver, destination, pickup, addRideToHistory, refreshHistoryFromServer, currentRideId, setCurrentRideId } = useApp();
   const [paid, setPaid] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [razorpayOrder, setRazorpayOrder] = useState<RazorpayOrder | null>(null);
@@ -86,9 +86,10 @@ export function PaymentScreen() {
     setPaid(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     announcePaymentSuccess(paidAmount);
+
     const driver = assignedDriver ?? { name: "Raj Kumar", rating: 4.8, vehicle: "Swift Dzire", vehicleNumber: "DL 4C AB 1234", vehicleType: selectedVehicle, eta: 5, photo: "RK", id: "1" };
     addRideToHistory({
-      id: Date.now().toString(),
+      id: currentRideId ? String(currentRideId) : Date.now().toString(),
       pickup,
       destination,
       vehicleType: selectedVehicle,
@@ -98,12 +99,15 @@ export function PaymentScreen() {
       distance: `${distanceKm} km`,
       date: new Date().toISOString(),
       driver,
+      status: "completed",
     });
 
     if (token && currentRideId) {
-      ridesApi.updateStatus(token, currentRideId, "completed").catch((e) =>
-        console.warn("[payment] status update failed:", e)
-      );
+      ridesApi.updateStatus(token, currentRideId, "completed")
+        .then(() => {
+          if (token) refreshHistoryFromServer(token);
+        })
+        .catch((e) => console.warn("[payment] status update failed:", e));
       setCurrentRideId(null);
     }
   };

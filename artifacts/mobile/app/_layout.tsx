@@ -15,12 +15,25 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ActivityIndicator, View } from "react-native";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AppProvider } from "@/context/AppContext";
+import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
+
+function HistorySyncer() {
+  const { token, isLoggedIn } = useAuth();
+  const { refreshHistoryFromServer } = useApp();
+
+  useEffect(() => {
+    if (isLoggedIn && token) {
+      refreshHistoryFromServer(token);
+    }
+  }, [isLoggedIn, token]);
+
+  return null;
+}
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, isLoading } = useAuth();
@@ -87,6 +100,7 @@ export default function RootLayout() {
             <KeyboardProvider>
               <AuthProvider>
                 <AppProvider>
+                  <HistorySyncer />
                   <AuthGuard>
                     <RootLayoutNav />
                   </AuthGuard>
