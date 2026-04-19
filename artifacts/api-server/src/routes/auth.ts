@@ -70,6 +70,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
         name: user.name,
         phone: user.phone,
         email: user.email,
+        photoUrl: user.photoUrl ?? null,
         isVerified: user.isVerified,
       },
     });
@@ -126,6 +127,7 @@ router.post("/auth/login", async (req: Request, res: Response) => {
         name: user.name,
         phone: user.phone,
         email: user.email,
+        photoUrl: user.photoUrl ?? null,
         isVerified: user.isVerified,
       },
     });
@@ -231,13 +233,16 @@ router.post("/auth/verify-otp", async (req: Request, res: Response) => {
       { expiresIn: "30d" }
     );
 
+    const [freshUser] = await db.select().from(usersTable).where(eq(usersTable.phone, phone)).limit(1);
+
     res.json({
       token,
       user: {
-        id: user.id,
-        name: name || user.name,
+        id: freshUser?.id ?? user.id,
+        name: name || freshUser?.name || user.name,
         phone: user.phone,
-        email: user.email,
+        email: freshUser?.email ?? user.email,
+        photoUrl: freshUser?.photoUrl ?? null,
         isVerified: true,
       },
     });

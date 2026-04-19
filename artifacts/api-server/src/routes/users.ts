@@ -55,7 +55,7 @@ router.patch("/users/me", userAuth, async (req: Request, res: Response) => {
   const updates: Record<string, string | null> = {};
   if (name?.trim()) updates.name = name.trim();
   if (email?.trim()) updates.email = email.trim().toLowerCase();
-  if (photoUrl !== undefined) updates.photo_url = photoUrl ?? null;
+  if (photoUrl !== undefined) updates.photoUrl = photoUrl ?? null;
 
   try {
     const [updated] = await db.update(usersTable)
