@@ -16,6 +16,8 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import Animated, {
   FadeInDown,
+  SlideInUp,
+  SlideOutUp,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -227,7 +229,13 @@ export function DriverModeScreen() {
   const [editPhoto, setEditPhoto] = useState<string | null>(driver?.photoUrl ?? null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState("");
-  const [profileToast, setProfileToast] = useState("");
+  const [toast, setToast] = useState<{ show: boolean; title: string; subtitle: string; type: "success" | "error" }>({
+    show: false, title: "", subtitle: "", type: "success",
+  });
+  const showToast = (title: string, subtitle: string, type: "success" | "error" = "success") => {
+    setToast({ show: true, title, subtitle, type });
+    setTimeout(() => setToast((t) => ({ ...t, show: false })), 3200);
+  };
 
   const API_BASE = (() => {
     const domain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -269,8 +277,7 @@ export function DriverModeScreen() {
       if (data.success) {
         updateDriver({ ...driver!, ...data.driver });
         setShowProfileEdit(false);
-        setProfileToast("Profile update ho gayi! 🎉");
-        setTimeout(() => setProfileToast(""), 3000);
+        showToast("Profile Update Ho Gayi! 🎉", `${data.driver.name} — chalte hain raftaar se!`, "success");
       } else {
         setProfileError(data.message ?? "Update failed");
       }
@@ -416,11 +423,25 @@ export function DriverModeScreen() {
         </ScrollView>
       </Animated.View>
 
-      {profileToast ? (
-        <View style={styles.toast}>
-          <Text style={styles.toastText}>{profileToast}</Text>
-        </View>
-      ) : null}
+      {toast.show && (
+        <Animated.View
+          entering={SlideInUp.springify().damping(14)}
+          exiting={SlideOutUp.springify()}
+          style={[
+            styles.toastContainer,
+            { top: insets.top + 12 },
+            toast.type === "error" ? styles.toastError : styles.toastSuccess,
+          ]}
+        >
+          <Text style={styles.toastEmoji}>
+            {toast.type === "success" ? "✅" : "❌"}
+          </Text>
+          <View style={styles.toastTextWrap}>
+            <Text style={styles.toastTitle}>{toast.title}</Text>
+            <Text style={styles.toastSubtitle}>{toast.subtitle}</Text>
+          </View>
+        </Animated.View>
+      )}
 
       <Modal visible={showProfileEdit} transparent animationType="slide" onRequestClose={() => { setShowProfileEdit(false); setProfileError(""); }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
@@ -526,26 +547,37 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   ratingText: { fontSize: 12, fontWeight: "700" },
-  toast: {
+  toastContainer: {
     position: "absolute",
-    bottom: 100,
-    left: 24,
-    right: 24,
-    backgroundColor: "#0E1F13",
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderWidth: 1.5,
-    borderColor: "rgba(52,211,153,0.4)",
+    left: 16,
+    right: 16,
+    flexDirection: "row",
     alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 18,
     zIndex: 9999,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 12,
   },
-  toastText: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
+  toastSuccess: {
+    backgroundColor: "#0E1F13",
+    borderWidth: 1.5,
+    borderColor: "rgba(52,211,153,0.5)",
+  },
+  toastError: {
+    backgroundColor: "#1F0E0E",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,77,77,0.5)",
+  },
+  toastEmoji: { fontSize: 26 },
+  toastTextWrap: { flex: 1 },
+  toastTitle: { color: "#FFFFFF", fontWeight: "700", fontSize: 14, marginBottom: 2 },
+  toastSubtitle: { color: "#B0B0C0", fontSize: 12, lineHeight: 17 },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.75)",
