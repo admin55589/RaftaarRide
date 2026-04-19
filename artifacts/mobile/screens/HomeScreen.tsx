@@ -10,10 +10,10 @@ import {
   View,
   Platform,
   ActivityIndicator,
+  KeyboardAvoidingView,
 } from "react-native";
 import Animated, {
   FadeInDown,
-  FadeInUp,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -80,15 +80,20 @@ function SuggestionChip({
 export function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { setScreen, setDestination, isDriverMode, setIsDriverMode, currentLocationAddress, setCurrentLocationAddress, setPickup } = useApp();
+  const { setScreen, setDestination, currentLocationAddress, setCurrentLocationAddress, setPickup } = useApp();
   const { user, token, logout, updateUser } = useAuth();
   const userName = user?.name ?? "Aarav";
   const [inputValue, setInputValue] = useState("");
   const [locating, setLocating] = useState(false);
+
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [editName, setEditName] = useState(user?.name ?? "");
   const [editEmail, setEditEmail] = useState(user?.email ?? "");
   const [savingProfile, setSavingProfile] = useState(false);
+
+  const [showPickupEdit, setShowPickupEdit] = useState(false);
+  const [editPickup, setEditPickup] = useState(currentLocationAddress);
+  const [gpsLoading, setGpsLoading] = useState(false);
 
   const API_BASE = (() => {
     const domain = process.env.EXPO_PUBLIC_DOMAIN;
@@ -117,36 +122,46 @@ export function HomeScreen() {
     finally { setSavingProfile(false); }
   };
 
-  const dotScale = useSharedValue(1);
+  const handleGpsPickup = async () => {
+    setGpsLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") { setGpsLoading(false); return; }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const [geo] = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      if (geo) {
+        const parts = [geo.name, geo.street, geo.subregion ?? geo.district, geo.city].filter(Boolean);
+        const addr = parts.slice(0, 3).join(", ") || "Current Location";
+        setEditPickup(addr);
+      }
+    } catch (_) {}
+    setGpsLoading(false);
+  };
 
+  const handleSavePickup = () => {
+    const val = editPickup.trim();
+    if (!val) { Alert.alert("Error", "Pickup location khali nahi ho sakta"); return; }
+    setCurrentLocationAddress(val);
+    setPickup(val);
+    setShowPickupEdit(false);
+  };
+
+  const dotScale = useSharedValue(1);
   useEffect(() => {
     dotScale.value = withRepeat(
-      withSequence(
-        withTiming(1.3, { duration: 800 }),
-        withTiming(1, { duration: 800 })
-      ),
-      -1,
-      false
+      withSequence(withTiming(1.3, { duration: 800 }), withTiming(1, { duration: 800 })),
+      -1, false
     );
   }, []);
-
-  const dotStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: dotScale.value }],
-  }));
+  const dotStyle = useAnimatedStyle(() => ({ transform: [{ scale: dotScale.value }] }));
 
   const handleLocateMe = async () => {
     setLocating(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setLocating(false);
-        return;
-      }
+      if (status !== "granted") { setLocating(false); return; }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const [geo] = await Location.reverseGeocodeAsync({
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-      });
+      const [geo] = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
       if (geo) {
         const parts = [geo.name, geo.street, geo.subregion ?? geo.district, geo.city].filter(Boolean);
         const addr = parts.slice(0, 3).join(", ") || "Current Location";
@@ -168,12 +183,7 @@ export function HomeScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <MapView />
 
-      <View
-        style={[
-          styles.topOverlay,
-          { paddingTop: topPad + 8 },
-        ]}
-      >
+      <View style={[styles.topOverlay, { paddingTop: topPad + 8 }]}>
         <Animated.View entering={FadeInDown.springify()} style={styles.topBar}>
           <Pressable style={styles.locationRow} onPress={handleLocateMe}>
             {locating ? (
@@ -184,44 +194,58 @@ export function HomeScreen() {
             <Text style={[styles.locationText, { color: colors.foreground }]} numberOfLines={1}>
               {currentLocationAddress}
             </Text>
-            <Text style={[styles.navEmoji, { color: colors.primary }]}>🧭</Text>
           </Pressable>
+
           <Pressable
-            onPress={() => setIsDriverMode(!isDriverMode)}
-            style={[styles.modeToggle, { backgroundColor: isDriverMode ? colors.primary : colors.secondary, borderColor: colors.border }]}
+            onPress={() => { setEditPickup(currentLocationAddress); setShowPickupEdit(true); }}
+            style={[styles.iconBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
+            hitSlop={8}
           >
-            <Text style={{ fontSize: 18 }}>{isDriverMode ? "🚘" : "👤"}</Text>
+            <Text style={styles.iconBtnEmoji}>✏️</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => { setEditName(user?.name ?? ""); setEditEmail(user?.email ?? ""); setShowProfileEdit(true); }}
+            style={[styles.iconBtn, { backgroundColor: colors.primary + "22", borderColor: colors.primary + "55" }]}
+            hitSlop={8}
+          >
+            <Text style={styles.iconBtnEmoji}>👤</Text>
           </Pressable>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100).springify()}>
           <GlassCard style={styles.greetCard} padding={16}>
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <Text style={[styles.greeting, { color: colors.mutedForeground, flex: 1 }]}>
-                {getGreeting()}, {userName} 👋
-              </Text>
-              <Pressable
-                onPress={() => { setEditName(user?.name ?? ""); setEditEmail(user?.email ?? ""); setShowProfileEdit(true); }}
-                style={[styles.editProfileBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
-              >
-                <Text style={styles.editEmoji}>✏️</Text>
-              </Pressable>
-            </View>
+            <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
+              {getGreeting()}, {userName} 👋
+            </Text>
             <Text style={[styles.greetTitle, { color: colors.foreground }]}>
               Where are you heading?
             </Text>
           </GlassCard>
         </Animated.View>
+      </View>
 
-        <Modal visible={showProfileEdit} transparent animationType="slide" onRequestClose={() => setShowProfileEdit(false)}>
+      <Modal visible={showProfileEdit} transparent animationType="slide" onRequestClose={() => setShowProfileEdit(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <View style={styles.modalOverlay}>
             <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.foreground }]}>Profile Update Karo</Text>
+                <View style={styles.modalTitleRow}>
+                  <Text style={{ fontSize: 22 }}>👤</Text>
+                  <Text style={[styles.modalTitle, { color: colors.foreground }]}>Profile Update</Text>
+                </View>
                 <Pressable onPress={() => setShowProfileEdit(false)} style={styles.closeBtn}>
                   <Text style={[styles.closeEmoji, { color: colors.mutedForeground }]}>✕</Text>
                 </Pressable>
               </View>
+
+              <View style={[styles.profileAvatarLarge, { backgroundColor: "rgba(245,166,35,0.12)", borderColor: "rgba(245,166,35,0.3)" }]}>
+                <Text style={{ fontSize: 36 }}>👤</Text>
+              </View>
+              <Text style={[styles.profilePhoneLabel, { color: colors.mutedForeground }]}>
+                📱 {user?.phone ?? "—"}
+              </Text>
+
               <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>Naam</Text>
               <TextInput
                 style={[styles.modalInput, { backgroundColor: colors.secondary, color: colors.foreground, borderColor: colors.border }]}
@@ -248,7 +272,7 @@ export function HomeScreen() {
                 {savingProfile ? (
                   <ActivityIndicator color="#000" size="small" />
                 ) : (
-                  <Text style={styles.modalSaveBtnText}>Save Karo</Text>
+                  <Text style={styles.modalSaveBtnText}>✅ Save Karo</Text>
                 )}
               </Pressable>
               <Pressable onPress={logout} style={styles.logoutBtn}>
@@ -257,8 +281,60 @@ export function HomeScreen() {
               </Pressable>
             </View>
           </View>
-        </Modal>
-      </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={showPickupEdit} transparent animationType="slide" onRequestClose={() => setShowPickupEdit(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.modalHeader}>
+                <View style={styles.modalTitleRow}>
+                  <Text style={{ fontSize: 20 }}>📍</Text>
+                  <Text style={[styles.modalTitle, { color: colors.foreground }]}>Pickup Location</Text>
+                </View>
+                <Pressable onPress={() => setShowPickupEdit(false)} style={styles.closeBtn}>
+                  <Text style={[styles.closeEmoji, { color: colors.mutedForeground }]}>✕</Text>
+                </Pressable>
+              </View>
+
+              <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>Apna pickup address type karo</Text>
+              <TextInput
+                style={[styles.modalInput, styles.pickupInput, { backgroundColor: colors.secondary, color: colors.foreground, borderColor: colors.border }]}
+                value={editPickup}
+                onChangeText={setEditPickup}
+                placeholder="e.g. Connaught Place, New Delhi"
+                placeholderTextColor={colors.mutedForeground}
+                multiline
+                numberOfLines={2}
+                autoFocus
+              />
+
+              <Pressable
+                onPress={handleGpsPickup}
+                disabled={gpsLoading}
+                style={[styles.gpsBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
+              >
+                {gpsLoading ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <>
+                    <Text style={{ fontSize: 16 }}>📡</Text>
+                    <Text style={[styles.gpsBtnText, { color: colors.foreground }]}>GPS se current location use karo</Text>
+                  </>
+                )}
+              </Pressable>
+
+              <Pressable
+                onPress={handleSavePickup}
+                style={[styles.modalSaveBtn, { backgroundColor: colors.primary }]}
+              >
+                <Text style={styles.modalSaveBtnText}>📍 Set Pickup</Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <View style={[styles.bottomSheet, { paddingBottom: insets.bottom + 16 }]}>
         <GlassCard style={styles.bottomCard} padding={0}>
@@ -318,17 +394,13 @@ export function HomeScreen() {
             ))}
           </ScrollView>
         </GlassCard>
-
       </View>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   topOverlay: {
     position: "absolute",
     top: 0,
@@ -341,35 +413,43 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
+    gap: 8,
   },
   locationRow: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    backgroundColor: "rgba(22,22,30,0.85)",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   locationDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
+    flexShrink: 0,
   },
   locationText: {
     fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
+    fontSize: 13,
     flex: 1,
   },
-  navEmoji: {
-    fontSize: 14,
-  },
-  modeToggle: {
+  iconBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
+  },
+  iconBtnEmoji: {
+    fontSize: 16,
+    lineHeight: 20,
   },
   greetCard: {
     borderRadius: 20,
@@ -383,24 +463,105 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     fontSize: 20,
   },
-  editProfileBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "flex-end",
+  },
+  modalCard: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     borderWidth: 1,
+    padding: 24,
+    gap: 12,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  modalTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  modalTitle: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 20,
+  },
+  closeBtn: { padding: 4 },
+  closeEmoji: { fontSize: 18, lineHeight: 22 },
+  profileAvatarLarge: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignSelf: "center",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 2,
+    marginBottom: 4,
   },
-  editEmoji: {
+  profilePhoneLabel: {
+    fontFamily: "Inter_500Medium",
     fontSize: 13,
-    lineHeight: 18,
+    textAlign: "center",
+    marginBottom: 4,
   },
-  closeBtn: {
-    padding: 4,
+  modalLabel: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    letterSpacing: 0.5,
+    marginBottom: -4,
   },
-  closeEmoji: {
-    fontSize: 18,
-    lineHeight: 22,
+  modalInput: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontFamily: "Inter_500Medium",
+    fontSize: 15,
+  },
+  pickupInput: {
+    minHeight: 56,
+    textAlignVertical: "top",
+  },
+  gpsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  gpsBtnText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 14,
+    flex: 1,
+  },
+  modalSaveBtn: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+  },
+  modalSaveBtnText: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 15,
+    color: "#000",
+  },
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 8,
+  },
+  logoutText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
   },
   bottomSheet: {
     position: "absolute",
@@ -415,10 +576,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(22,22,30,0.97)",
     borderColor: "rgba(255,255,255,0.10)",
   },
-  searchContainer: {
-    padding: 16,
-    paddingBottom: 12,
-  },
+  searchContainer: { padding: 16, paddingBottom: 12 },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -428,24 +586,15 @@ const styles = StyleSheet.create({
     height: 48,
     gap: 10,
   },
-  searchEmoji: {
-    fontSize: 16,
-  },
+  searchEmoji: { fontSize: 16 },
   searchInput: {
     flex: 1,
     fontFamily: "Inter_400Regular",
     fontSize: 15,
   },
-  clearBtn: {
-    padding: 4,
-  },
-  clearEmoji: {
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  suggestionsScroll: {
-    maxHeight: 280,
-  },
+  clearBtn: { padding: 4 },
+  clearEmoji: { fontSize: 15, lineHeight: 20 },
+  suggestionsScroll: { maxHeight: 280 },
   suggestionsContent: {
     paddingHorizontal: 16,
     paddingBottom: 20,
@@ -473,21 +622,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  suggestionEmoji: {
-    fontSize: 17,
-  },
-  suggestionText: {
-    flex: 1,
-  },
-  suggestionLabel: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
-  },
-  suggestionSub: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    marginTop: 1,
-  },
+  suggestionEmoji: { fontSize: 17 },
+  suggestionText: { flex: 1 },
+  suggestionLabel: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
+  suggestionSub: { fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 1 },
   recentItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -502,76 +640,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  recentClockEmoji: {
-    fontSize: 14,
-  },
-  recentLabel: {
-    flex: 1,
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-  },
-  chevronEmoji: {
-    fontSize: 22,
-    lineHeight: 26,
-    fontWeight: "300",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    justifyContent: "flex-end",
-  },
-  modalCard: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: 1,
-    padding: 24,
-    gap: 12,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  modalTitle: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 20,
-  },
-  modalLabel: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 12,
-    letterSpacing: 0.5,
-    marginBottom: -4,
-  },
-  modalInput: {
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontFamily: "Inter_500Medium",
-    fontSize: 15,
-  },
-  modalSaveBtn: {
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 8,
-  },
-  modalSaveBtnText: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 15,
-    color: "#000",
-  },
-  logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 8,
-  },
-  logoutText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
-  },
+  recentClockEmoji: { fontSize: 14 },
+  recentLabel: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 14 },
+  chevronEmoji: { fontSize: 22, lineHeight: 26, fontWeight: "300" },
 });
