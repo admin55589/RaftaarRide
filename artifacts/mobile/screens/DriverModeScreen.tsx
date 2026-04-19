@@ -33,6 +33,7 @@ import { useApp } from "@/context/AppContext";
 import { useDriverAuth } from "@/context/DriverAuthContext";
 import { useNotification } from "@/context/NotificationContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useTheme } from "@/context/ThemeContext";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { MapView } from "@/components/MapView";
@@ -224,6 +225,7 @@ export function DriverModeScreen() {
   const { driver, isDriverLoggedIn, driverLogout, driverToken, updateDriver } = useDriverAuth();
   const { showNotification } = useNotification();
   const { lang, toggleLanguage } = useLanguage();
+  const { isDark, toggleTheme } = useTheme();
   const [isOnline, setIsOnline] = useState(true);
   const [requests, setRequests] = useState(MOCK_REQUESTS);
   const ridesCompleted = driver ? driver.totalRides : 7;
@@ -380,11 +382,18 @@ export function DriverModeScreen() {
 
           <Pressable
             onPress={toggleLanguage}
+            style={[styles.backBtn, { backgroundColor: colors.primary + "22", borderColor: colors.primary + "66" }]}
+          >
+            <Text style={{ fontSize: 13, color: colors.primary, fontWeight: "700" }}>
+              {lang === "hi" ? "हिं" : "EN"}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={toggleTheme}
             style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
           >
-            <Text style={{ fontSize: 13, color: colors.foreground, fontWeight: "700" }}>
-              {lang === "hi" ? "EN" : "हि"}
-            </Text>
+            <Text style={{ fontSize: 15 }}>{isDark ? "☀️" : "🌙"}</Text>
           </Pressable>
 
           <GlassCard style={styles.onlineToggle} padding={10}>

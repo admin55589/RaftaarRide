@@ -84,9 +84,9 @@ export default function MainScreen() {
           style={[
             styles.tabBar,
             {
-              backgroundColor: colors.surface,
+              backgroundColor: colors.tabBar ?? colors.card,
               paddingBottom: bottomPad,
-              borderTopColor: "rgba(255,255,255,0.08)",
+              borderTopColor: colors.tabBarBorder ?? colors.border,
             },
           ]}
         >

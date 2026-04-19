@@ -15,7 +15,8 @@ import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 
 interface PrimaryButtonProps {
-  label: string;
+  label?: string;
+  title?: string;
   onPress: () => void;
   loading?: boolean;
   disabled?: boolean;
@@ -29,6 +30,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function PrimaryButton({
   label,
+  title,
   onPress,
   loading = false,
   disabled = false,
@@ -37,6 +39,7 @@ export function PrimaryButton({
   textColor,
   size = "lg",
 }: PrimaryButtonProps) {
+  const displayText = label ?? title ?? "";
   const colors = useColors();
   const scale = useSharedValue(1);
 
@@ -79,7 +82,7 @@ export function PrimaryButton({
       {loading ? (
         <ActivityIndicator color={txtColor} />
       ) : (
-        <Text style={[styles.label, { color: txtColor, fontSize }]}>{label}</Text>
+        <Text style={[styles.label, { color: txtColor, fontSize }]}>{displayText}</Text>
       )}
     </AnimatedPressable>
   );

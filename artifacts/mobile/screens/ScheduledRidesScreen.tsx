@@ -15,6 +15,7 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { useApp } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useTheme } from "@/context/ThemeContext";
 import { useNotification } from "@/context/NotificationContext";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
@@ -40,11 +41,14 @@ interface ScheduledRide {
 
 export function ScheduledRidesScreen() {
   const colors = useColors();
+  const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
   const { selectedVehicle, pickup, destination, estimatedPrice } = useApp();
   const { t, lang } = useLanguage();
   const { showNotification } = useNotification();
+  const inputBg = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
+  const inputBorder = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)";
 
   const [rides, setRides] = useState<ScheduledRide[]>([]);
   const [loading, setLoading] = useState(true);
@@ -209,14 +213,14 @@ export function ScheduledRidesScreen() {
               <Text style={styles.sectionTitle}>{lang === "hi" ? "Ride Details" : "Ride Details"}</Text>
 
               <TextInput
-                style={[styles.input, { backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)" }]}
+                style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
                 placeholder={lang === "hi" ? "Pickup location..." : "Pickup location..."}
                 placeholderTextColor={colors.textSecondary}
                 value={formPickup}
                 onChangeText={setFormPickup}
               />
               <TextInput
-                style={[styles.input, { backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)" }]}
+                style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
                 placeholder={lang === "hi" ? "Destination..." : "Destination..."}
                 placeholderTextColor={colors.textSecondary}
                 value={formDest}
@@ -227,7 +231,7 @@ export function ScheduledRidesScreen() {
                 {lang === "hi" ? "Date (YYYY-MM-DD):" : "Date (YYYY-MM-DD):"}
               </Text>
               <TextInput
-                style={[styles.input, { backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)" }]}
+                style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
                 placeholder={getMinDate()}
                 placeholderTextColor={colors.textSecondary}
                 value={formDate}
@@ -238,7 +242,7 @@ export function ScheduledRidesScreen() {
                 {lang === "hi" ? "Time (HH:MM):" : "Time (HH:MM):"}
               </Text>
               <TextInput
-                style={[styles.input, { backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)" }]}
+                style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
                 placeholder="09:30"
                 placeholderTextColor={colors.textSecondary}
                 value={formTime}
@@ -253,8 +257,8 @@ export function ScheduledRidesScreen() {
                   <TouchableOpacity
                     key={v}
                     style={[styles.vehicleChip, {
-                      backgroundColor: formVehicle === v ? colors.primary + "22" : "rgba(255,255,255,0.06)",
-                      borderColor: formVehicle === v ? colors.primary : "rgba(255,255,255,0.12)",
+                      backgroundColor: formVehicle === v ? colors.primary + "22" : inputBg,
+                      borderColor: formVehicle === v ? colors.primary : inputBorder,
                     }]}
                     onPress={() => setFormVehicle(v)}
                   >
@@ -267,7 +271,7 @@ export function ScheduledRidesScreen() {
               </View>
 
               <TextInput
-                style={[styles.input, { backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)" }]}
+                style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
                 placeholder={lang === "hi" ? "Special instructions (optional)..." : "Special instructions (optional)..."}
                 placeholderTextColor={colors.textSecondary}
                 value={formNotes}

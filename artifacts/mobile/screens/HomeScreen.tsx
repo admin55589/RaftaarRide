@@ -31,6 +31,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useTheme } from "@/context/ThemeContext";
 import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
 
@@ -89,6 +90,7 @@ export function HomeScreen() {
   const { setScreen, setDestination, currentLocationAddress, setCurrentLocationAddress, setPickup } = useApp();
   const { user, token, logout, updateUser } = useAuth();
   const { lang, toggleLanguage } = useLanguage();
+  const { isDark, toggleTheme } = useTheme();
   const userName = user?.name ?? "Aarav";
   const [inputValue, setInputValue] = useState("");
   const [locating, setLocating] = useState(false);
@@ -257,10 +259,20 @@ export function HomeScreen() {
 
           <Pressable
             onPress={toggleLanguage}
+            style={[styles.iconBtn, { backgroundColor: colors.primary + "22", borderColor: colors.primary + "66" }]}
+            hitSlop={8}
+          >
+            <Text style={[styles.iconBtnEmoji, { color: colors.primary, fontWeight: "700" }]}>
+              {lang === "hi" ? "हिं" : "EN"}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={toggleTheme}
             style={[styles.iconBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
             hitSlop={8}
           >
-            <Text style={styles.iconBtnEmoji}>{lang === "hi" ? "EN" : "हि"}</Text>
+            <Text style={styles.iconBtnEmoji}>{isDark ? "☀️" : "🌙"}</Text>
           </Pressable>
 
           <Pressable
