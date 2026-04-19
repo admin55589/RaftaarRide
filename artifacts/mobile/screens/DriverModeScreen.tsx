@@ -1,12 +1,19 @@
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   Platform,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -197,10 +204,66 @@ export function DriverModeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { setScreen, driverEarnings, setDriverEarnings } = useApp();
-  const { driver, isDriverLoggedIn, driverLogout } = useDriverAuth();
+  const { driver, isDriverLoggedIn, driverLogout, driverToken, updateDriver } = useDriverAuth();
   const [isOnline, setIsOnline] = useState(true);
   const [requests, setRequests] = useState(MOCK_REQUESTS);
   const ridesCompleted = driver ? driver.totalRides : 7;
+
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [editName, setEditName] = useState(driver?.name ?? "");
+  const [editPhoto, setEditPhoto] = useState<string | null>(driver?.photoUrl ?? null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const [profileToast, setProfileToast] = useState("");
+
+  const API_BASE = (() => {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN;
+    if (domain) return `https://${domain}/api`;
+    return "http://localhost:8080/api";
+  })();
+
+  const handlePickPhoto = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert("Permission chahiye", "Gallery access allow karo"); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.4,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      if (asset.base64 && asset.base64.length > 500000) {
+        Alert.alert("Photo bahut badi hai", "Choti photo select karo (max 500KB)"); return;
+      }
+      const dataUri = `data:image/jpeg;base64,${asset.base64}`;
+      setEditPhoto(dataUri);
+    }
+  };
+
+  const handleSaveDriverProfile = async () => {
+    if (!editName.trim()) { setProfileError("Naam khali nahi ho sakta"); return; }
+    setProfileError("");
+    setSavingProfile(true);
+    try {
+      const res = await fetch(`${API_BASE}/driver-auth/me`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${driverToken}` },
+        body: JSON.stringify({ name: editName.trim(), photoUrl: editPhoto }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        updateDriver({ ...driver!, ...data.driver });
+        setShowProfileEdit(false);
+        setProfileToast("Profile update ho gayi! 🎉");
+        setTimeout(() => setProfileToast(""), 3000);
+      } else {
+        setProfileError(data.message ?? "Update failed");
+      }
+    } catch { setProfileError("Network error — try again"); }
+    finally { setSavingProfile(false); }
+  };
 
   const dotScale = useSharedValue(1);
   useEffect(() => {
@@ -213,7 +276,6 @@ export function DriverModeScreen() {
 
   const handleAccept = (id: string) => {
     setRequests((rs) => rs.filter((r) => r.id !== id));
-    setRidesCompleted((c) => c + 1);
     const price = requests.find((r) => r.id === id)?.price ?? 0;
     setDriverEarnings((e) => e + price);
   };
@@ -264,9 +326,15 @@ export function DriverModeScreen() {
 
         {driver && (
           <GlassCard style={[styles.profileChip, { marginHorizontal: 16 }]} padding={10}>
-            <View style={styles.profileAvatar}>
-              <Text style={{ fontSize: 16 }}>👤</Text>
-            </View>
+            <Pressable onPress={() => { setEditName(driver.name); setEditPhoto(driver.photoUrl ?? null); setShowProfileEdit(true); }}>
+              {driver.photoUrl ? (
+                <Image source={{ uri: driver.photoUrl }} style={styles.profileAvatarImg} />
+              ) : (
+                <View style={styles.profileAvatar}>
+                  <Text style={{ fontSize: 16 }}>👤</Text>
+                </View>
+              )}
+            </Pressable>
             <View style={{ flex: 1 }}>
               <Text style={[styles.profileName, { color: colors.foreground }]} numberOfLines={1}>{driver.name}</Text>
               <Text style={[styles.profileVehicle, { color: colors.mutedForeground }]} numberOfLines={1}>
@@ -277,6 +345,12 @@ export function DriverModeScreen() {
               <Text style={{ fontSize: 11 }}>⭐</Text>
               <Text style={[styles.ratingText, { color: "#F5A623" }]}>{driver.rating}</Text>
             </View>
+            <Pressable
+              onPress={() => { setEditName(driver.name); setEditPhoto(driver.photoUrl ?? null); setShowProfileEdit(true); }}
+              style={styles.editProfileBtn}
+            >
+              <Text style={{ fontSize: 13 }}>✏️</Text>
+            </Pressable>
           </GlassCard>
         )}
       </View>
@@ -327,6 +401,70 @@ export function DriverModeScreen() {
           )}
         </ScrollView>
       </Animated.View>
+
+      {profileToast ? (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>{profileToast}</Text>
+        </View>
+      ) : null}
+
+      <Modal visible={showProfileEdit} transparent animationType="slide" onRequestClose={() => { setShowProfileEdit(false); setProfileError(""); }}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>👤 Profile Edit</Text>
+                <Pressable onPress={() => { setShowProfileEdit(false); setProfileError(""); }}>
+                  <Text style={{ color: "#8A8A9A", fontSize: 18 }}>✕</Text>
+                </Pressable>
+              </View>
+
+              <Pressable onPress={handlePickPhoto} style={styles.photoWrap}>
+                {editPhoto ? (
+                  <Image source={{ uri: editPhoto }} style={styles.photoPreview} />
+                ) : (
+                  <View style={styles.photoPlaceholder}>
+                    <Text style={{ fontSize: 32 }}>👤</Text>
+                  </View>
+                )}
+                <View style={styles.cameraOverlay}>
+                  <Text style={{ fontSize: 12 }}>📷</Text>
+                </View>
+              </Pressable>
+              <Text style={styles.photoHint}>Photo tap karo badlne ke liye</Text>
+
+              <Text style={styles.inputLabel}>Naam</Text>
+              <TextInput
+                style={styles.textInput}
+                value={editName}
+                onChangeText={(v) => { setEditName(v); setProfileError(""); }}
+                placeholder="Driver ka naam"
+                placeholderTextColor="#8A8A9A"
+                autoCapitalize="words"
+              />
+
+              {profileError ? (
+                <View style={styles.errorBox}>
+                  <Text style={{ fontSize: 13 }}>⚠️</Text>
+                  <Text style={styles.errorText}>{profileError}</Text>
+                </View>
+              ) : null}
+
+              <Pressable
+                onPress={handleSaveDriverProfile}
+                disabled={savingProfile}
+                style={[styles.saveBtn, savingProfile && { opacity: 0.6 }]}
+              >
+                {savingProfile ? (
+                  <ActivityIndicator color="#0A0A0F" size="small" />
+                ) : (
+                  <Text style={styles.saveBtnText}>✅ Save Karo</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -340,15 +478,28 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   profileAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "rgba(245,166,35,0.15)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(245,166,35,0.3)",
     flexShrink: 0,
+  },
+  profileAvatarImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: "rgba(245,166,35,0.4)",
+  },
+  editProfileBtn: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: "rgba(245,166,35,0.12)",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "rgba(245,166,35,0.3)",
   },
   profileName: { fontSize: 14, fontWeight: "700", lineHeight: 17 },
   profileVehicle: { fontSize: 11, lineHeight: 14 },
@@ -361,6 +512,95 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   ratingText: { fontSize: 12, fontWeight: "700" },
+  toast: {
+    position: "absolute",
+    bottom: 100,
+    left: 24,
+    right: 24,
+    backgroundColor: "#0E1F13",
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderWidth: 1.5,
+    borderColor: "rgba(52,211,153,0.4)",
+    alignItems: "center",
+    zIndex: 9999,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  toastText: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    justifyContent: "flex-end",
+  },
+  modalCard: {
+    backgroundColor: "#12121A",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 24,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#2A2A38",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  modalTitle: { color: "#FFFFFF", fontSize: 18, fontWeight: "800" },
+  photoWrap: {
+    alignSelf: "center",
+    position: "relative",
+    width: 90,
+    height: 90,
+  },
+  photoPreview: { width: 90, height: 90, borderRadius: 45, borderWidth: 2, borderColor: "#F5A623" },
+  photoPlaceholder: {
+    width: 90, height: 90, borderRadius: 45,
+    backgroundColor: "#16161E",
+    borderWidth: 2, borderColor: "#2A2A38",
+    alignItems: "center", justifyContent: "center",
+  },
+  cameraOverlay: {
+    position: "absolute",
+    bottom: 2, right: 2,
+    width: 28, height: 28,
+    borderRadius: 14,
+    backgroundColor: "#F5A623",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 2, borderColor: "#12121A",
+  },
+  photoHint: { color: "#8A8A9A", fontSize: 11, textAlign: "center" },
+  inputLabel: { color: "#FFFFFF", fontWeight: "600", fontSize: 13 },
+  textInput: {
+    backgroundColor: "#16161E",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#2A2A38",
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    color: "#FFFFFF",
+    fontSize: 15,
+  },
+  errorBox: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "rgba(255,77,77,0.1)", borderRadius: 10, padding: 10,
+    borderWidth: 1, borderColor: "rgba(255,77,77,0.3)",
+  },
+  errorText: { color: "#FF4D4D", fontSize: 12, flex: 1 },
+  saveBtn: {
+    backgroundColor: "#F5A623",
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  saveBtnText: { color: "#0A0A0F", fontWeight: "800", fontSize: 15 },
   header: {
     position: "absolute",
     top: 0,

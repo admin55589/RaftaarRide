@@ -77,6 +77,7 @@ router.post("/driver-auth/register", async (req: Request, res: Response) => {
         name: driver.name,
         phone: driver.phone,
         email: driver.email,
+        photoUrl: driver.photoUrl ?? null,
         vehicleType: driver.vehicleType,
         vehicleNumber: driver.vehicleNumber,
         rating: driver.rating,
@@ -139,6 +140,7 @@ router.post("/driver-auth/login", async (req: Request, res: Response) => {
         name: driver.name,
         phone: driver.phone,
         email: driver.email,
+        photoUrl: driver.photoUrl ?? null,
         vehicleType: driver.vehicleType,
         vehicleNumber: driver.vehicleNumber,
         rating: driver.rating,
@@ -185,6 +187,7 @@ router.get("/driver-auth/me", async (req: Request, res: Response) => {
       name: driver.name,
       phone: driver.phone,
       email: driver.email,
+      photoUrl: driver.photoUrl ?? null,
       vehicleType: driver.vehicleType,
       vehicleNumber: driver.vehicleNumber,
       rating: driver.rating,
@@ -192,6 +195,65 @@ router.get("/driver-auth/me", async (req: Request, res: Response) => {
       totalRides: driver.totalRides,
       status: driver.status,
       isOnline: driver.isOnline,
+    });
+  } catch {
+    res.status(401).json({ message: "Invalid token" });
+  }
+});
+
+router.patch("/driver-auth/me", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({ message: "Token required" });
+    return;
+  }
+
+  const token = authHeader.split(" ")[1];
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { driverId: number; role: string };
+    if (payload.role !== "driver") {
+      res.status(403).json({ message: "Driver token required" });
+      return;
+    }
+
+    const { name, photoUrl } = req.body as { name?: string; photoUrl?: string | null };
+
+    const updates: Partial<{ name: string; photoUrl: string | null }> = {};
+    if (name !== undefined && name.trim()) updates.name = name.trim();
+    if (photoUrl !== undefined) updates.photoUrl = photoUrl;
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ message: "Kuch update karne ke liye do" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(driversTable)
+      .set(updates)
+      .where(eq(driversTable.id, payload.driverId))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ message: "Driver not found" });
+      return;
+    }
+
+    res.json({
+      success: true,
+      driver: {
+        id: updated.id,
+        name: updated.name,
+        phone: updated.phone,
+        email: updated.email,
+        photoUrl: updated.photoUrl ?? null,
+        vehicleType: updated.vehicleType,
+        vehicleNumber: updated.vehicleNumber,
+        rating: updated.rating,
+        totalEarnings: updated.totalEarnings,
+        totalRides: updated.totalRides,
+        status: updated.status,
+        isOnline: updated.isOnline,
+      },
     });
   } catch {
     res.status(401).json({ message: "Invalid token" });

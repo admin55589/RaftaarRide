@@ -6,6 +6,7 @@ export interface DriverUser {
   name: string;
   phone: string;
   email: string;
+  photoUrl: string | null;
   vehicleType: string;
   vehicleNumber: string;
   rating: string;

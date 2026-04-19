@@ -38,6 +38,7 @@ export const driversTable = pgTable("drivers", {
   licenseNumber: text("license_number"),
   vehicleType: text("vehicle_type").notNull(),
   vehicleNumber: text("vehicle_number").notNull(),
+  photoUrl: text("photo_url"),
   rating: numeric("rating", { precision: 3, scale: 2 }).notNull().default("4.5"),
   status: text("status").notNull().default("pending"),
   isOnline: boolean("is_online").notNull().default(false),
