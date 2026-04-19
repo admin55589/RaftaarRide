@@ -319,13 +319,6 @@ export function HomeScreen() {
           </ScrollView>
         </GlassCard>
 
-        <Pressable
-          onPress={() => setScreen("driver_mode")}
-          style={[styles.driverFab, { backgroundColor: colors.card, borderColor: colors.glassBorder, bottom: insets.bottom + 20 }]}
-        >
-          <Text style={{ fontSize: 18 }}>🚘</Text>
-          <Text style={[styles.driverFabText, { color: colors.foreground }]}>Driver</Text>
-        </Pressable>
       </View>
 
     </View>
@@ -521,22 +514,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 26,
     fontWeight: "300",
-  },
-  driverFab: {
-    position: "absolute",
-    right: 16,
-    bottom: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  driverFabText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 13,
   },
   modalOverlay: {
     flex: 1,
