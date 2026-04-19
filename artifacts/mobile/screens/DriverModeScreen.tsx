@@ -229,50 +229,56 @@ export function DriverModeScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <MapView showRadar={isOnline} />
 
-      <View style={[styles.header, { paddingTop: topPad + 8, paddingHorizontal: 16 }]}>
-        <Pressable
-          onPress={() => {
-            if (isDriverLoggedIn) {
-              driverLogout();
-            } else {
-              setScreen("home");
-            }
-          }}
-          style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-        >
-          <Text style={{ fontSize: 16, color: colors.foreground, lineHeight: 20 }}>
-            {isDriverLoggedIn ? "🚪" : "←"}
-          </Text>
-        </Pressable>
+      <View style={[styles.header, { paddingTop: topPad + 8 }]}>
+        <View style={styles.headerRow}>
+          <Pressable
+            onPress={() => {
+              if (isDriverLoggedIn) {
+                driverLogout();
+              } else {
+                setScreen("home");
+              }
+            }}
+            style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <Text style={{ fontSize: 16, color: colors.foreground, lineHeight: 20 }}>
+              {isDriverLoggedIn ? "🚪" : "←"}
+            </Text>
+          </Pressable>
+
+          <GlassCard style={styles.onlineToggle} padding={10}>
+            <Animated.View style={[styles.onlineDot, { backgroundColor: isOnline ? colors.success : colors.destructive }, isOnline ? dotStyle : {}]} />
+            <Text style={[styles.onlineLabel, { color: colors.foreground }]}>
+              {isOnline ? "Online" : "Offline"}
+            </Text>
+            <Pressable
+              onPress={() => { setIsOnline(!isOnline); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
+              style={[styles.toggleBtn, { backgroundColor: isOnline ? colors.success + "22" : colors.secondary, borderColor: isOnline ? colors.success : colors.border }]}
+            >
+              <Text style={[styles.toggleBtnText, { color: isOnline ? colors.success : colors.mutedForeground }]}>
+                {isOnline ? "Go Offline" : "Go Online"}
+              </Text>
+            </Pressable>
+          </GlassCard>
+        </View>
 
         {driver && (
-          <GlassCard style={styles.profileChip} padding={8}>
+          <GlassCard style={[styles.profileChip, { marginHorizontal: 16 }]} padding={10}>
             <View style={styles.profileAvatar}>
-              <Text style={{ fontSize: 14 }}>👤</Text>
+              <Text style={{ fontSize: 16 }}>👤</Text>
             </View>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={[styles.profileName, { color: colors.foreground }]} numberOfLines={1}>{driver.name}</Text>
               <Text style={[styles.profileVehicle, { color: colors.mutedForeground }]} numberOfLines={1}>
                 {driver.vehicleNumber} • {driver.vehicleType.charAt(0).toUpperCase() + driver.vehicleType.slice(1)}
               </Text>
             </View>
+            <View style={[styles.ratingBadge, { backgroundColor: "rgba(245,166,35,0.15)" }]}>
+              <Text style={{ fontSize: 11 }}>⭐</Text>
+              <Text style={[styles.ratingText, { color: "#F5A623" }]}>{driver.rating}</Text>
+            </View>
           </GlassCard>
         )}
-
-        <GlassCard style={styles.onlineToggle} padding={10}>
-          <Animated.View style={[styles.onlineDot, { backgroundColor: isOnline ? colors.success : colors.destructive }, isOnline ? dotStyle : {}]} />
-          <Text style={[styles.onlineLabel, { color: colors.foreground }]}>
-            {isOnline ? "Online" : "Offline"}
-          </Text>
-          <Pressable
-            onPress={() => { setIsOnline(!isOnline); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
-            style={[styles.toggleBtn, { backgroundColor: isOnline ? colors.success + "22" : colors.secondary, borderColor: isOnline ? colors.success : colors.border }]}
-          >
-            <Text style={[styles.toggleBtnText, { color: isOnline ? colors.success : colors.mutedForeground }]}>
-              {isOnline ? "Go Offline" : "Go Online"}
-            </Text>
-          </Pressable>
-        </GlassCard>
       </View>
 
       <Animated.View entering={FadeInDown.springify()} style={[styles.sheet, { paddingBottom: bottomPad + 12 }]}>
@@ -328,17 +334,15 @@ export function DriverModeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   profileChip: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     borderRadius: 16,
-    minWidth: 0,
   },
   profileAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "rgba(245,166,35,0.15)",
     alignItems: "center",
     justifyContent: "center",
@@ -346,17 +350,31 @@ const styles = StyleSheet.create({
     borderColor: "rgba(245,166,35,0.3)",
     flexShrink: 0,
   },
-  profileName: { fontSize: 13, fontWeight: "700", lineHeight: 16 },
-  profileVehicle: { fontSize: 10, lineHeight: 13 },
+  profileName: { fontSize: 14, fontWeight: "700", lineHeight: 17 },
+  profileVehicle: { fontSize: 11, lineHeight: 14 },
+  ratingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  ratingText: { fontSize: 12, fontWeight: "700" },
   header: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     zIndex: 10,
+    flexDirection: "column",
+    gap: 8,
+  },
+  headerRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 12,
+    paddingHorizontal: 16,
   },
   backBtn: {
     width: 40,
@@ -368,6 +386,7 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   onlineToggle: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
