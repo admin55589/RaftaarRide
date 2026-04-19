@@ -39,11 +39,12 @@ const SUGGESTIONS = [
   { label: "Airport", sub: "T3, IGI Airport", icon: "✈️" },
 ];
 
-const HOUR = new Date().getHours();
 function getGreeting() {
-  if (HOUR < 12) return "Good Morning";
-  if (HOUR < 17) return "Good Afternoon";
-  return "Good Evening";
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good Morning 🌅";
+  if (hour < 17) return "Good Afternoon ☀️";
+  if (hour < 20) return "Good Evening 🌆";
+  return "Good Night 🌙";
 }
 
 function SuggestionChip({
