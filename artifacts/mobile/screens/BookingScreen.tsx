@@ -1,9 +1,12 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   Platform,
 } from "react-native";
@@ -13,13 +16,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp, MOCK_DRIVERS } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
-import { calculateFare, getRideModeMultiplier, DEFAULT_DISTANCE_KM } from "@/lib/pricing";
+import { calculateFare, getRideModeMultiplier, DEFAULT_DISTANCE_KM, getSurgeInfo } from "@/lib/pricing";
 import { ridesApi } from "@/lib/ridesApi";
 import { GlassCard } from "@/components/GlassCard";
 import { VehicleSelector } from "@/components/VehicleSelector";
 import { RideModeSelector } from "@/components/RideModeSelector";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { MapView } from "@/components/MapView";
+
+const API_BASE = (() => {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  if (domain) return `https://${domain}/api`;
+  return "http://localhost:8080/api";
+})();
 
 export function BookingScreen() {
   const colors = useColors();
@@ -41,13 +50,39 @@ export function BookingScreen() {
     setCurrentRideId,
   } = useApp();
 
+  const [promoCode, setPromoCode] = useState("");
+  const [promoApplied, setPromoApplied] = useState<{ code: string; discountPct: number; discountAmount: number } | null>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+
+  const surgeInfo = getSurgeInfo();
   const distanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
-  const fare = calculateFare(selectedVehicle, distanceKm, 0, getRideModeMultiplier(rideMode));
-  const price = fare.total;
+  const fare = calculateFare(selectedVehicle, distanceKm, 0, getRideModeMultiplier(rideMode) * surgeInfo.multiplier);
+  const basePrice = fare.total;
+  const price = promoApplied ? Math.max(0, basePrice - promoApplied.discountAmount) : basePrice;
   const timeMultiplier = selectedVehicle === "bike" ? 0.7 : selectedVehicle === "auto" ? 0.9 : 1;
   const duration = Math.round(estimatedTime * timeMultiplier);
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim() || !token) return;
+    setPromoLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/promo/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code: promoCode.trim(), fareAmount: basePrice }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPromoApplied({ code: data.code, discountPct: data.discountPct, discountAmount: data.discountAmount });
+        Alert.alert("Promo Applied! 🎉", data.message);
+      } else {
+        Alert.alert("Invalid Code", data.error ?? "Promo code work nahi kiya");
+      }
+    } catch { Alert.alert("Error", "Network error — try again"); }
+    finally { setPromoLoading(false); }
+  };
 
   const handleBookRide = useCallback(async () => {
     const driver = MOCK_DRIVERS.find((d) => d.vehicleType === selectedVehicle) ?? MOCK_DRIVERS[2];
@@ -168,14 +203,56 @@ export function BookingScreen() {
               </ScrollView>
             </View>
 
+            {surgeInfo.isActive && (
+              <View style={[styles.surgeBanner, { backgroundColor: "#f59e0b22", borderColor: "#f59e0b55" }]}>
+                <Text style={{ fontSize: 14 }}>⚡</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.surgeTitle, { color: "#f59e0b" }]}>Surge Pricing — {surgeInfo.label}</Text>
+                  <Text style={[styles.surgeSubtitle, { color: "#f59e0b99" }]}>{surgeInfo.reason}</Text>
+                </View>
+              </View>
+            )}
+
+            <View style={[styles.promoRow, { borderColor: colors.border, backgroundColor: colors.secondary }]}>
+              <Feather name="percent" size={14} color={promoApplied ? "#22c55e" : colors.mutedForeground} style={{ marginLeft: 12 }} />
+              <TextInput
+                style={[styles.promoInput, { color: colors.foreground }]}
+                placeholder="Enter promo code"
+                placeholderTextColor={colors.mutedForeground}
+                value={promoCode}
+                onChangeText={setPromoCode}
+                autoCapitalize="characters"
+                editable={!promoApplied}
+              />
+              {promoApplied ? (
+                <Pressable onPress={() => { setPromoApplied(null); setPromoCode(""); }} style={styles.promoBtn}>
+                  <Feather name="x" size={14} color="#22c55e" />
+                  <Text style={[styles.promoBtnText, { color: "#22c55e" }]}>{promoApplied.discountPct}% OFF</Text>
+                </Pressable>
+              ) : (
+                <Pressable onPress={handleApplyPromo} style={[styles.promoBtn, { backgroundColor: colors.primary + "22" }]} disabled={promoLoading}>
+                  {promoLoading ? <ActivityIndicator size="small" color={colors.primary} /> : <Text style={[styles.promoBtnText, { color: colors.primary }]}>Apply</Text>}
+                </Pressable>
+              )}
+            </View>
+
             <View style={[styles.priceSummary, { borderColor: colors.border }]}>
               <View style={styles.priceRow}>
                 <View style={styles.priceLabelRow}>
                   <Feather name="tag" size={13} color={colors.mutedForeground} />
                   <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>RaftaarRide Fare</Text>
                 </View>
-                <Text style={[styles.priceValue, { color: colors.primary }]}>₹{price}</Text>
+                <Text style={[styles.priceValue, { color: colors.primary }]}>₹{basePrice}</Text>
               </View>
+              {promoApplied && (
+                <View style={styles.priceRow}>
+                  <View style={styles.priceLabelRow}>
+                    <Feather name="percent" size={13} color="#22c55e" />
+                    <Text style={[styles.priceLabel, { color: "#22c55e" }]}>Promo: {promoApplied.code}</Text>
+                  </View>
+                  <Text style={[styles.priceValue, { color: "#22c55e" }]}>-₹{promoApplied.discountAmount}</Text>
+                </View>
+              )}
               <View style={styles.priceRow}>
                 <View style={styles.priceLabelRow}>
                   <Feather name="trending-down" size={13} color="#22c55e" />
@@ -206,6 +283,15 @@ export function BookingScreen() {
                 </View>
                 <Text style={[styles.priceValue, { color: colors.mutedForeground }]}>₹0.5/min</Text>
               </View>
+              {promoApplied && (
+                <View style={[styles.priceRow, { borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 8, marginTop: 4 }]}>
+                  <View style={styles.priceLabelRow}>
+                    <Text style={{ fontSize: 13 }}>💰</Text>
+                    <Text style={[styles.priceLabel, { color: colors.foreground, fontFamily: "Inter_700Bold" }]}>Total Payable</Text>
+                  </View>
+                  <Text style={[styles.priceValue, { color: colors.primary, fontFamily: "Inter_700Bold", fontSize: 16 }]}>₹{price}</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.bookBtnContainer}>
@@ -345,5 +431,54 @@ const styles = StyleSheet.create({
   },
   bookBtnContainer: {
     padding: 20,
+  },
+  surgeBanner: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  surgeTitle: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
+  },
+  surgeSubtitle: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    marginTop: 1,
+  },
+  promoRow: {
+    marginHorizontal: 20,
+    marginTop: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  promoInput: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    letterSpacing: 1,
+  },
+  promoBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 10,
+    margin: 3,
+  },
+  promoBtnText: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
   },
 });

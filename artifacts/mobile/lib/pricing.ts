@@ -103,3 +103,29 @@ export function getRideModeMultiplier(rideMode: string): number {
 }
 
 export const DEFAULT_DISTANCE_KM = 8.2;
+
+export interface SurgeInfo {
+  multiplier: number;
+  label: string;
+  reason: string;
+  isActive: boolean;
+}
+
+export function getSurgeInfo(): SurgeInfo {
+  const hour = new Date().getHours();
+
+  if (hour >= 8 && hour < 10) {
+    return { multiplier: 1.5, label: "1.5x", reason: "Morning peak hours", isActive: true };
+  }
+  if (hour >= 18 && hour < 21) {
+    return { multiplier: 1.6, label: "1.6x", reason: "Evening peak hours", isActive: true };
+  }
+  if (hour >= 22 || hour < 5) {
+    return { multiplier: 1.2, label: "1.2x", reason: "Late night charges", isActive: true };
+  }
+  return { multiplier: 1.0, label: "Normal", reason: "", isActive: false };
+}
+
+export function applyPromoDiscount(fare: number, discountPct: number): number {
+  return Math.max(0, Math.round(fare * (1 - discountPct / 100)));
+}

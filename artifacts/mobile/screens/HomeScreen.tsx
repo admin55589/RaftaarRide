@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -80,10 +82,41 @@ export function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { setScreen, setDestination, isDriverMode, setIsDriverMode, currentLocationAddress, setCurrentLocationAddress, setPickup } = useApp();
-  const { user, logout } = useAuth();
+  const { user, token, logout, updateUser } = useAuth();
   const userName = user?.name ?? "Aarav";
   const [inputValue, setInputValue] = useState("");
   const [locating, setLocating] = useState(false);
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [editName, setEditName] = useState(user?.name ?? "");
+  const [editEmail, setEditEmail] = useState(user?.email ?? "");
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const API_BASE = (() => {
+    const domain = process.env.EXPO_PUBLIC_DOMAIN;
+    if (domain) return `https://${domain}/api`;
+    return "http://localhost:8080/api";
+  })();
+
+  const handleSaveProfile = async () => {
+    if (!editName.trim()) { Alert.alert("Error", "Name khali nahi ho sakta"); return; }
+    setSavingProfile(true);
+    try {
+      const res = await fetch(`${API_BASE}/users/me`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: editName.trim(), email: editEmail.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        updateUser({ ...user!, name: data.user.name, email: data.user.email });
+        setShowProfileEdit(false);
+        Alert.alert("Done! ✅", "Profile update ho gayi");
+      } else {
+        Alert.alert("Error", data.error ?? "Update failed");
+      }
+    } catch { Alert.alert("Error", "Network error — try again"); }
+    finally { setSavingProfile(false); }
+  };
 
   const dotScale = useSharedValue(1);
 
@@ -164,14 +197,68 @@ export function HomeScreen() {
 
         <Animated.View entering={FadeInDown.delay(100).springify()}>
           <GlassCard style={styles.greetCard} padding={16}>
-            <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
-              {getGreeting()}, {userName}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <Text style={[styles.greeting, { color: colors.mutedForeground, flex: 1 }]}>
+                {getGreeting()}, {userName} 👋
+              </Text>
+              <Pressable
+                onPress={() => { setEditName(user?.name ?? ""); setEditEmail(user?.email ?? ""); setShowProfileEdit(true); }}
+                style={[styles.editProfileBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
+              >
+                <Feather name="edit-2" size={13} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
             <Text style={[styles.greetTitle, { color: colors.foreground }]}>
               Where are you heading?
             </Text>
           </GlassCard>
         </Animated.View>
+
+        <Modal visible={showProfileEdit} transparent animationType="slide" onRequestClose={() => setShowProfileEdit(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: colors.foreground }]}>Profile Update Karo</Text>
+                <Pressable onPress={() => setShowProfileEdit(false)}>
+                  <Feather name="x" size={20} color={colors.mutedForeground} />
+                </Pressable>
+              </View>
+              <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>Naam</Text>
+              <TextInput
+                style={[styles.modalInput, { backgroundColor: colors.secondary, color: colors.foreground, borderColor: colors.border }]}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Apna naam likho"
+                placeholderTextColor={colors.mutedForeground}
+              />
+              <Text style={[styles.modalLabel, { color: colors.mutedForeground }]}>Email (optional)</Text>
+              <TextInput
+                style={[styles.modalInput, { backgroundColor: colors.secondary, color: colors.foreground, borderColor: colors.border }]}
+                value={editEmail}
+                onChangeText={setEditEmail}
+                placeholder="Email address"
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <Pressable
+                onPress={handleSaveProfile}
+                disabled={savingProfile}
+                style={[styles.modalSaveBtn, { backgroundColor: colors.primary }]}
+              >
+                {savingProfile ? (
+                  <ActivityIndicator color="#000" size="small" />
+                ) : (
+                  <Text style={styles.modalSaveBtnText}>Save Karo</Text>
+                )}
+              </Pressable>
+              <Pressable onPress={logout} style={styles.logoutBtn}>
+                <Feather name="log-out" size={14} color={colors.destructive} />
+                <Text style={[styles.logoutText, { color: colors.destructive }]}>Logout</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </View>
 
       <View style={styles.bottomSheet}>
@@ -430,5 +517,72 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     fontSize: 13,
     letterSpacing: 0.5,
+  },
+  editProfileBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "flex-end",
+  },
+  modalCard: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    padding: 24,
+    gap: 12,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  modalTitle: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 20,
+  },
+  modalLabel: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    letterSpacing: 0.5,
+    marginBottom: -4,
+  },
+  modalInput: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontFamily: "Inter_500Medium",
+    fontSize: 15,
+  },
+  modalSaveBtn: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+  },
+  modalSaveBtnText: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 15,
+    color: "#000",
+  },
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 8,
+  },
+  logoutText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
   },
 });

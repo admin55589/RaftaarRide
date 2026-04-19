@@ -53,20 +53,37 @@ export interface CreateRideParams {
 
 export type RideStatus = "searching" | "accepted" | "arrived" | "onRide" | "completed" | "cancelled";
 
+export interface DriverInfo {
+  id: number;
+  name: string;
+  phone: string;
+  vehicleType: string;
+  vehicleNumber: string;
+  rating: string | number;
+  eta?: number;
+}
+
 export const ridesApi = {
-  async createRide(token: string, params: CreateRideParams): Promise<{ rideId: number; ride: RideRecord }> {
-    return authFetch<{ success: boolean; rideId: number; ride: RideRecord }>("/rides", token, {
+  async createRide(token: string, params: CreateRideParams): Promise<{ rideId: number; ride: RideRecord; driver: DriverInfo | null; message: string }> {
+    return authFetch<{ success: boolean; rideId: number; ride: RideRecord; driver: DriverInfo | null; message: string }>("/rides", token, {
       method: "POST",
       body: JSON.stringify(params),
     });
   },
 
-  async updateStatus(
-    token: string,
-    rideId: number,
-    status: RideStatus,
-    driverRating?: number
-  ): Promise<RideRecord> {
+  async getRide(token: string, rideId: number): Promise<{ ride: RideRecord; driver: DriverInfo | null }> {
+    return authFetch<{ success: boolean; ride: RideRecord; driver: DriverInfo | null }>(`/rides/${rideId}`, token, {
+      method: "GET",
+    });
+  },
+
+  async cancelRide(token: string, rideId: number): Promise<{ ride: RideRecord }> {
+    return authFetch<{ success: boolean; ride: RideRecord }>(`/rides/${rideId}/cancel`, token, {
+      method: "POST",
+    });
+  },
+
+  async updateStatus(token: string, rideId: number, status: RideStatus, driverRating?: number): Promise<RideRecord> {
     const data = await authFetch<{ success: boolean; ride: RideRecord }>(`/rides/${rideId}/status`, token, {
       method: "PATCH",
       body: JSON.stringify({ status, driverRating }),
@@ -75,9 +92,7 @@ export const ridesApi = {
   },
 
   async getMyRides(token: string): Promise<RideRecord[]> {
-    const data = await authFetch<{ success: boolean; rides: RideRecord[] }>("/rides/my", token, {
-      method: "GET",
-    });
+    const data = await authFetch<{ success: boolean; rides: RideRecord[] }>("/rides/my", token, { method: "GET" });
     return data.rides;
   },
 };

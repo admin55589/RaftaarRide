@@ -36,6 +36,9 @@ export const driversTable = pgTable("drivers", {
   vehicleNumber: text("vehicle_number").notNull(),
   rating: numeric("rating", { precision: 3, scale: 2 }).notNull().default("4.5"),
   status: text("status").notNull().default("active"),
+  isOnline: boolean("is_online").notNull().default(false),
+  driverLat: numeric("driver_lat", { precision: 10, scale: 6 }),
+  driverLng: numeric("driver_lng", { precision: 10, scale: 6 }),
   totalEarnings: numeric("total_earnings", { precision: 10, scale: 2 }).notNull().default("0"),
   totalRides: integer("total_rides").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -66,3 +69,15 @@ export const ridesTable = pgTable("rides", {
 export const insertRideSchema = createInsertSchema(ridesTable).omit({ id: true, createdAt: true });
 export type InsertRide = z.infer<typeof insertRideSchema>;
 export type Ride = typeof ridesTable.$inferSelect;
+
+export const promoCodesTable = pgTable("promo_codes", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  discountPct: integer("discount_pct").notNull().default(10),
+  maxUses: integer("max_uses").notNull().default(100),
+  usedCount: integer("used_count").notNull().default(0),
+  expiresAt: timestamp("expires_at"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type PromoCode = typeof promoCodesTable.$inferSelect;
