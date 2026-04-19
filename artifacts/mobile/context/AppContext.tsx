@@ -44,6 +44,11 @@ export interface Ride {
   driver: Driver;
 }
 
+export interface GeoCoords {
+  lat: number;
+  lng: number;
+}
+
 interface AppContextType {
   screen: AppScreen;
   setScreen: (s: AppScreen) => void;
@@ -53,8 +58,12 @@ interface AppContextType {
   setRideMode: (m: RideMode) => void;
   pickup: string;
   setPickup: (p: string) => void;
+  pickupCoords: GeoCoords | null;
+  setPickupCoords: (c: GeoCoords | null) => void;
   destination: string;
   setDestination: (d: string) => void;
+  dropCoords: GeoCoords | null;
+  setDropCoords: (c: GeoCoords | null) => void;
   currentLocationAddress: string;
   setCurrentLocationAddress: (addr: string) => void;
   estimatedPrice: number;
@@ -126,7 +135,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleType>("cab");
   const [rideMode, setRideMode] = useState<RideMode>("economy");
   const [pickup, setPickup] = useState("Connaught Place, New Delhi");
+  const [pickupCoords, setPickupCoords] = useState<GeoCoords | null>(null);
   const [destination, setDestination] = useState("");
+  const [dropCoords, setDropCoords] = useState<GeoCoords | null>(null);
   const [currentLocationAddress, setCurrentLocationAddress] = useState("Connaught Place, New Delhi");
   const [estimatedPrice, setEstimatedPrice] = useState(180);
   const [estimatedTime, setEstimatedTime] = useState(12);
@@ -169,8 +180,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setRideMode,
         pickup,
         setPickup,
+        pickupCoords,
+        setPickupCoords,
         destination,
         setDestination,
+        dropCoords,
+        setDropCoords,
         currentLocationAddress,
         setCurrentLocationAddress,
         estimatedPrice,

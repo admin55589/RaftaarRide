@@ -1,0 +1,135 @@
+ߓ API Endpoint
+POST /api/rides
+ߓ Ride Data Structure (DB Schema)
+
+Collection: rides
+
+{
+  "userId": "UID123",
+  "pickup": {
+    "lat": 21.1458,
+    "lng": 79.0882,
+    "address": "Nagpur Station"
+  },
+  "drop": {
+    "lat": 21.1702,
+    "lng": 79.0900,
+    "address": "Airport"
+  },
+  "rideType": "bike",
+  "fare": 120,
+  "status": "searching",
+  "createdAt": "timestamp"
+}
+ߧ Step 1: Backend Setup
+
+Install dependencies:
+
+npm init -y
+npm install express firebase-admin cors
+ߔ Step 2: Firebase Admin Setup
+Firebase Console → Project Settings
+Service Account → Download JSON
+server.js
+const express = require("express");
+const admin = require("firebase-admin");
+const cors = require("cors");
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const serviceAccount = require("./serviceAccountKey.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+const db = admin.firestore();
+ߛ Step 3: Ride Booking API
+app.post("/api/rides", async (req, res) => {
+  try {
+    const rideData = req.body;
+
+    const newRide = {
+      ...rideData,
+      status: "searching",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    const docRef = await db.collection("rides").add(newRide);
+
+    res.status(200).json({
+      success: true,
+      rideId: docRef.id,
+      message: "Ride booked successfully",
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+▶️ Step 4: Server Run
+node server.js
+
+Server chalega:
+
+http://localhost:3000
+ߓ Step 5: Flutter से API Call
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+Future<void> bookRide() async {
+  final url = Uri.parse("http://YOUR_SERVER_IP:3000/api/rides");
+
+  final response = await http.post(
+    url,
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({
+      "userId": "UID123",
+      "pickup": {
+        "lat": 21.1458,
+        "lng": 79.0882,
+        "address": "Nagpur"
+      },
+      "drop": {
+        "lat": 21.1702,
+        "lng": 79.0900,
+        "address": "Airport"
+      },
+      "rideType": "bike",
+      "fare": 120
+    }),
+  );
+
+  print(response.body);
+}
+ߔ Step 6: Real-Time Update (Important ߚ)
+
+Firestore listener use karo:
+
+FirebaseFirestore.instance
+  .collection('rides')
+  .doc(rideId)
+  .snapshots()
+  .listen((doc) {
+    print("Status: ${doc['status']}");
+});
+ߚ Next Upgrade (Must for Ride App)
+Driver Matching Logic
+
+• Nearby drivers fetch karo
+• Distance calculate karo
+• Closest driver assign karo
+
+Ride Status Flow
+searching → accepted → arrived → onRide → completed
+ߔ Final Result
+
+• Ride अब DB में save होगी ✅
+• Real API working ߚ
+• Live tracking possible ߓ
+• Driver matching ready

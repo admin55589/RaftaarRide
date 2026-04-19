@@ -17,7 +17,7 @@ import { useApp } from "@/context/AppContext";
 export default function LocationPermissionScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setCurrentLocationAddress, setPickup } = useApp();
+  const { setCurrentLocationAddress, setPickup, setPickupCoords } = useApp();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "denied">("idle");
   const [mode, setMode] = useState<"precise" | "approximate">("precise");
@@ -34,6 +34,8 @@ export default function LocationPermissionScreen() {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
       });
+
+      setPickupCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
 
       if (geo) {
         const parts = [

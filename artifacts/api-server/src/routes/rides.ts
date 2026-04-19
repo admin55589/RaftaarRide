@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { ridesTable, driversTable } from "@workspace/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 
 const router: IRouter = Router();
@@ -17,7 +17,7 @@ interface JwtPayload {
 function userAuthMiddleware(req: Request, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) {
-    res.status(401).json({ message: "Unauthorized" });
+    res.status(401).json({ success: false, error: "Unauthorized" });
     return;
   }
   const token = auth.slice(7);
@@ -26,22 +26,60 @@ function userAuthMiddleware(req: Request, res: Response, next: NextFunction) {
     (req as Request & { userId: number }).userId = payload.userId;
     next();
   } catch {
-    res.status(401).json({ message: "Invalid token" });
+    res.status(401).json({ success: false, error: "Invalid token" });
   }
+}
+
+interface GeoPoint {
+  lat?: number;
+  lng?: number;
+  address: string;
 }
 
 router.post("/rides", userAuthMiddleware, async (req: Request, res: Response) => {
   const userId = (req as Request & { userId: number }).userId;
-  const { pickup, destination, vehicleType, rideMode, price } = req.body as {
-    pickup: string;
-    destination: string;
-    vehicleType: string;
-    rideMode: string;
-    price: number;
+
+  const {
+    pickup,
+    drop,
+    destination,
+    vehicleType,
+    rideType,
+    rideMode,
+    price,
+    fare,
+    distanceKm,
+  } = req.body as {
+    pickup: GeoPoint | string;
+    drop?: GeoPoint | string;
+    destination?: GeoPoint | string;
+    vehicleType?: string;
+    rideType?: string;
+    rideMode?: string;
+    price?: number;
+    fare?: number;
+    distanceKm?: number;
   };
 
-  if (!pickup || !destination || !vehicleType || !price) {
-    res.status(400).json({ message: "pickup, destination, vehicleType, price are required" });
+  const dropPoint = drop ?? destination;
+  if (!pickup || !dropPoint) {
+    res.status(400).json({ success: false, error: "pickup and drop are required" });
+    return;
+  }
+
+  const pickupAddress = typeof pickup === "string" ? pickup : pickup.address;
+  const pickupLat    = typeof pickup === "string" ? null : String(pickup.lat ?? "");
+  const pickupLng    = typeof pickup === "string" ? null : String(pickup.lng ?? "");
+
+  const dropAddress  = typeof dropPoint === "string" ? dropPoint : dropPoint.address;
+  const dropLat      = typeof dropPoint === "string" ? null : String((dropPoint as GeoPoint).lat ?? "");
+  const dropLng      = typeof dropPoint === "string" ? null : String((dropPoint as GeoPoint).lng ?? "");
+
+  const finalVehicleType = rideType ?? vehicleType;
+  const finalPrice       = fare ?? price;
+
+  if (!pickupAddress || !dropAddress || !finalVehicleType || !finalPrice) {
+    res.status(400).json({ success: false, error: "pickup, drop, vehicleType/rideType, and price/fare are required" });
     return;
   }
 
@@ -50,29 +88,40 @@ router.post("/rides", userAuthMiddleware, async (req: Request, res: Response) =>
       .insert(ridesTable)
       .values({
         userId,
-        pickup,
-        destination,
-        vehicleType,
+        pickup: pickupAddress,
+        pickupLat: pickupLat || undefined,
+        pickupLng: pickupLng || undefined,
+        destination: dropAddress,
+        dropLat: dropLat || undefined,
+        dropLng: dropLng || undefined,
+        vehicleType: finalVehicleType,
         rideMode: rideMode ?? "economy",
-        price: String(price),
-        status: "pending",
+        price: String(finalPrice),
+        distanceKm: distanceKm ? String(distanceKm) : undefined,
+        status: "searching",
       })
       .returning();
 
-    res.status(201).json({ ride });
+    res.status(200).json({
+      success: true,
+      rideId: ride.id,
+      message: "Ride booked successfully",
+      ride,
+    });
   } catch (err) {
     console.error("[rides] create error:", err);
-    res.status(500).json({ message: "Failed to create ride" });
+    res.status(500).json({ success: false, error: String(err) });
   }
 });
+
+const VALID_STATUSES = ["searching", "accepted", "arrived", "onRide", "completed", "cancelled"];
 
 router.patch("/rides/:id/status", userAuthMiddleware, async (req: Request, res: Response) => {
   const rideId = Number(req.params.id);
   const { status, driverRating } = req.body as { status: string; driverRating?: number };
 
-  const validStatuses = ["pending", "assigned", "in_progress", "completed", "cancelled"];
-  if (!validStatuses.includes(status)) {
-    res.status(400).json({ message: `status must be one of: ${validStatuses.join(", ")}` });
+  if (!VALID_STATUSES.includes(status)) {
+    res.status(400).json({ success: false, error: `status must be one of: ${VALID_STATUSES.join(", ")}` });
     return;
   }
 
@@ -84,7 +133,7 @@ router.patch("/rides/:id/status", userAuthMiddleware, async (req: Request, res: 
       .returning();
 
     if (!updated) {
-      res.status(404).json({ message: "Ride not found" });
+      res.status(404).json({ success: false, error: "Ride not found" });
       return;
     }
 
@@ -108,10 +157,10 @@ router.patch("/rides/:id/status", userAuthMiddleware, async (req: Request, res: 
       }
     }
 
-    res.json({ ride: updated, driverRating });
+    res.json({ success: true, ride: updated, driverRating });
   } catch (err) {
     console.error("[rides] status update error:", err);
-    res.status(500).json({ message: "Failed to update ride status" });
+    res.status(500).json({ success: false, error: String(err) });
   }
 });
 
@@ -125,9 +174,9 @@ router.get("/rides/my", userAuthMiddleware, async (req: Request, res: Response) 
       .orderBy(desc(ridesTable.createdAt))
       .limit(30);
 
-    res.json({ rides });
+    res.json({ success: true, rides });
   } catch (err) {
-    res.status(500).json({ message: "Failed to fetch rides" });
+    res.status(500).json({ success: false, error: String(err) });
   }
 });
 

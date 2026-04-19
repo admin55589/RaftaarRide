@@ -14,8 +14,14 @@ async function authFetch<T>(path: string, token: string, options: RequestInit = 
     },
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Request failed");
+  if (!res.ok) throw new Error(data.error || data.message || "Request failed");
   return data as T;
+}
+
+export interface GeoPoint {
+  lat: number;
+  lng: number;
+  address: string;
 }
 
 export interface RideRecord {
@@ -23,38 +29,45 @@ export interface RideRecord {
   userId: number;
   driverId: number | null;
   pickup: string;
+  pickupLat: string | null;
+  pickupLng: string | null;
   destination: string;
+  dropLat: string | null;
+  dropLng: string | null;
   vehicleType: string;
   rideMode: string;
   price: string;
+  distanceKm: string | null;
   status: string;
   createdAt: string;
 }
 
 export interface CreateRideParams {
-  pickup: string;
-  destination: string;
+  pickup: GeoPoint;
+  drop: GeoPoint;
   vehicleType: string;
   rideMode: string;
   price: number;
+  distanceKm?: number;
 }
 
+export type RideStatus = "searching" | "accepted" | "arrived" | "onRide" | "completed" | "cancelled";
+
 export const ridesApi = {
-  async createRide(token: string, params: CreateRideParams): Promise<RideRecord> {
-    const data = await authFetch<{ ride: RideRecord }>("/rides", token, {
+  async createRide(token: string, params: CreateRideParams): Promise<{ rideId: number; ride: RideRecord }> {
+    return authFetch<{ success: boolean; rideId: number; ride: RideRecord }>("/rides", token, {
       method: "POST",
       body: JSON.stringify(params),
     });
-    return data.ride;
   },
 
   async updateStatus(
     token: string,
     rideId: number,
-    status: "pending" | "assigned" | "in_progress" | "completed" | "cancelled",
+    status: RideStatus,
     driverRating?: number
   ): Promise<RideRecord> {
-    const data = await authFetch<{ ride: RideRecord }>(`/rides/${rideId}/status`, token, {
+    const data = await authFetch<{ success: boolean; ride: RideRecord }>(`/rides/${rideId}/status`, token, {
       method: "PATCH",
       body: JSON.stringify({ status, driverRating }),
     });
@@ -62,7 +75,7 @@ export const ridesApi = {
   },
 
   async getMyRides(token: string): Promise<RideRecord[]> {
-    const data = await authFetch<{ rides: RideRecord[] }>("/rides/my", token, {
+    const data = await authFetch<{ success: boolean; rides: RideRecord[] }>("/rides/my", token, {
       method: "GET",
     });
     return data.rides;

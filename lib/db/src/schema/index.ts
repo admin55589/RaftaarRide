@@ -50,11 +50,16 @@ export const ridesTable = pgTable("rides", {
   userId: integer("user_id").notNull().references(() => usersTable.id),
   driverId: integer("driver_id").references(() => driversTable.id),
   pickup: text("pickup").notNull(),
+  pickupLat: numeric("pickup_lat", { precision: 10, scale: 6 }),
+  pickupLng: numeric("pickup_lng", { precision: 10, scale: 6 }),
   destination: text("destination").notNull(),
+  dropLat: numeric("drop_lat", { precision: 10, scale: 6 }),
+  dropLng: numeric("drop_lng", { precision: 10, scale: 6 }),
   vehicleType: text("vehicle_type").notNull(),
-  rideMode: text("ride_mode").notNull().default("standard"),
+  rideMode: text("ride_mode").notNull().default("economy"),
   price: numeric("price", { precision: 8, scale: 2 }).notNull(),
-  status: text("status").notNull().default("pending"),
+  distanceKm: numeric("distance_km", { precision: 6, scale: 2 }),
+  status: text("status").notNull().default("searching"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -29,6 +29,8 @@ export function BookingScreen() {
     setScreen,
     destination,
     pickup,
+    pickupCoords,
+    dropCoords,
     selectedVehicle,
     rideMode,
     estimatedTime,
@@ -54,19 +56,28 @@ export function BookingScreen() {
 
     if (token) {
       try {
-        const ride = await ridesApi.createRide(token, {
-          pickup,
-          destination,
+        const result = await ridesApi.createRide(token, {
+          pickup: {
+            lat: pickupCoords?.lat ?? 28.6328,
+            lng: pickupCoords?.lng ?? 77.2197,
+            address: pickup,
+          },
+          drop: {
+            lat: dropCoords?.lat ?? 28.7041,
+            lng: dropCoords?.lng ?? 77.1025,
+            address: destination,
+          },
           vehicleType: selectedVehicle,
           rideMode,
           price,
+          distanceKm,
         });
-        setCurrentRideId(ride.id);
+        setCurrentRideId(result.rideId);
       } catch (err) {
         console.warn("[booking] ride save failed:", err);
       }
     }
-  }, [selectedVehicle, token, pickup, destination, rideMode, price]);
+  }, [selectedVehicle, token, pickup, destination, pickupCoords, dropCoords, rideMode, price, distanceKm]);
 
   const PAYMENT_METHODS = [
     { label: "UPI", icon: "📱" },
