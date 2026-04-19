@@ -71,7 +71,7 @@ function StarRating() {
 export function PaymentScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { token } = useAuth();
+  const { token, user: authUser } = useAuth();
   const { setScreen, selectedVehicle, rideMode, estimatedTime, estimatedDistanceKm, paymentMethod, assignedDriver, destination, pickup, addRideToHistory, currentRideId, setCurrentRideId } = useApp();
   const [paid, setPaid] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -259,7 +259,7 @@ export function PaymentScreen() {
         <RazorpayWebView
           visible
           order={razorpayOrder}
-          userInfo={{ name: userName || "RaftaarRide User" }}
+          userInfo={{ name: authUser?.name || "RaftaarRide User" }}
           onSuccess={handleRazorpaySuccess}
           onDismiss={() => setRazorpayOrder(null)}
         />
