@@ -106,25 +106,31 @@ export function BookingScreen() {
 
           <Animated.View entering={FadeInDown.springify()} style={styles.routeCard}>
             <View style={styles.routeRow}>
-              <View style={[styles.routeDot, { backgroundColor: colors.primary }]} />
+              <View style={[styles.routeIconBox, { backgroundColor: colors.primary + "22" }]}>
+                <Feather name="navigation" size={14} color={colors.primary} />
+              </View>
               <View style={styles.routeInfo}>
-                <Text style={[styles.routeLabel, { color: colors.mutedForeground }]}>Pickup</Text>
+                <Text style={[styles.routeLabel, { color: colors.mutedForeground }]}>PICKUP</Text>
                 <Text style={[styles.routeValue, { color: colors.foreground }]} numberOfLines={1}>
                   {pickup}
                 </Text>
               </View>
             </View>
-            <View style={[styles.routeLine, { backgroundColor: colors.border }]} />
+            <View style={styles.routeLineContainer}>
+              <View style={[styles.routeLine, { backgroundColor: colors.border }]} />
+            </View>
             <View style={styles.routeRow}>
-              <View style={[styles.routeDot, { backgroundColor: colors.success }]} />
+              <View style={[styles.routeIconBox, { backgroundColor: "#22c55e22" }]}>
+                <Feather name="map-pin" size={14} color="#22c55e" />
+              </View>
               <View style={styles.routeInfo}>
-                <Text style={[styles.routeLabel, { color: colors.mutedForeground }]}>Destination</Text>
+                <Text style={[styles.routeLabel, { color: colors.mutedForeground }]}>DESTINATION</Text>
                 <Text style={[styles.routeValue, { color: colors.foreground }]} numberOfLines={1}>
                   {destination}
                 </Text>
               </View>
-              <Pressable onPress={() => setScreen("home")}>
-                <Feather name="edit-2" size={16} color={colors.mutedForeground} />
+              <Pressable onPress={() => setScreen("home")} style={styles.editBtn}>
+                <Feather name="edit-2" size={14} color={colors.mutedForeground} />
               </Pressable>
             </View>
           </Animated.View>
@@ -277,15 +283,26 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 6,
   },
-  routeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  routeIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  routeLineContainer: {
+    paddingLeft: 15,
+    marginVertical: 2,
   },
   routeLine: {
     width: 1,
-    height: 16,
-    marginLeft: 4.5,
+    height: 14,
+  },
+  editBtn: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
   },
   routeInfo: {
     flex: 1,
