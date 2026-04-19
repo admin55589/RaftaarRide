@@ -244,6 +244,21 @@ export function DriverModeScreen() {
             {isDriverLoggedIn ? "🚪" : "←"}
           </Text>
         </Pressable>
+
+        {driver && (
+          <GlassCard style={styles.profileChip} padding={8}>
+            <View style={styles.profileAvatar}>
+              <Text style={{ fontSize: 14 }}>👤</Text>
+            </View>
+            <View>
+              <Text style={[styles.profileName, { color: colors.foreground }]} numberOfLines={1}>{driver.name}</Text>
+              <Text style={[styles.profileVehicle, { color: colors.mutedForeground }]} numberOfLines={1}>
+                {driver.vehicleNumber} • {driver.vehicleType.charAt(0).toUpperCase() + driver.vehicleType.slice(1)}
+              </Text>
+            </View>
+          </GlassCard>
+        )}
+
         <GlassCard style={styles.onlineToggle} padding={10}>
           <Animated.View style={[styles.onlineDot, { backgroundColor: isOnline ? colors.success : colors.destructive }, isOnline ? dotStyle : {}]} />
           <Text style={[styles.onlineLabel, { color: colors.foreground }]}>
@@ -261,21 +276,7 @@ export function DriverModeScreen() {
       </View>
 
       <Animated.View entering={FadeInDown.springify()} style={[styles.sheet, { paddingBottom: bottomPad + 12 }]}>
-        {driver && (
-          <View style={styles.driverInfo}>
-            <View style={styles.driverAvatar}>
-              <Text style={{ fontSize: 20 }}>👤</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.driverName, { color: colors.foreground }]}>{driver.name}</Text>
-              <Text style={[styles.driverVehicle, { color: colors.mutedForeground }]}>
-                {driver.vehicleNumber} • {driver.vehicleType.charAt(0).toUpperCase() + driver.vehicleType.slice(1)}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        <GlassCard style={styles.statsCard} padding={16}>
+        <GlassCard style={styles.statsCard} padding={12}>
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Text style={styles.statIcon}>💰</Text>
@@ -326,25 +327,27 @@ export function DriverModeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  driverInfo: {
+  profileChip: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 4,
-    marginBottom: 12,
+    gap: 8,
+    borderRadius: 16,
+    minWidth: 0,
   },
-  driverAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  profileAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: "rgba(245,166,35,0.15)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(245,166,35,0.3)",
+    flexShrink: 0,
   },
-  driverName: { fontSize: 15, fontWeight: "700" },
-  driverVehicle: { fontSize: 12, marginTop: 1 },
+  profileName: { fontSize: 13, fontWeight: "700", lineHeight: 16 },
+  profileVehicle: { fontSize: 10, lineHeight: 13 },
   header: {
     position: "absolute",
     top: 0,
@@ -365,7 +368,6 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   onlineToggle: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -397,8 +399,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
-    gap: 12,
-    maxHeight: "55%",
+    gap: 10,
+    maxHeight: "62%",
   },
   statsCard: {
     borderRadius: 24,
@@ -419,20 +421,20 @@ const styles = StyleSheet.create({
     height: 40,
   },
   statIcon: {
-    fontSize: 18,
-    marginBottom: 2,
+    fontSize: 16,
+    marginBottom: 1,
   },
   earningsValue: {
     fontFamily: "Inter_700Bold",
-    fontSize: 22,
+    fontSize: 18,
   },
   statValue: {
     fontFamily: "Inter_700Bold",
-    fontSize: 22,
+    fontSize: 18,
   },
   statLabel: {
     fontFamily: "Inter_400Regular",
-    fontSize: 11,
+    fontSize: 10,
   },
   requestsList: {
     flex: 1,
