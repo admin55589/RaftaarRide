@@ -101,7 +101,7 @@ export function BookingScreen() {
 
       <Animated.View entering={FadeInUp.springify()} style={styles.sheet}>
         <GlassCard style={styles.card} padding={0}>
-          <View style={styles.handle} />
+          <View style={[styles.handle, { backgroundColor: colors.border }]} />
 
           <Animated.View entering={FadeInDown.springify()} style={styles.routeCard}>
             <View style={styles.routeRow}>
@@ -270,15 +270,12 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-    backgroundColor: "rgba(22,22,30,0.98)",
-    borderColor: "rgba(255,255,255,0.1)",
     maxHeight: 540,
   },
   handle: {
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "rgba(255,255,255,0.2)",
     alignSelf: "center",
     marginTop: 12,
     marginBottom: 4,

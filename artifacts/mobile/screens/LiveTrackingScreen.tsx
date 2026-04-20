@@ -167,7 +167,7 @@ export function LiveTrackingScreen() {
 
       <Animated.View entering={FadeInDown.springify()} style={styles.sheet}>
         <GlassCard style={styles.card} padding={0}>
-          <View style={styles.handle} />
+          <View style={[styles.handle, { backgroundColor: colors.border }]} />
           <View style={[styles.content, { paddingBottom: bottomPad + 12 }]}>
             <View style={styles.timerRow}>
               <View style={styles.timerInfo}>
@@ -273,14 +273,11 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-    backgroundColor: "rgba(22,22,30,0.97)",
-    borderColor: "rgba(255,255,255,0.1)",
   },
   handle: {
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "rgba(255,255,255,0.2)",
     alignSelf: "center",
     marginTop: 12,
   },

@@ -100,6 +100,7 @@ function PulsingDots() {
 
 function CancelModal({ visible, onConfirm, onDismiss }: { visible: boolean; onConfirm: () => void; onDismiss: () => void }) {
   const { isDark } = useTheme();
+  const colors = useColors();
   const iconScale = useSharedValue(0);
   useEffect(() => {
     if (visible) {
@@ -112,7 +113,7 @@ function CancelModal({ visible, onConfirm, onDismiss }: { visible: boolean; onCo
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onDismiss}>
       <BlurView intensity={isDark ? 60 : 40} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill}>
         <Pressable style={styles.modalBackdrop} onPress={onDismiss}>
-          <Animated.View entering={FadeInUp.springify().damping(14)} style={styles.modalCard}>
+          <Animated.View entering={FadeInUp.springify().damping(14)} style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Pressable>
               <Animated.View style={[styles.modalIconWrap, iconStyle]}>
                 <View style={styles.modalIconOuter}>
@@ -122,16 +123,16 @@ function CancelModal({ visible, onConfirm, onDismiss }: { visible: boolean; onCo
                 </View>
               </Animated.View>
               <Animated.View entering={FadeInDown.delay(80)} style={styles.modalTextWrap}>
-                <Text style={styles.modalTitle}>Ride Cancel Karen?</Text>
-                <Text style={styles.modalSubtitle}>
+                <Text style={[styles.modalTitle, { color: colors.foreground }]}>Ride Cancel Karen?</Text>
+                <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>
                   Kya aap sach mein yeh ride cancel karna chahte hain?{"\n"}
                   <Text style={styles.modalNote}>Driver dhundhna bandh ho jaega.</Text>
                 </Text>
               </Animated.View>
-              <View style={styles.modalDivider} />
+              <View style={[styles.modalDivider, { backgroundColor: colors.border }]} />
               <Animated.View entering={FadeInDown.delay(140)} style={styles.modalBtnRow}>
-                <TouchableOpacity style={[styles.modalBtn, styles.modalBtnKeep]} onPress={onDismiss} activeOpacity={0.8}>
-                  <Text style={styles.modalBtnKeepText}>⬅  Nahi, Wapas Jao</Text>
+                <TouchableOpacity style={[styles.modalBtn, styles.modalBtnKeep, { borderRightColor: colors.border }]} onPress={onDismiss} activeOpacity={0.8}>
+                  <Text style={[styles.modalBtnKeepText, { color: colors.foreground }]}>⬅  Nahi, Wapas Jao</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={onConfirm} activeOpacity={0.8}>
                   <Text style={styles.modalBtnCancelText}>✕  Haan, Cancel Karo</Text>
@@ -258,18 +259,18 @@ export function SearchingScreen() {
 
       <Animated.View entering={FadeIn.springify()} style={[styles.bottomSheet, { paddingBottom: insets.bottom + 12 }]}>
         <LinearGradient
-          colors={["rgba(14,14,22,0.0)", "rgba(14,14,22,0.92)"]}
+          colors={[`${colors.background}00`, colors.background]}
           style={styles.fadeTop}
           pointerEvents="none"
         />
-        <View style={[styles.card, { backgroundColor: "rgba(13,13,20,0.98)" }]}>
-          <View style={styles.handle} />
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.handle, { backgroundColor: colors.border }]} />
 
           {/* Header row */}
           <Animated.View entering={FadeInDown.delay(60)} style={styles.headerRow}>
             <View style={styles.headerTextCol}>
-              <Text style={styles.headerTitle}>Driver Mil Raha Hai</Text>
-              <Animated.Text style={[styles.headerSub, msgStyle]}>{MESSAGES[msgIndex]}</Animated.Text>
+              <Text style={[styles.headerTitle, { color: colors.foreground }]}>Driver Mil Raha Hai</Text>
+              <Animated.Text style={[styles.headerSub, msgStyle, { color: colors.mutedForeground }]}>{MESSAGES[msgIndex]}</Animated.Text>
             </View>
             <View style={styles.liveChip}>
               <View style={styles.liveDot} />
@@ -294,23 +295,23 @@ export function SearchingScreen() {
               </View>
             </View>
             <PulsingDots />
-            <Text style={styles.vehicleLabel}>
+            <Text style={[styles.vehicleLabel, { color: colors.mutedForeground }]}>
               {vehicleLabel} dhundh rahe hain aapke liye
             </Text>
           </Animated.View>
 
           {/* Stats */}
-          <Animated.View entering={FadeInDown.delay(160)} style={styles.statsRow}>
+          <Animated.View entering={FadeInDown.delay(160)} style={[styles.statsRow, { borderColor: colors.border }]}>
             <LinearGradient
               colors={["rgba(245,166,35,0.12)", "rgba(245,166,35,0.04)"]}
               style={[styles.statCard, { borderColor: "rgba(245,166,35,0.25)" }]}
             >
               <Text style={styles.statEmoji}>👥</Text>
               <Text style={styles.statNum}>12</Text>
-              <Text style={styles.statLbl}>Paas ke Drivers</Text>
+              <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Paas ke Drivers</Text>
             </LinearGradient>
 
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
 
             <LinearGradient
               colors={["rgba(99,102,241,0.12)", "rgba(99,102,241,0.04)"]}
@@ -318,16 +319,16 @@ export function SearchingScreen() {
             >
               <Text style={styles.statEmoji}>⏱️</Text>
               <Text style={[styles.statNum, { color: "#818cf8" }]}>{formatTime(elapsedSeconds)}</Text>
-              <Text style={styles.statLbl}>Intezaar ka Waqt</Text>
+              <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Intezaar ka Waqt</Text>
             </LinearGradient>
           </Animated.View>
 
           {/* Progress bar */}
           <Animated.View entering={FadeInDown.delay(200)} style={styles.progressWrap}>
-            <View style={[styles.progressBg, { backgroundColor: "rgba(255,255,255,0.07)" }]}>
+            <View style={[styles.progressBg, { backgroundColor: colors.secondary }]}>
               <Animated.View style={[styles.progressFill]} />
             </View>
-            <Text style={styles.progressHint}>Best match dhundha ja raha hai...</Text>
+            <Text style={[styles.progressHint, { color: colors.mutedForeground }]}>Best match dhundha ja raha hai...</Text>
           </Animated.View>
 
           {/* Cancel button */}
@@ -385,7 +386,6 @@ const styles = StyleSheet.create({
     gap: 16,
     borderWidth: 1,
     borderBottomWidth: 0,
-    borderColor: "rgba(255,255,255,0.08)",
     shadowColor: "#000",
     shadowOpacity: 0.5,
     shadowRadius: 24,
@@ -397,7 +397,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "rgba(255,255,255,0.18)",
     alignSelf: "center",
     marginBottom: 4,
   },
@@ -411,13 +410,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: "Inter_700Bold",
     fontSize: 20,
-    color: "#fff",
     letterSpacing: -0.3,
   },
   headerSub: {
     fontFamily: "Inter_400Regular",
     fontSize: 13,
-    color: "rgba(255,255,255,0.5)",
     marginTop: 2,
   },
 
@@ -504,7 +501,6 @@ const styles = StyleSheet.create({
   vehicleLabel: {
     fontFamily: "Inter_500Medium",
     fontSize: 13,
-    color: "rgba(255,255,255,0.45)",
     textAlign: "center",
   },
 
@@ -514,7 +510,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
   },
   statCard: {
     flex: 1,
@@ -525,7 +520,6 @@ const styles = StyleSheet.create({
   },
   statDivider: {
     width: 1,
-    backgroundColor: "rgba(255,255,255,0.07)",
     marginVertical: 8,
   },
   statEmoji: { fontSize: 20 },
@@ -538,7 +532,6 @@ const styles = StyleSheet.create({
   statLbl: {
     fontFamily: "Inter_400Regular",
     fontSize: 11,
-    color: "rgba(255,255,255,0.4)",
     textAlign: "center",
   },
 
@@ -557,7 +550,6 @@ const styles = StyleSheet.create({
   progressHint: {
     fontFamily: "Inter_400Regular",
     fontSize: 11,
-    color: "rgba(255,255,255,0.3)",
     textAlign: "center",
   },
 
@@ -586,8 +578,8 @@ const styles = StyleSheet.create({
   modalBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28 },
   modalCard: {
     width: "100%", borderRadius: 28, overflow: "hidden",
-    backgroundColor: "rgba(18,18,26,0.96)", borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)", shadowColor: "#000",
+    borderWidth: 1,
+    shadowColor: "#000",
     shadowOpacity: 0.5, shadowRadius: 32, shadowOffset: { width: 0, height: 16 }, elevation: 20,
   },
   modalIconWrap: { alignItems: "center", paddingTop: 32, paddingBottom: 16 },
@@ -595,14 +587,14 @@ const styles = StyleSheet.create({
   modalIconInner: { width: 64, height: 64, borderRadius: 32, backgroundColor: "rgba(239,68,68,0.18)", alignItems: "center", justifyContent: "center" },
   modalIconEmoji: { fontSize: 30 },
   modalTextWrap: { alignItems: "center", paddingHorizontal: 24, paddingBottom: 24, gap: 10 },
-  modalTitle: { fontSize: 22, fontWeight: "800", color: "#fff", textAlign: "center", fontFamily: "Inter_700Bold", letterSpacing: -0.3 },
-  modalSubtitle: { fontSize: 14, color: "rgba(255,255,255,0.6)", textAlign: "center", fontFamily: "Inter_400Regular", lineHeight: 22 },
+  modalTitle: { fontSize: 22, fontWeight: "800", textAlign: "center", fontFamily: "Inter_700Bold", letterSpacing: -0.3 },
+  modalSubtitle: { fontSize: 14, textAlign: "center", fontFamily: "Inter_400Regular", lineHeight: 22 },
   modalNote: { color: "#F87171", fontSize: 12, fontFamily: "Inter_500Medium" },
-  modalDivider: { height: 1, backgroundColor: "rgba(255,255,255,0.07)" },
+  modalDivider: { height: 1 },
   modalBtnRow: { flexDirection: "row", gap: 0 },
   modalBtn: { flex: 1, paddingVertical: 18, alignItems: "center", justifyContent: "center" },
-  modalBtnKeep: { borderRightWidth: 1, borderRightColor: "rgba(255,255,255,0.07)" },
-  modalBtnKeepText: { fontSize: 14, fontWeight: "600", color: "rgba(255,255,255,0.75)", fontFamily: "Inter_600SemiBold" },
+  modalBtnKeep: { borderRightWidth: 1 },
+  modalBtnKeepText: { fontSize: 14, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
   modalBtnCancel: { backgroundColor: "rgba(239,68,68,0.10)" },
   modalBtnCancelText: { fontSize: 14, fontWeight: "700", color: "#F87171", fontFamily: "Inter_700Bold" },
 });

@@ -103,6 +103,7 @@ function ETABar({ eta }: { eta: number }) {
 // ─── SOS Modal ───────────────────────────────────────────────────────────────
 function SOSModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { isDark } = useTheme();
+  const colors = useColors();
   const pulseScale = useSharedValue(1);
 
   useEffect(() => {
@@ -144,7 +145,7 @@ function SOSModal({ visible, onClose }: { visible: boolean; onClose: () => void 
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <BlurView intensity={isDark ? 70 : 50} tint="dark" style={StyleSheet.absoluteFill}>
         <Pressable style={s.modalBackdrop} onPress={onClose}>
-          <Animated.View entering={FadeInUp.springify().damping(13)} style={s.sosCard}>
+          <Animated.View entering={FadeInUp.springify().damping(13)} style={[s.sosCard, { backgroundColor: colors.card }]}>
             <Pressable>
               <Animated.View style={[s.sosPulseWrap, pulseStyle]}>
                 <View style={s.sosPulseOuter}>
@@ -154,8 +155,8 @@ function SOSModal({ visible, onClose }: { visible: boolean; onClose: () => void 
                 </View>
               </Animated.View>
 
-              <Text style={s.sosModalTitle}>Emergency SOS</Text>
-              <Text style={s.sosModalSub}>Apni safety ke liye turant help maangein</Text>
+              <Text style={[s.sosModalTitle, { color: colors.foreground }]}>Emergency SOS</Text>
+              <Text style={[s.sosModalSub, { color: colors.mutedForeground }]}>Apni safety ke liye turant help maangein</Text>
 
               <View style={s.sosOptions}>
                 {EMERGENCY_OPTIONS.map((opt, i) => (
@@ -168,7 +169,7 @@ function SOSModal({ visible, onClose }: { visible: boolean; onClose: () => void 
                       <Text style={{ fontSize: 26 }}>{opt.icon}</Text>
                       <View style={{ flex: 1 }}>
                         <Text style={[s.sosOptLabel, { color: opt.color }]}>{opt.label}</Text>
-                        <Text style={s.sosOptSub}>{opt.sub}</Text>
+                        <Text style={[s.sosOptSub, { color: colors.mutedForeground }]}>{opt.sub}</Text>
                       </View>
                       <View style={[s.sosDialBtn, { backgroundColor: opt.color }]}>
                         <Text style={{ color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold" }}>{opt.number}</Text>
@@ -178,8 +179,8 @@ function SOSModal({ visible, onClose }: { visible: boolean; onClose: () => void 
                 ))}
               </View>
 
-              <TouchableOpacity style={s.sosDismiss} onPress={onClose}>
-                <Text style={s.sosDismissText}>✕  Main safe hoon</Text>
+              <TouchableOpacity style={[s.sosDismiss, { borderColor: colors.border }]} onPress={onClose}>
+                <Text style={[s.sosDismissText, { color: colors.foreground }]}>✕  Main safe hoon</Text>
               </TouchableOpacity>
             </Pressable>
           </Animated.View>
@@ -279,9 +280,9 @@ function ChatModal({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <BlurView intensity={isDark ? 60 : 40} tint="dark" style={{ flex: 1 }}>
-          <Animated.View entering={FadeInUp.duration(350)} style={s.chatContainer}>
+          <Animated.View entering={FadeInUp.duration(350)} style={[s.chatContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Header */}
-            <View style={s.chatHeader}>
+            <View style={[s.chatHeader, { borderBottomColor: colors.border }]}>
               <View style={s.chatHeaderLeft}>
                 <View style={s.chatAvatar}>
                   <Text style={{ fontFamily: "Inter_700Bold", fontSize: 16, color: colors.primary }}>
@@ -289,14 +290,14 @@ function ChatModal({
                   </Text>
                 </View>
                 <View>
-                  <Text style={s.chatHeaderName}>{driverName}</Text>
+                  <Text style={[s.chatHeaderName, { color: colors.foreground }]}>{driverName}</Text>
                   <Text style={[s.chatHeaderSub, { color: "#4ADE80" }]}>
                     {isDriverTyping ? "Typing..." : "● Online"}
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={onClose} style={s.chatCloseBtn}>
-                <Text style={{ color: "#fff", fontSize: 18 }}>✕</Text>
+              <TouchableOpacity onPress={onClose} style={[s.chatCloseBtn, { backgroundColor: colors.secondary }]}>
+                <Text style={{ color: colors.foreground, fontSize: 18 }}>✕</Text>
               </TouchableOpacity>
             </View>
 
@@ -327,11 +328,11 @@ function ChatModal({
                         s.msgBubble,
                         isUser
                           ? { backgroundColor: colors.primary, borderBottomRightRadius: 4 }
-                          : { backgroundColor: "rgba(255,255,255,0.10)", borderBottomLeftRadius: 4 },
+                          : { backgroundColor: colors.secondary, borderBottomLeftRadius: 4 },
                       ]}>
-                        <Text style={[s.msgText, { color: isUser ? "#000" : "#fff" }]}>{item.text}</Text>
+                        <Text style={[s.msgText, { color: isUser ? "#000" : colors.foreground }]}>{item.text}</Text>
                       </View>
-                      <Text style={[s.msgTime, isUser ? { textAlign: "right" } : {}]}>{formatTime(item.timestamp)}</Text>
+                      <Text style={[s.msgTime, { color: colors.mutedForeground }, isUser ? { textAlign: "right" } : {}]}>{formatTime(item.timestamp)}</Text>
                     </View>
                   </Animated.View>
                 );
@@ -344,8 +345,8 @@ function ChatModal({
                         {driverName.slice(0, 2).toUpperCase()}
                       </Text>
                     </View>
-                    <View style={[s.msgBubble, { backgroundColor: "rgba(255,255,255,0.10)", paddingVertical: 10 }]}>
-                      <Text style={{ color: "#888", fontSize: 18 }}>● ● ●</Text>
+                    <View style={[s.msgBubble, { backgroundColor: colors.secondary, paddingVertical: 10 }]}>
+                      <Text style={{ color: colors.mutedForeground, fontSize: 18 }}>● ● ●</Text>
                     </View>
                   </View>
                 ) : null
@@ -353,11 +354,11 @@ function ChatModal({
             />
 
             {/* Input */}
-            <View style={s.chatInputRow}>
+            <View style={[s.chatInputRow, { borderTopColor: colors.border }]}>
               <TextInput
-                style={[s.chatInput, { color: "#fff", borderColor: "rgba(255,255,255,0.14)" }]}
+                style={[s.chatInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.secondary }]}
                 placeholder="Message type karein..."
-                placeholderTextColor="rgba(255,255,255,0.35)"
+                placeholderTextColor={colors.mutedForeground}
                 value={inputText}
                 onChangeText={setInputText}
                 onSubmitEditing={sendMsg}
@@ -365,7 +366,7 @@ function ChatModal({
                 multiline={false}
               />
               <TouchableOpacity
-                style={[s.chatSendBtn, { backgroundColor: inputText.trim() ? colors.primary : "rgba(255,255,255,0.1)" }]}
+                style={[s.chatSendBtn, { backgroundColor: inputText.trim() ? colors.primary : colors.secondary }]}
                 onPress={sendMsg}
                 disabled={!inputText.trim()}
               >
@@ -447,7 +448,7 @@ export function DriverAssignedScreen() {
 
       <Animated.View entering={FadeInUp.springify()} style={s.sheet}>
         <GlassCard style={s.card} padding={0}>
-          <View style={s.handle} />
+          <View style={[s.handle, { backgroundColor: colors.border }]} />
           <View style={s.content}>
 
             <Animated.View entering={FadeInDown.springify()} style={s.etaRow}>
@@ -530,8 +531,8 @@ export function DriverAssignedScreen() {
 const s = StyleSheet.create({
   container: { flex: 1 },
   sheet: { position: "absolute", bottom: 0, left: 0, right: 0 },
-  card: { borderRadius: 28, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, backgroundColor: "rgba(22,22,30,0.97)", borderColor: "rgba(255,255,255,0.1)" },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.2)", alignSelf: "center", marginTop: 12 },
+  card: { borderRadius: 28, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
+  handle: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginTop: 12 },
   content: { padding: 20, gap: 16 },
   etaRow: { gap: 8 },
   etaBadge: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 12, borderWidth: 1, paddingVertical: 6, paddingHorizontal: 12, alignSelf: "flex-start" },
@@ -557,36 +558,36 @@ const s = StyleSheet.create({
 
   // SOS Modal
   modalBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
-  sosCard: { width: "100%", borderRadius: 28, backgroundColor: "rgba(18,18,26,0.97)", borderWidth: 1, borderColor: "rgba(239,68,68,0.25)", padding: 24, alignItems: "center", shadowColor: "#EF4444", shadowOpacity: 0.3, shadowRadius: 32, elevation: 20 },
+  sosCard: { width: "100%", borderRadius: 28, borderWidth: 1, borderColor: "rgba(239,68,68,0.25)", padding: 24, alignItems: "center", shadowColor: "#EF4444", shadowOpacity: 0.3, shadowRadius: 32, elevation: 20 },
   sosPulseWrap: { alignItems: "center", marginBottom: 16 },
   sosPulseOuter: { width: 100, height: 100, borderRadius: 50, backgroundColor: "rgba(239,68,68,0.10)", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "rgba(239,68,68,0.3)" },
   sosPulseInner: { width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(239,68,68,0.18)", alignItems: "center", justifyContent: "center" },
-  sosModalTitle: { fontSize: 24, fontWeight: "800", color: "#fff", textAlign: "center", fontFamily: "Inter_700Bold", marginBottom: 6 },
-  sosModalSub: { fontSize: 13, color: "rgba(255,255,255,0.5)", textAlign: "center", fontFamily: "Inter_400Regular", marginBottom: 20 },
+  sosModalTitle: { fontSize: 24, fontWeight: "800", textAlign: "center", fontFamily: "Inter_700Bold", marginBottom: 6 },
+  sosModalSub: { fontSize: 13, textAlign: "center", fontFamily: "Inter_400Regular", marginBottom: 20 },
   sosOptions: { width: "100%", gap: 10 },
   sosOption: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, borderWidth: 1, padding: 14 },
   sosOptLabel: { fontSize: 15, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  sosOptSub: { fontSize: 11, color: "rgba(255,255,255,0.45)", fontFamily: "Inter_400Regular", marginTop: 2 },
+  sosOptSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   sosDialBtn: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, alignItems: "center", justifyContent: "center" },
-  sosDismiss: { marginTop: 20, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
-  sosDismissText: { color: "rgba(255,255,255,0.6)", fontSize: 14, fontFamily: "Inter_500Medium" },
+  sosDismiss: { marginTop: 20, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 14, borderWidth: 1 },
+  sosDismissText: { fontSize: 14, fontFamily: "Inter_500Medium" },
 
   // Chat Modal
-  chatContainer: { flex: 1, marginTop: 60, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: "rgba(14,14,20,0.98)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", overflow: "hidden" },
-  chatHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 18, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.07)" },
+  chatContainer: { flex: 1, marginTop: 60, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, overflow: "hidden" },
+  chatHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 18, borderBottomWidth: 1 },
   chatHeaderLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
   chatAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(245,166,35,0.15)", borderWidth: 1.5, borderColor: "rgba(245,166,35,0.4)", alignItems: "center", justifyContent: "center" },
-  chatHeaderName: { fontSize: 16, fontWeight: "700", color: "#fff", fontFamily: "Inter_700Bold" },
+  chatHeaderName: { fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
   chatHeaderSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
-  chatCloseBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center" },
+  chatCloseBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   msgRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   msgRowUser: { justifyContent: "flex-end" },
   msgRowDriver: { justifyContent: "flex-start" },
   msgAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(245,166,35,0.15)", borderWidth: 1, borderColor: "rgba(245,166,35,0.3)", alignItems: "center", justifyContent: "center", marginBottom: 18 },
   msgBubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
   msgText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
-  msgTime: { fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "Inter_400Regular" },
-  chatInputRow: { flexDirection: "row", gap: 10, padding: 16, paddingBottom: 28, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.07)", alignItems: "center" },
-  chatInput: { flex: 1, borderRadius: 22, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 12, fontSize: 14, fontFamily: "Inter_400Regular", backgroundColor: "rgba(255,255,255,0.05)" },
+  msgTime: { fontSize: 10, fontFamily: "Inter_400Regular" },
+  chatInputRow: { flexDirection: "row", gap: 10, padding: 16, paddingBottom: 28, borderTopWidth: 1, alignItems: "center" },
+  chatInput: { flex: 1, borderRadius: 22, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 12, fontSize: 14, fontFamily: "Inter_400Regular" },
   chatSendBtn: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
 });
