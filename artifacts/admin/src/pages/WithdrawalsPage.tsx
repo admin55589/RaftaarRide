@@ -52,7 +52,9 @@ export function WithdrawalsPage() {
       const res = await fetch(`${API_BASE}/api/admin/withdrawals`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      return res.json();
+      if (!res.ok) return [];
+      const json = await res.json();
+      return Array.isArray(json) ? json : (json.withdrawals ?? []);
     },
     enabled: !!token,
     refetchInterval: 15000,

@@ -82,7 +82,9 @@ export function KYCPage() {
       const res = await fetch(`${API_BASE}/api/admin/kyc`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      return res.json();
+      if (!res.ok) return [];
+      const json = await res.json();
+      return Array.isArray(json) ? json : [];
     },
     enabled: !!token,
     refetchInterval: 15000,
