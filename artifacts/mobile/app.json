@@ -1,22 +1,37 @@
 {
   "expo": {
-    "name": " ",
+    "name": "RaftaarRide",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/app-logo.jpg",
     "scheme": "mobile",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/icon.png",
+      "image": "./assets/images/app-logo.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#0A0A0F"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.raftaarride.app",
+      "config": {
+        "googleMapsApiKey": ""
+      }
     },
-    "android": {},
+    "android": {
+      "package": "com.raftaarride.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/app-logo.jpg",
+        "backgroundColor": "#F5A623"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": ""
+        }
+      }
+    },
     "web": {
       "favicon": "./assets/images/favicon.png"
     },
