@@ -691,7 +691,7 @@ export function DriverModeScreen() {
 
         {/* Active Trip Card */}
         {activeRide && (
-          <Animated.View entering={FadeInDown.springify()} style={[styles.activeTripCard, { backgroundColor: "rgba(34,197,94,0.08)", borderColor: "rgba(34,197,94,0.25)" }]}>
+          <Animated.View entering={FadeInDown.springify()} style={[styles.activeTripCard, { backgroundColor: colors.card, borderColor: "rgba(34,197,94,0.5)" }]}>
             <View style={styles.activeTripHeader}>
               <View style={styles.activeTripBadge}>
                 <Text style={{ fontSize: 10 }}>🟢</Text>
