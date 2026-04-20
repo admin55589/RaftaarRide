@@ -230,6 +230,14 @@ export default function SignupScreen() {
                 Already account hai? <Text style={{ color: "#F5A623" }}>Login karo</Text>
               </Text>
             </Pressable>
+
+            <View style={styles.termsRow}>
+              <Text style={styles.termsText}>Account banake aap humare </Text>
+              <Pressable onPress={() => router.push("/terms")}>
+                <Text style={styles.termsLink}>Terms & Privacy Policy</Text>
+              </Pressable>
+              <Text style={styles.termsText}> se agree karte hain</Text>
+            </View>
           </Animated.View>
         </ScrollView>
       </LinearGradient>
@@ -286,6 +294,9 @@ const styles = StyleSheet.create({
   primaryText: { color: "#0A0A0F", fontWeight: "800", fontSize: 16 },
   loginLink: { marginTop: 20, alignItems: "center" },
   loginLinkText: { color: "#8A8A9A", fontSize: 14 },
+  termsRow: { marginTop: 16, flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "center" },
+  termsText: { color: "#8A8A9A", fontSize: 11 },
+  termsLink: { color: "#F5A623", fontSize: 11, textDecorationLine: "underline", fontFamily: "Inter_600SemiBold" },
   genderRow: { flexDirection: "row", gap: 8 },
   genderBtn: {
     flex: 1, paddingVertical: 12, borderRadius: 12,

@@ -225,8 +225,12 @@ export default function LoginScreen() {
 
           <Animated.View entering={FadeInDown.delay(600).springify()} style={styles.footer}>
             <Text style={styles.footerText}>
-              Login karke aap humare Terms & Privacy Policy se agree karte hain
+              Login karke aap humare{" "}
             </Text>
+            <Pressable onPress={() => router.push("/terms")}>
+              <Text style={styles.footerLink}>Terms & Privacy Policy</Text>
+            </Pressable>
+            <Text style={styles.footerText}>{" "}se agree karte hain</Text>
           </Animated.View>
         </ScrollView>
       </LinearGradient>
@@ -332,8 +336,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   secondaryBtnText: { color: "#F5A623", fontWeight: "700", fontSize: 15 },
-  footer: { marginTop: 40, alignItems: "center" },
-  footerText: { color: "#8A8A9A", fontSize: 12, textAlign: "center", lineHeight: 18 },
+  footer: { marginTop: 40, alignItems: "center", flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
+  footerText: { color: "#8A8A9A", fontSize: 12, lineHeight: 18 },
+  footerLink: { color: "#F5A623", fontSize: 12, lineHeight: 18, textDecorationLine: "underline", fontFamily: "Inter_600SemiBold" },
   driverBtn: {
     borderWidth: 1.5,
     borderColor: "#22c55e",

@@ -49,7 +49,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const inAuthGroup = segments[0] === "auth";
   const inDriverAuthGroup = segments[0] === "driver-auth";
   const inOnboarding = segments[0] === "(onboarding)";
-  const inProtectedArea = !inAuthGroup && !inDriverAuthGroup && !inOnboarding;
+  const inTerms = segments[0] === "terms";
+  const inProtectedArea = !inAuthGroup && !inDriverAuthGroup && !inOnboarding && !inTerms;
 
   useEffect(() => {
     if (anyLoading) return;
@@ -91,6 +92,7 @@ function RootLayoutNav() {
       <Stack.Screen name="auth" />
       <Stack.Screen name="driver-auth" />
       <Stack.Screen name="(onboarding)" />
+      <Stack.Screen name="terms" />
       <Stack.Screen name="+not-found" />
     </Stack>
   );
