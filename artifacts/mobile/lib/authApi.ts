@@ -186,7 +186,7 @@ export const authApi = {
   },
 
   sendOtp: (phone: string) =>
-    post<{ message: string; otp?: string; isNewUser?: boolean }>("/auth/send-otp", { phone }),
+    post<{ message: string; otp?: string; isNewUser?: boolean; smsSent?: boolean }>("/auth/send-otp", { phone }),
 
   verifyOtp: (body: { phone: string; otp: string }) =>
     post<AuthResponse>("/auth/verify-otp", body),

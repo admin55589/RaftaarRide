@@ -13,6 +13,57 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+async function sendSmsOtp(phone: string, otp: string): Promise<{ sent: boolean; dev: boolean }> {
+  const fast2smsKey = process.env.FAST2SMS_API_KEY;
+  const msg91Key = process.env.MSG91_API_KEY;
+  const msg91Template = process.env.MSG91_TEMPLATE_ID;
+
+  // Strip country code if present
+  const digits = phone.replace(/^\+91/, "").replace(/^91/, "").replace(/\D/g, "");
+
+  if (fast2smsKey) {
+    try {
+      const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${fast2smsKey}&route=otp&variables_values=${otp}&numbers=${digits}`;
+      const res = await fetch(url, { headers: { "cache-control": "no-cache" } });
+      const data = (await res.json()) as { return: boolean; message?: string[] };
+      if (data.return) {
+        console.log(`[OTP][Fast2SMS] Sent to ${phone}`);
+        return { sent: true, dev: false };
+      }
+      console.error("[OTP][Fast2SMS] Failed:", data.message);
+    } catch (err) {
+      console.error("[OTP][Fast2SMS] Error:", err);
+    }
+  }
+
+  if (msg91Key && msg91Template) {
+    try {
+      const res = await fetch("https://control.msg91.com/api/v5/flow/", {
+        method: "POST",
+        headers: { authkey: msg91Key, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          template_id: msg91Template,
+          short_url: "0",
+          mobiles: `91${digits}`,
+          otp,
+        }),
+      });
+      const data = (await res.json()) as { type: string };
+      if (data.type === "success") {
+        console.log(`[OTP][MSG91] Sent to ${phone}`);
+        return { sent: true, dev: false };
+      }
+      console.error("[OTP][MSG91] Failed:", data);
+    } catch (err) {
+      console.error("[OTP][MSG91] Error:", err);
+    }
+  }
+
+  // Dev fallback — no SMS key configured
+  console.log(`[OTP][DEV] Phone: ${phone} → OTP: ${otp}`);
+  return { sent: false, dev: true };
+}
+
 router.post("/auth/register", async (req: Request, res: Response) => {
   const { name, phone, email, password, gender } = req.body as {
     name: string;
@@ -177,12 +228,14 @@ router.post("/auth/send-otp", async (req: Request, res: Response) => {
       });
     }
 
-    console.log(`[OTP] Phone: ${phone} → OTP: ${otp} (${isNewUser ? "new" : "existing"} user)`);
+    const { sent, dev } = await sendSmsOtp(phone, otp);
 
     res.json({
-      message: "OTP sent successfully",
+      message: sent ? "OTP aapke phone pe bhej diya gaya" : "OTP ready (dev mode)",
       isNewUser,
-      otp: process.env.NODE_ENV === "development" ? otp : undefined,
+      // Return OTP only in dev mode (no SMS key configured)
+      otp: dev ? otp : undefined,
+      smsSent: sent,
     });
   } catch (err) {
     console.error("Send OTP error:", err);

@@ -22,7 +22,7 @@ export default function OtpScreen() {
   const insets = useSafeAreaInsets();
   const { lang, toggleLanguage, t } = useLanguage();
   const router = useRouter();
-  const params = useLocalSearchParams<{ phone: string; devOtp?: string; isNewUser?: string }>();
+  const params = useLocalSearchParams<{ phone: string; devOtp?: string; isNewUser?: string; smsSent?: string }>();
   const { login } = useAuth();
   const { announceWelcome } = useVoiceAI();
 
@@ -36,6 +36,7 @@ export default function OtpScreen() {
   const phone = params.phone ?? "";
   const devOtp = params.devOtp;
   const isNewUser = params.isNewUser === "1";
+  const smsSent = params.smsSent === "1";
 
   useEffect(() => {
     if (devOtp) {
@@ -162,10 +163,15 @@ export default function OtpScreen() {
             </Text>
           </Animated.View>
 
-          {devOtp ? (
+          {smsSent ? (
+            <Animated.View entering={FadeInDown.delay(350).springify()} style={[styles.devBanner, styles.smsBanner]}>
+              <Text style={{ fontSize: 14 }}>✅</Text>
+              <Text style={[styles.devText, { color: "#4CAF50" }]}>SMS bhej diya! Apna phone check karo</Text>
+            </Animated.View>
+          ) : devOtp ? (
             <Animated.View entering={FadeInDown.delay(350).springify()} style={styles.devBanner}>
-              <Text style={{ fontSize: 14, color: "#F5A623" }}>ℹ️</Text>
-              <Text style={styles.devText}>Dev Mode: OTP auto-filled ({devOtp})</Text>
+              <Text style={{ fontSize: 14, color: "#F5A623" }}>🔧</Text>
+              <Text style={styles.devText}>Testing Mode: OTP = {devOtp}</Text>
             </Animated.View>
           ) : null}
 
@@ -249,6 +255,10 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 8,
     backgroundColor: "rgba(245,166,35,0.1)", borderRadius: 10, padding: 10, marginBottom: 20,
     borderWidth: 1, borderColor: "rgba(245,166,35,0.3)",
+  },
+  smsBanner: {
+    backgroundColor: "rgba(76,175,80,0.1)",
+    borderColor: "rgba(76,175,80,0.3)",
   },
   devText: { color: "#F5A623", fontSize: 12 },
   form: {},
