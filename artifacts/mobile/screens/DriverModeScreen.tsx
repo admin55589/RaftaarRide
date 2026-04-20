@@ -1054,7 +1054,7 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 16,
     gap: 10,
-    maxHeight: "62%",
+    maxHeight: "74%",
   },
   statsCard: {
     borderRadius: 24,

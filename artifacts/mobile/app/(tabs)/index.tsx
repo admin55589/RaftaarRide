@@ -166,7 +166,7 @@ export default function MainScreen() {
                 onPress={() => setActiveTab(tab.key)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.tabIconWrap, isActive && { backgroundColor: colors.primary + "22" }]}>
+                <View style={styles.tabIconWrap}>
                   {tab.custom ? (
                     <CalendarIcon isActive={isActive} color={colors.primary} />
                   ) : (
