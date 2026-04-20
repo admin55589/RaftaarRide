@@ -39,11 +39,11 @@ async function getFirebaseAuth() {
 
   const firebaseConfig = {
     apiKey: FIREBASE_API_KEY,
-    authDomain: "raftaarride.com",
-    projectId: "raftaarride-31846",
-    storageBucket: "raftaarride-31846.firebasestorage.app",
-    messagingSenderId: "212026126564",
-    appId: "1:212026126564:android:2be23488c5423224407cf1",
+    authDomain: "raftaarride-31847.firebaseapp.com",
+    projectId: "raftaarride-31847",
+    storageBucket: "raftaarride-31847.firebasestorage.app",
+    messagingSenderId: "796255910809",
+    appId: "1:796255910809:android:d7d981dbe6a67f5e1eb108",
   };
 
   const app =
