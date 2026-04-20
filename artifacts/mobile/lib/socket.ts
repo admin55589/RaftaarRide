@@ -56,3 +56,13 @@ export function emitDriverLocation(driverId: number, rideId: number, lat: number
     s.emit("driver:location", { driverId, rideId, lat, lng });
   }
 }
+
+export function sendChatMessage(rideId: number, senderId: string, senderName: string, role: "user" | "driver", text: string) {
+  const s = getSocket();
+  const payload = { rideId, senderId, senderName, role, text, timestamp: Date.now() };
+  if (s.connected) {
+    s.emit("chat:message", payload);
+  } else {
+    s.once("connect", () => s.emit("chat:message", payload));
+  }
+}

@@ -32,6 +32,11 @@ export function initSocket(httpServer: HttpServer): Server {
       });
     });
 
+    socket.on("chat:message", (data: { rideId: number; senderId: string; senderName: string; role: "user" | "driver"; text: string; timestamp: number }) => {
+      io.to(`ride:${data.rideId}`).emit("chat:message", data);
+      logger.info({ rideId: data.rideId, role: data.role }, "[socket] chat message");
+    });
+
     socket.on("disconnect", () => {
       logger.info({ id: socket.id }, "[socket] client disconnected");
     });
