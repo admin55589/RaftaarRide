@@ -16,9 +16,11 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { authApi } from "@/lib/authApi";
 import { useVoiceAI } from "@/hooks/useVoiceAI";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function OtpScreen() {
   const insets = useSafeAreaInsets();
+  const { lang, toggleLanguage, t } = useLanguage();
   const router = useRouter();
   const params = useLocalSearchParams<{ phone: string; devOtp?: string; isNewUser?: string }>();
   const { login } = useAuth();
@@ -132,6 +134,13 @@ export default function OtpScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <LinearGradient colors={["#0A0A0F", "#12121A", "#0A0A0F"]} style={styles.container}>
+        <Pressable
+          onPress={toggleLanguage}
+          hitSlop={8}
+          style={{ position: "absolute", top: insets.top + 12, right: 16, zIndex: 100, width: 40, height: 40, borderRadius: 20, borderWidth: 1, backgroundColor: "rgba(245,166,35,0.15)", borderColor: "rgba(245,166,35,0.4)", alignItems: "center", justifyContent: "center" }}
+        >
+          <Text style={{ color: "#F5A623", fontSize: 12, fontWeight: "700" }}>{lang === "hi" ? "हिं" : "EN"}</Text>
+        </Pressable>
         <View style={[styles.inner, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}>
           <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
             <Pressable onPress={() => router.back()} style={styles.backBtn}>
@@ -146,9 +155,9 @@ export default function OtpScreen() {
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(300).springify()}>
-            <Text style={styles.heading}>OTP Verify Karo</Text>
+            <Text style={styles.heading}>{t("otp_title")}</Text>
             <Text style={styles.subheading}>
-              6-digit code bheja gaya:{"\n"}
+              {t("otp_code_sent")}:{"\n"}
               <Text style={styles.phoneText}>{phone}</Text>
             </Text>
           </Animated.View>
@@ -161,7 +170,7 @@ export default function OtpScreen() {
           ) : null}
 
           <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.form}>
-            <Text style={styles.label}>OTP Daalo</Text>
+            <Text style={styles.label}>{t("otp_enter")}</Text>
             <Animated.View style={[styles.otpRow, shakeStyle]}>
               {otp.map((digit, idx) => (
                 <TextInput
@@ -195,7 +204,7 @@ export default function OtpScreen() {
                 {loading ? (
                   <ActivityIndicator color="#0A0A0F" />
                 ) : (
-                  <Text style={styles.primaryText}>Verify Karo ✓</Text>
+                  <Text style={styles.primaryText}>{t("otp_verify_btn")} ✓</Text>
                 )}
               </LinearGradient>
             </Pressable>

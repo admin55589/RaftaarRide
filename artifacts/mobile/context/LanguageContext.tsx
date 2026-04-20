@@ -159,6 +159,40 @@ export const TRANSLATIONS = {
     withdrawal_submit: "💸 निकासी अनुरोध सबमिट करें",
     withdrawal_history: "📋 निकासी इतिहास",
     no_withdrawals: "अभी तक कोई निकासी अनुरोध नहीं",
+    // Login
+    login_welcome: "Swagat hai!",
+    login_subtitle: "Login karke apni ride book karo",
+    login_otp_tab: "OTP se Login",
+    login_email_tab: "Email se Login",
+    login_btn: "Login Karo",
+    no_account: "Account nahi hai? Register karo",
+    // OTP
+    otp_title: "OTP Verify Karo",
+    otp_code_sent: "6-digit code bheja gaya",
+    otp_enter: "OTP Daalo",
+    otp_verify_btn: "Verify Karo",
+    otp_resend_btn: "Resend Karo",
+    // Signup
+    signup_title: "Naya Account Banao",
+    signup_subtitle: "RaftaarRide ka hissa bano",
+    signup_btn: "Account Banao",
+    have_account: "Account hai? Login karo",
+    // Driver Login
+    driver_login_title: "Driver Login",
+    driver_login_sub: "Apne account mein login karo",
+    driver_login_btn: "Login Karo",
+    no_driver_acct: "Account nahi? Register karo",
+    // Driver Register
+    driver_reg_title: "Driver Registration",
+    driver_reg_btn: "Register Karo",
+    next_step: "Aage Jao →",
+    // Booking
+    choose_vehicle: "Vahan Chunein",
+    // LiveTracking
+    tracking_title: "Live Tracking",
+    stage_pickup: "Pickup Pe",
+    stage_riding: "Ride Pe",
+    stage_done: "Pahunch Gaya!",
   },
   en: {
     home: "Home",
@@ -315,6 +349,40 @@ export const TRANSLATIONS = {
     withdrawal_submit: "💸 Submit Withdrawal Request",
     withdrawal_history: "📋 Withdrawal History",
     no_withdrawals: "No withdrawal requests yet",
+    // Login
+    login_welcome: "Welcome!",
+    login_subtitle: "Login to book your ride",
+    login_otp_tab: "OTP Login",
+    login_email_tab: "Email Login",
+    login_btn: "Login",
+    no_account: "No account? Register",
+    // OTP
+    otp_title: "Verify OTP",
+    otp_code_sent: "6-digit OTP sent to",
+    otp_enter: "Enter OTP",
+    otp_verify_btn: "Verify",
+    otp_resend_btn: "Resend",
+    // Signup
+    signup_title: "Create Account",
+    signup_subtitle: "Join RaftaarRide",
+    signup_btn: "Create Account",
+    have_account: "Have account? Login",
+    // Driver Login
+    driver_login_title: "Driver Login",
+    driver_login_sub: "Sign in to your account",
+    driver_login_btn: "Login",
+    no_driver_acct: "No account? Register",
+    // Driver Register
+    driver_reg_title: "Driver Registration",
+    driver_reg_btn: "Register",
+    next_step: "Next →",
+    // Booking
+    choose_vehicle: "Choose Vehicle",
+    // LiveTracking
+    tracking_title: "Live Tracking",
+    stage_pickup: "At Pickup",
+    stage_riding: "On Ride",
+    stage_done: "Arrived!",
   },
 } as const;
 

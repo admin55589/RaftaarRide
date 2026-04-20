@@ -18,6 +18,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { connectSocket, joinRideRoom, getSocket } from "@/lib/socket";
 import { useNotification } from "@/context/NotificationContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 const STAGES = ["Pickup", "On Ride", "Arriving"];
 
@@ -70,6 +71,7 @@ function StageBar({ stage }: { stage: number }) {
 export function LiveTrackingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { lang, toggleLanguage } = useLanguage();
   const { assignedDriver, setScreen, addRideToHistory, destination, pickup, selectedVehicle, rideMode, estimatedPrice, currentRideId } = useApp();
   const { showNotification } = useNotification();
   const [stage, setStage] = useState(0);
@@ -155,11 +157,21 @@ export function LiveTrackingScreen() {
 
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
+  const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <MapView showRoute routeProgress={progress} driverLocation={driverLiveLocation} />
 
-      <View style={[styles.header, { paddingTop: (Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top) + 8, paddingHorizontal: 16 }]}>
+      <Pressable
+        onPress={toggleLanguage}
+        hitSlop={8}
+        style={{ position: "absolute", top: topPad + 8, right: 16, zIndex: 200, width: 40, height: 40, borderRadius: 20, borderWidth: 1, backgroundColor: colors.primary + "22", borderColor: colors.primary + "66", alignItems: "center", justifyContent: "center" }}
+      >
+        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700" }}>{lang === "hi" ? "हिं" : "EN"}</Text>
+      </Pressable>
+
+      <View style={[styles.header, { paddingTop: topPad + 8, paddingHorizontal: 16 }]}>
         <GlassCard style={styles.headerCard} padding={12}>
           <StageBar stage={stage} />
         </GlassCard>

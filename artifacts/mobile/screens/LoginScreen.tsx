@@ -18,11 +18,13 @@ import { useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { authApi } from "@/lib/authApi";
 import { useVoiceAI } from "@/hooks/useVoiceAI";
+import { useLanguage } from "@/context/LanguageContext";
 
 type Tab = "otp" | "email";
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
+  const { lang, toggleLanguage, t } = useLanguage();
   const router = useRouter();
   const { login } = useAuth();
   const { announceWelcome } = useVoiceAI();
@@ -82,6 +84,13 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <LinearGradient colors={["#0A0A0F", "#12121A", "#0A0A0F"]} style={styles.container}>
+        <Pressable
+          onPress={toggleLanguage}
+          hitSlop={8}
+          style={{ position: "absolute", top: insets.top + 12, right: 16, zIndex: 100, width: 40, height: 40, borderRadius: 20, borderWidth: 1, backgroundColor: "rgba(245,166,35,0.15)", borderColor: "rgba(245,166,35,0.4)", alignItems: "center", justifyContent: "center" }}
+        >
+          <Text style={{ color: "#F5A623", fontSize: 12, fontWeight: "700" }}>{lang === "hi" ? "हिं" : "EN"}</Text>
+        </Pressable>
         <ScrollView
           contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}
           keyboardShouldPersistTaps="handled"
@@ -97,8 +106,8 @@ export default function LoginScreen() {
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(200).springify()}>
-            <Text style={styles.heading}>Swagat hai!</Text>
-            <Text style={styles.subheading}>Login karke apni ride book karo</Text>
+            <Text style={styles.heading}>{t("login_welcome")}</Text>
+            <Text style={styles.subheading}>{t("login_subtitle")}</Text>
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.tabRow}>
@@ -194,7 +203,7 @@ export default function LoginScreen() {
                   <ActivityIndicator color="#0A0A0F" />
                 ) : (
                   <Text style={styles.primaryBtnText}>
-                    {tab === "otp" ? "OTP Bhejo →" : "Login Karo →"}
+                    {tab === "otp" ? `${t("otp_verify_btn")} →` : `${t("login_btn")} →`}
                   </Text>
                 )}
               </LinearGradient>

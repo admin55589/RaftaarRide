@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useDriverAuth } from "@/context/DriverAuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useLanguage } from "@/context/LanguageContext";
 
 const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
@@ -34,6 +35,7 @@ async function driverLogin(phone: string, password: string) {
 
 export default function DriverLoginScreen() {
   const insets = useSafeAreaInsets();
+  const { lang, toggleLanguage, t } = useLanguage();
   const router = useRouter();
   const { driverLogin: saveDriverLogin } = useDriverAuth();
   const colors = useColors();
@@ -77,6 +79,13 @@ export default function DriverLoginScreen() {
         colors={["#0A0A0F", "#12121A", "#0A0A0F"]}
         style={[styles.container, { paddingTop: insets.top + 20 }]}
       >
+        <Pressable
+          onPress={toggleLanguage}
+          hitSlop={8}
+          style={{ position: "absolute", top: insets.top + 12, right: 16, zIndex: 100, width: 40, height: 40, borderRadius: 20, borderWidth: 1, backgroundColor: "rgba(245,166,35,0.15)", borderColor: "rgba(245,166,35,0.4)", alignItems: "center", justifyContent: "center" }}
+        >
+          <Text style={{ color: "#F5A623", fontSize: 12, fontWeight: "700" }}>{lang === "hi" ? "हिं" : "EN"}</Text>
+        </Pressable>
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
@@ -84,8 +93,8 @@ export default function DriverLoginScreen() {
         >
           <Animated.View entering={FadeInUp.duration(500)} style={styles.header}>
             <Text style={styles.emoji}>🚗</Text>
-            <Text style={styles.title}>Driver Login</Text>
-            <Text style={styles.subtitle}>Apne account mein sign in karo</Text>
+            <Text style={styles.title}>{t("driver_login_title")}</Text>
+            <Text style={styles.subtitle}>{t("driver_login_sub")}</Text>
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.card}>
@@ -138,7 +147,7 @@ export default function DriverLoginScreen() {
                 {loading ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={styles.loginBtnText}>Login Karo</Text>
+                  <Text style={styles.loginBtnText}>{t("driver_login_btn")}</Text>
                 )}
               </LinearGradient>
             </Pressable>

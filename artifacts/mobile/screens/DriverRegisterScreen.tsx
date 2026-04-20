@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useDriverAuth } from "@/context/DriverAuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
@@ -49,6 +50,7 @@ const VEHICLE_OPTIONS = [
 export default function DriverRegisterScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { lang, toggleLanguage, t } = useLanguage();
   const { driverLogin: saveDriverLogin } = useDriverAuth();
 
   const [step, setStep] = useState(1);
@@ -132,6 +134,13 @@ export default function DriverRegisterScreen() {
         colors={["#0A0A0F", "#12121A", "#0A0A0F"]}
         style={[styles.container, { paddingTop: insets.top + 20 }]}
       >
+        <Pressable
+          onPress={toggleLanguage}
+          hitSlop={8}
+          style={{ position: "absolute", top: insets.top + 12, right: 16, zIndex: 100, width: 40, height: 40, borderRadius: 20, borderWidth: 1, backgroundColor: "rgba(245,166,35,0.15)", borderColor: "rgba(245,166,35,0.4)", alignItems: "center", justifyContent: "center" }}
+        >
+          <Text style={{ color: "#F5A623", fontSize: 12, fontWeight: "700" }}>{lang === "hi" ? "हिं" : "EN"}</Text>
+        </Pressable>
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
@@ -139,7 +148,7 @@ export default function DriverRegisterScreen() {
         >
           <Animated.View entering={FadeInUp.duration(500)} style={styles.header}>
             <Text style={styles.emoji}>🚗</Text>
-            <Text style={styles.title}>Driver Registration</Text>
+            <Text style={styles.title}>{t("driver_reg_title")}</Text>
             <Text style={styles.subtitle}>
               Step {step}/2 — {step === 1 ? "Personal Details" : "Vehicle Details"}
             </Text>

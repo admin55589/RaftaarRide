@@ -19,10 +19,12 @@ import { VehicleSelector } from "@/components/VehicleSelector";
 import { RideModeSelector } from "@/components/RideModeSelector";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { MapView } from "@/components/MapView";
+import { useLanguage } from "@/context/LanguageContext";
 
 export function BookingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { lang, toggleLanguage } = useLanguage();
   const { token } = useAuth();
   const {
     setScreen,
@@ -98,6 +100,14 @@ export function BookingScreen() {
           <Text style={[styles.backArrow, { color: colors.foreground }]}>←</Text>
         </Pressable>
       </View>
+
+      <Pressable
+        onPress={toggleLanguage}
+        hitSlop={8}
+        style={{ position: "absolute", top: topPad + 8, right: 16, zIndex: 100, width: 40, height: 40, borderRadius: 20, borderWidth: 1, backgroundColor: colors.primary + "22", borderColor: colors.primary + "66", alignItems: "center", justifyContent: "center" }}
+      >
+        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700" }}>{lang === "hi" ? "हिं" : "EN"}</Text>
+      </Pressable>
 
       <Animated.View entering={FadeInUp.springify()} style={styles.sheet}>
         <GlassCard style={styles.card} padding={0}>
