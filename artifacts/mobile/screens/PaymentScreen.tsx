@@ -7,6 +7,8 @@ import {
   Text,
   View,
   Platform,
+  TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import Animated, {
   FadeIn,
@@ -28,27 +30,28 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { RazorpayWebView } from "@/components/RazorpayWebView";
 import { useVoiceAI } from "@/hooks/useVoiceAI";
 import { paymentApi, type RazorpayOrder } from "@/lib/paymentApi";
+import { BASE_URL } from "@/lib/api";
+
+const PAYMENT_OPTIONS = [
+  { key: "UPI",             icon: "📲", label: "UPI",                sub: "PhonePe, GPay, Paytm" },
+  { key: "Card",            icon: "💳", label: "Card",               sub: "Credit / Debit card" },
+  { key: "RaftaarWallet",   icon: "👛", label: "RaftaarRide Wallet", sub: "Instant deduction" },
+  { key: "Cash",            icon: "💵", label: "Cash",               sub: "Pay driver directly" },
+];
 
 function SuccessTick() {
   const scale = useSharedValue(0);
   const checkScale = useSharedValue(0);
-
   useEffect(() => {
     scale.value = withSpring(1, { damping: 10, stiffness: 200 });
     checkScale.value = withDelay(200, withSpring(1, { damping: 8, stiffness: 250 }));
   }, []);
-
-  const circleStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-  const checkStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: checkScale.value }],
-  }));
-
+  const circleStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const checkStyle = useAnimatedStyle(() => ({ transform: [{ scale: checkScale.value }] }));
   return (
-    <Animated.View style={[styles.successCircle, circleStyle]}>
+    <Animated.View style={[s.successCircle, circleStyle]}>
       <Animated.View style={checkStyle}>
-        <Text style={styles.checkText}>✓</Text>
+        <Text style={s.checkText}>✓</Text>
       </Animated.View>
     </Animated.View>
   );
@@ -57,10 +60,10 @@ function SuccessTick() {
 function StarRating() {
   const [rating, setRating] = useState(0);
   return (
-    <View style={styles.stars}>
+    <View style={s.stars}>
       {Array.from({ length: 5 }).map((_, i) => (
         <Pressable key={i} onPress={() => setRating(i + 1)}>
-          <Text style={[styles.starText, { opacity: i < rating ? 1 : 0.35 }]}>⭐</Text>
+          <Text style={[s.starText, { opacity: i < rating ? 1 : 0.35 }]}>⭐</Text>
         </Pressable>
       ))}
     </View>
@@ -71,10 +74,18 @@ export function PaymentScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { token, user: authUser } = useAuth();
-  const { setScreen, selectedVehicle, rideMode, estimatedTime, estimatedDistanceKm, paymentMethod, assignedDriver, destination, pickup, addRideToHistory, refreshHistoryFromServer, currentRideId, setCurrentRideId } = useApp();
+  const {
+    setScreen, selectedVehicle, rideMode, estimatedTime, estimatedDistanceKm,
+    paymentMethod, assignedDriver, destination, pickup,
+    addRideToHistory, refreshHistoryFromServer, currentRideId, setCurrentRideId,
+  } = useApp();
+
   const [paid, setPaid] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [razorpayOrder, setRazorpayOrder] = useState<RazorpayOrder | null>(null);
+  const [selectedMethod, setSelectedMethod] = useState<string>(paymentMethod ?? "UPI");
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
   const { announcePaymentSuccess } = useVoiceAI();
 
   const distanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
@@ -82,43 +93,79 @@ export function PaymentScreen() {
   const price = fare.total;
   const duration = Math.round(estimatedTime * (selectedVehicle === "bike" ? 0.7 : selectedVehicle === "auto" ? 0.9 : 1));
 
-  const completeRide = (paidAmount: number) => {
+  useEffect(() => {
+    if (!token) return;
+    setWalletLoading(true);
+    fetch(`${BASE_URL}wallet/balance`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((data) => { if (data.success) setWalletBalance(data.balance); })
+      .catch(() => {})
+      .finally(() => setWalletLoading(false));
+  }, [token]);
+
+  const completeRide = (paidAmount: number, method: string) => {
     setPaid(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     announcePaymentSuccess(paidAmount);
-
     const driver = assignedDriver ?? { name: "Raj Kumar", rating: 4.8, vehicle: "Swift Dzire", vehicleNumber: "DL 4C AB 1234", vehicleType: selectedVehicle, eta: 5, photo: "RK", id: "1" };
     addRideToHistory({
       id: currentRideId ? String(currentRideId) : Date.now().toString(),
-      pickup,
-      destination,
-      vehicleType: selectedVehicle,
-      rideMode,
-      price: paidAmount,
-      duration,
-      distance: `${distanceKm} km`,
-      date: new Date().toISOString(),
-      driver,
-      status: "completed",
+      pickup, destination, vehicleType: selectedVehicle, rideMode, price: paidAmount,
+      duration, distance: `${distanceKm} km`, date: new Date().toISOString(), driver, status: "completed",
     });
-
     if (token && currentRideId) {
       ridesApi.updateStatus(token, currentRideId, "completed")
-        .then(() => {
-          if (token) refreshHistoryFromServer(token);
-        })
-        .catch((e) => console.warn("[payment] status update failed:", e));
+        .then(() => { if (token) refreshHistoryFromServer(token); })
+        .catch(() => {});
       setCurrentRideId(null);
     }
   };
 
-  const handlePay = async () => {
-    if (paymentMethod === "Cash") {
-      setIsProcessing(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      setTimeout(() => { completeRide(price); setIsProcessing(false); }, 1000);
+  const handleWalletPay = async () => {
+    if (walletBalance === null || walletBalance < price) {
+      Alert.alert(
+        "Insufficient Balance",
+        `Aapke wallet mein ₹${walletBalance ?? 0} hain, lekin ₹${price} chahiye.\n\nWallet top-up karo ya dusra method chunein.`,
+        [{ text: "OK" }]
+      );
       return;
     }
+
+    setIsProcessing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    try {
+      const res = await fetch(`${BASE_URL}wallet/spend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount: price, description: `Ride payment — ${pickup ?? ""} → ${destination ?? ""} — ₹${price}` }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWalletBalance(data.newBalance);
+        completeRide(price, "RaftaarRide Wallet");
+      } else {
+        Alert.alert("Payment Failed", data.error ?? "Wallet se payment nahi ho saki");
+      }
+    } catch {
+      Alert.alert("Error", "Network error — dobara try karein");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePay = async () => {
+    if (selectedMethod === "Cash") {
+      setIsProcessing(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      setTimeout(() => { completeRide(price, "Cash"); setIsProcessing(false); }, 1000);
+      return;
+    }
+
+    if (selectedMethod === "RaftaarWallet") {
+      await handleWalletPay();
+      return;
+    }
+
     setIsProcessing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     try {
@@ -141,9 +188,9 @@ export function PaymentScreen() {
     try {
       const result = await paymentApi.verifyPayment(data);
       if (result.success) {
-        completeRide(price);
+        completeRide(price, selectedMethod);
       } else {
-        Alert.alert("Verification Failed", "Payment verify nahi hua. Support se contact karo.");
+        Alert.alert("Verification Failed", "Payment verify nahi hua.");
       }
     } catch {
       Alert.alert("Error", "Payment verification fail ho gayi");
@@ -152,107 +199,156 @@ export function PaymentScreen() {
     }
   };
 
-  const handleHome = () => setScreen("home");
-
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
+  const walletSufficient = walletBalance !== null && walletBalance >= price;
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: topPad }]}>
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: bottomPad + 24 }]} showsVerticalScrollIndicator={false}>
+    <View style={[s.container, { backgroundColor: colors.background, paddingTop: topPad }]}>
+      <ScrollView contentContainerStyle={[s.scroll, { paddingBottom: bottomPad + 24 }]} showsVerticalScrollIndicator={false}>
         {paid ? (
-          <Animated.View entering={FadeIn.springify()} style={styles.successContainer}>
+          <Animated.View entering={FadeIn.springify()} style={s.successContainer}>
             <SuccessTick />
-            <Animated.Text
-              entering={FadeInDown.delay(300).springify()}
-              style={[styles.successTitle, { color: colors.foreground }]}
-            >
+            <Animated.Text entering={FadeInDown.delay(300).springify()} style={[s.successTitle, { color: colors.foreground }]}>
               Ride Complete!
             </Animated.Text>
-            <Animated.Text
-              entering={FadeInDown.delay(400).springify()}
-              style={[styles.successSub, { color: colors.mutedForeground }]}
-            >
-              Hope you had a great ride
+            <Animated.Text entering={FadeInDown.delay(400).springify()} style={[s.successSub, { color: colors.mutedForeground }]}>
+              Hope you had a great ride 🎉
             </Animated.Text>
 
-            <Animated.View entering={FadeInDown.delay(500).springify()} style={[styles.receiptCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Animated.View entering={FadeInDown.delay(500).springify()} style={[s.receiptCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {[
-                { icon: "🏷️", label: "Amount Paid", value: `₹${price}` },
-                { icon: "🕐", label: "Duration", value: `${duration} min` },
-                { icon: "📍", label: "Distance", value: "8.2 km" },
-                { icon: "💳", label: "Payment", value: paymentMethod },
+                { icon: "🏷️", label: "Amount Paid",    value: `₹${price}` },
+                { icon: "🕐", label: "Duration",        value: `${duration} min` },
+                { icon: "📍", label: "Distance",        value: `${distanceKm} km` },
+                { icon: "💳", label: "Payment Method",  value: selectedMethod === "RaftaarWallet" ? "RaftaarRide Wallet 👛" : selectedMethod },
               ].map(({ icon, label, value }) => (
-                <View key={label} style={[styles.receiptRow, { borderColor: colors.border }]}>
-                  <View style={styles.receiptLabelRow}>
-                    <Text style={styles.receiptIcon}>{icon}</Text>
-                    <Text style={[styles.receiptLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                <View key={label} style={[s.receiptRow, { borderColor: colors.border }]}>
+                  <View style={s.receiptLabelRow}>
+                    <Text style={s.receiptIcon}>{icon}</Text>
+                    <Text style={[s.receiptLabel, { color: colors.mutedForeground }]}>{label}</Text>
                   </View>
-                  <Text style={[styles.receiptValue, { color: colors.foreground }]}>{value}</Text>
+                  <Text style={[s.receiptValue, { color: colors.foreground }]}>{value}</Text>
                 </View>
               ))}
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(700).springify()} style={styles.ratingContainer}>
-              <Text style={[styles.ratingTitle, { color: colors.foreground }]}>Rate your driver</Text>
+            <Animated.View entering={FadeInDown.delay(700).springify()} style={s.ratingContainer}>
+              <Text style={[s.ratingTitle, { color: colors.foreground }]}>Rate your driver</Text>
               <StarRating />
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(900).springify()} style={{ width: "100%" }}>
-              <PrimaryButton label="Back to Home" onPress={handleHome} />
+              <PrimaryButton label="Back to Home" onPress={() => setScreen("home")} />
             </Animated.View>
           </Animated.View>
         ) : (
-          <Animated.View entering={FadeInDown.springify()} style={styles.payContainer}>
-            <Text style={[styles.pageTitle, { color: colors.foreground }]}>Payment</Text>
+          <Animated.View entering={FadeInDown.springify()} style={s.payContainer}>
+            <Text style={[s.pageTitle, { color: colors.foreground }]}>Payment</Text>
 
-            <GlassCard style={styles.amountCard} padding={24}>
-              <Text style={[styles.amountLabel, { color: colors.mutedForeground }]}>Total Fare</Text>
-              <Text style={[styles.amount, { color: colors.primary }]}>₹{price}</Text>
-              <View style={[styles.amountDivider, { backgroundColor: colors.border }]} />
-              <View style={styles.amountDetails}>
+            {/* Fare breakdown */}
+            <GlassCard style={s.amountCard} padding={24}>
+              <Text style={[s.amountLabel, { color: colors.mutedForeground }]}>Total Fare</Text>
+              <Text style={[s.amount, { color: colors.primary }]}>₹{price}</Text>
+              <View style={[s.amountDivider, { backgroundColor: colors.border }]} />
+              <View style={s.amountDetails}>
                 {[
-                  { icon: "🏷️", label: "Base Fare", value: Math.round(price * 0.7) },
-                  { icon: "📍", label: "Distance", value: Math.round(price * 0.25) },
-                  { icon: "%", label: "Convenience Fee", value: Math.round(price * 0.05) },
+                  { icon: "🏷️", label: "Base Fare",       value: Math.round(price * 0.7) },
+                  { icon: "📍", label: "Distance",         value: Math.round(price * 0.25) },
+                  { icon: "%",  label: "Convenience Fee",  value: Math.round(price * 0.05) },
                 ].map(({ icon, label, value }) => (
-                  <View key={label} style={styles.amountRow}>
-                    <View style={styles.amountLabelRow}>
-                      <Text style={styles.amountIcon}>{icon}</Text>
-                      <Text style={[styles.amountDetailLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                  <View key={label} style={s.amountRow}>
+                    <View style={s.amountLabelRow}>
+                      <Text style={s.amountIcon}>{icon}</Text>
+                      <Text style={[s.amountDetailLabel, { color: colors.mutedForeground }]}>{label}</Text>
                     </View>
-                    <Text style={[styles.amountDetailValue, { color: colors.foreground }]}>₹{value}</Text>
+                    <Text style={[s.amountDetailValue, { color: colors.foreground }]}>₹{value}</Text>
                   </View>
                 ))}
               </View>
             </GlassCard>
 
-            <View style={styles.methodSection}>
-              <Text style={[styles.methodTitle, { color: colors.mutedForeground }]}>PAYMENT METHOD</Text>
-              <GlassCard style={styles.methodCard} padding={16}>
-                <View style={styles.methodRow}>
-                  <View style={[styles.methodIcon, { backgroundColor: "rgba(245,166,35,0.13)" }]}>
-                    <Text style={{ fontSize: 20 }}>💳</Text>
-                  </View>
-                  <View style={styles.methodInfo}>
-                    <Text style={[styles.methodName, { color: colors.foreground }]}>{paymentMethod}</Text>
-                    <Text style={[styles.methodSub, { color: colors.mutedForeground }]}>
-                      {paymentMethod === "UPI" ? "Linked account" : paymentMethod === "Cash" ? "Pay to driver" : "Saved card"}
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 20 }}>✅</Text>
-                </View>
-              </GlassCard>
+            {/* Payment method selection */}
+            <View style={s.methodSection}>
+              <Text style={[s.sectionTitle, { color: colors.mutedForeground }]}>PAYMENT METHOD CHUNEIN</Text>
+
+              {PAYMENT_OPTIONS.map((opt) => {
+                const isSelected = selectedMethod === opt.key;
+                const isWallet = opt.key === "RaftaarWallet";
+
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    onPress={() => { Haptics.selectionAsync(); setSelectedMethod(opt.key); }}
+                    activeOpacity={0.8}
+                    style={[
+                      s.methodCard,
+                      {
+                        backgroundColor: isSelected ? colors.primary + "14" : colors.card,
+                        borderColor: isSelected ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <View style={[s.methodIcon, { backgroundColor: isSelected ? colors.primary + "20" : "rgba(255,255,255,0.06)" }]}>
+                      <Text style={{ fontSize: 22 }}>{opt.icon}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.methodName, { color: colors.foreground }]}>{opt.label}</Text>
+                      <Text style={[s.methodSub, { color: colors.mutedForeground }]}>
+                        {isWallet
+                          ? walletLoading
+                            ? "Loading..."
+                            : walletBalance !== null
+                              ? `Balance: ₹${walletBalance.toFixed(2)}${walletSufficient ? " ✅" : " ❌ Low balance"}`
+                              : opt.sub
+                          : opt.sub}
+                      </Text>
+                    </View>
+                    <View style={[s.radioOuter, { borderColor: isSelected ? colors.primary : colors.border }]}>
+                      {isSelected && <View style={[s.radioInner, { backgroundColor: colors.primary }]} />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
+            {/* Wallet insufficient warning */}
+            {selectedMethod === "RaftaarWallet" && walletBalance !== null && !walletSufficient && (
+              <Animated.View entering={FadeInDown.duration(300)} style={[s.warnBox, { backgroundColor: "rgba(239,68,68,0.08)", borderColor: "rgba(239,68,68,0.25)" }]}>
+                <Text style={{ color: "#F87171", fontSize: 13, fontFamily: "Inter_500Medium" }}>
+                  ⚠️ Aapke wallet mein ₹{(walletBalance ?? 0).toFixed(2)} hain — ₹{price} ke liye {Math.ceil(price - (walletBalance ?? 0))} aur chahiye.{" "}
+                  Wallet tab se top-up karein.
+                </Text>
+              </Animated.View>
+            )}
+
+            {/* Wallet sufficient info */}
+            {selectedMethod === "RaftaarWallet" && walletSufficient && (
+              <Animated.View entering={FadeInDown.duration(300)} style={[s.warnBox, { backgroundColor: "rgba(74,222,128,0.08)", borderColor: "rgba(74,222,128,0.25)" }]}>
+                <Text style={{ color: "#4ADE80", fontSize: 13, fontFamily: "Inter_500Medium" }}>
+                  ✅ ₹{price} wallet se deduct hoga. Baad mein balance: ₹{(walletBalance - price).toFixed(2)}
+                </Text>
+              </Animated.View>
+            )}
+
             <PrimaryButton
-              label={isProcessing ? "Processing..." : `Pay ₹${price}`}
+              label={
+                isProcessing
+                  ? "Processing..."
+                  : selectedMethod === "RaftaarWallet"
+                    ? `👛 Wallet se Pay ₹${price}`
+                    : selectedMethod === "Cash"
+                      ? `💵 Cash se Pay ₹${price}`
+                      : `Pay ₹${price} →`
+              }
               onPress={handlePay}
               loading={isProcessing}
+              disabled={isProcessing || (selectedMethod === "RaftaarWallet" && !walletSufficient)}
             />
 
-            <Pressable onPress={() => setScreen("live_tracking")}>
-              <Text style={[styles.back, { color: colors.mutedForeground }]}>Back</Text>
+            <Pressable onPress={() => setScreen("live_tracking")} style={s.backRow}>
+              <Text style={[s.back, { color: colors.mutedForeground }]}>← Back</Text>
             </Pressable>
           </Animated.View>
         )}
@@ -271,189 +367,56 @@ export function PaymentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: { flex: 1 },
-  scroll: {
-    padding: 20,
-    alignItems: "center",
-    gap: 20,
-  },
-  payContainer: {
-    width: "100%",
-    gap: 20,
-  },
-  pageTitle: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 28,
-  },
-  amountCard: {
-    width: "100%",
-    borderRadius: 24,
-    alignItems: "center",
-  },
-  amountLabel: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-  },
-  amount: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 52,
-    marginVertical: 4,
-  },
-  amountDivider: {
-    width: "100%",
-    height: 1,
-    marginVertical: 12,
-  },
-  amountDetails: {
-    width: "100%",
-    gap: 8,
-  },
-  amountRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  amountLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  amountDetailLabel: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-  },
-  amountDetailValue: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-  },
-  methodSection: {
-    width: "100%",
-    gap: 8,
-  },
-  methodTitle: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 11,
-    letterSpacing: 0.8,
-  },
+  scroll: { padding: 20, alignItems: "center", gap: 20 },
+  payContainer: { width: "100%", gap: 20 },
+  pageTitle: { fontFamily: "Inter_700Bold", fontSize: 28 },
+  amountCard: { width: "100%", borderRadius: 24, alignItems: "center" },
+  amountLabel: { fontFamily: "Inter_400Regular", fontSize: 14 },
+  amount: { fontFamily: "Inter_700Bold", fontSize: 52, marginVertical: 4 },
+  amountDivider: { width: "100%", height: 1, marginVertical: 12 },
+  amountDetails: { width: "100%", gap: 8 },
+  amountRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  amountLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  amountDetailLabel: { fontFamily: "Inter_400Regular", fontSize: 13 },
+  amountDetailValue: { fontFamily: "Inter_500Medium", fontSize: 13 },
+  amountIcon: { fontSize: 12, lineHeight: 16, width: 16, textAlign: "center" },
+
+  methodSection: { width: "100%", gap: 10 },
+  sectionTitle: { fontFamily: "Inter_500Medium", fontSize: 11, letterSpacing: 0.8 },
   methodCard: {
-    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
     borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 14,
   },
-  methodRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  methodIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  methodInfo: { flex: 1 },
-  methodName: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 16,
-  },
-  methodSub: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    marginTop: 2,
-  },
-  back: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    textDecorationLine: "underline",
-    marginTop: 4,
-  },
-  successContainer: {
-    width: "100%",
-    alignItems: "center",
-    gap: 20,
-    paddingTop: 20,
-  },
-  successCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "#22C55E",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#22C55E",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 12,
-  },
-  checkText: {
-    fontSize: 52,
-    color: "#FFFFFF",
-    fontWeight: "bold",
-    lineHeight: 60,
-    textAlign: "center",
-  },
-  successTitle: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 32,
-    textAlign: "center",
-  },
-  successSub: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 16,
-    textAlign: "center",
-  },
-  receiptCard: {
-    width: "100%",
-    borderRadius: 20,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  receiptRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  receiptLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-  },
-  receiptIcon: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  amountIcon: {
-    fontSize: 12,
-    lineHeight: 16,
-    width: 16,
-    textAlign: "center",
-  },
-  receiptLabel: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-  },
-  receiptValue: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
-  },
-  ratingContainer: {
-    alignItems: "center",
-    gap: 12,
-  },
-  ratingTitle: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 18,
-  },
-  stars: {
-    flexDirection: "row",
-    gap: 4,
-  },
-  starText: {
-    fontSize: 36,
-  },
+  methodIcon: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center" },
+  methodName: { fontFamily: "Inter_600SemiBold", fontSize: 15 },
+  methodSub: { fontFamily: "Inter_400Regular", fontSize: 12, marginTop: 2 },
+  radioOuter: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  radioInner: { width: 11, height: 11, borderRadius: 6 },
+
+  warnBox: { width: "100%", borderRadius: 12, padding: 14, borderWidth: 1 },
+
+  backRow: { alignItems: "center", paddingVertical: 4 },
+  back: { fontFamily: "Inter_500Medium", fontSize: 14 },
+
+  successContainer: { width: "100%", alignItems: "center", gap: 20, paddingTop: 20 },
+  successCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: "#22C55E", alignItems: "center", justifyContent: "center", shadowColor: "#22C55E", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 12, elevation: 12 },
+  checkText: { fontSize: 52, color: "#FFFFFF", fontWeight: "bold", lineHeight: 60, textAlign: "center" },
+  successTitle: { fontFamily: "Inter_700Bold", fontSize: 32, textAlign: "center" },
+  successSub: { fontFamily: "Inter_400Regular", fontSize: 16, textAlign: "center" },
+  receiptCard: { width: "100%", borderRadius: 20, borderWidth: 1, overflow: "hidden" },
+  receiptRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1 },
+  receiptLabelRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  receiptIcon: { fontSize: 13, lineHeight: 18 },
+  receiptLabel: { fontFamily: "Inter_400Regular", fontSize: 14 },
+  receiptValue: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
+  ratingContainer: { alignItems: "center", gap: 12 },
+  ratingTitle: { fontFamily: "Inter_600SemiBold", fontSize: 18 },
+  stars: { flexDirection: "row", gap: 4 },
+  starText: { fontSize: 36 },
 });

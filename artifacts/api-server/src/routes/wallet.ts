@@ -78,6 +78,40 @@ router.get("/wallet/transactions", userAuth, async (req: Request, res: Response)
   } catch { res.status(500).json({ success: false, error: "Server error" }); }
 });
 
+router.post("/wallet/spend", userAuth, async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  const { amount, description } = req.body as { amount: number; description?: string };
+
+  if (!amount || amount <= 0) {
+    res.status(400).json({ success: false, error: "Valid amount required" });
+    return;
+  }
+
+  try {
+    const [user] = await db.select({ walletBalance: usersTable.walletBalance })
+      .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!user) { res.status(404).json({ success: false, error: "User not found" }); return; }
+
+    const currentBalance = Number(user.walletBalance);
+    if (currentBalance < amount) {
+      res.status(400).json({ success: false, error: "Insufficient wallet balance", balance: currentBalance });
+      return;
+    }
+
+    const newBalance = currentBalance - amount;
+    await db.update(usersTable).set({ walletBalance: String(newBalance) }).where(eq(usersTable.id, userId));
+
+    await db.insert(walletTransactionsTable).values({
+      userId,
+      type: "spend",
+      amount: String(-amount),
+      description: description ?? `Ride payment — ₹${amount}`,
+    });
+
+    res.json({ success: true, newBalance, message: `₹${amount} wallet se deduct ho gaya` });
+  } catch { res.status(500).json({ success: false, error: "Server error" }); }
+});
+
 router.patch("/wallet/language", userAuth, async (req: Request, res: Response) => {
   const userId = (req as any).userId;
   const { language } = req.body as { language: string };

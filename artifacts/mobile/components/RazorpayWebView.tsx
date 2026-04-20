@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 import {
   Modal,
   View,
@@ -7,6 +7,7 @@ import {
   Text,
   ActivityIndicator,
   Platform,
+  TouchableOpacity,
 } from "react-native";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -41,18 +42,11 @@ function buildCheckoutHtml(order: RazorpayOrder, user: RazorpayWebViewProps["use
       height: 100vh;
       font-family: -apple-system, sans-serif;
     }
-    .loader {
-      color: #f5a623;
-      font-size: 16px;
-      text-align: center;
-    }
+    .loader { color: #f5a623; font-size: 16px; text-align: center; }
     .dot { animation: blink 1.4s infinite; display: inline-block; }
     .dot:nth-child(2) { animation-delay: 0.2s; }
     .dot:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes blink {
-      0%,80%,100% { opacity: 0; }
-      40% { opacity: 1; }
-    }
+    @keyframes blink { 0%,80%,100% { opacity: 0; } 40% { opacity: 1; } }
   </style>
 </head>
 <body>
@@ -113,7 +107,9 @@ export function RazorpayWebView({
 }: RazorpayWebViewProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = useState(true);
+  const [canGoBack, setCanGoBack] = useState(false);
+  const webViewRef = useRef<WebView>(null);
 
   const handleMessage = (event: WebViewMessageEvent) => {
     try {
@@ -130,6 +126,14 @@ export function RazorpayWebView({
     } catch {}
   };
 
+  const handleBack = () => {
+    if (canGoBack && webViewRef.current) {
+      webViewRef.current.goBack();
+    } else {
+      onDismiss();
+    }
+  };
+
   const logoUrl = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/assets/logo.png`;
   const html = buildCheckoutHtml(order, userInfo, logoUrl);
 
@@ -142,7 +146,23 @@ export function RazorpayWebView({
     >
       <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top }]}>
         <View style={[styles.header, { borderColor: colors.border }]}>
+          {/* Back button */}
+          <TouchableOpacity
+            onPress={handleBack}
+            style={[styles.backBtn, { backgroundColor: canGoBack ? colors.secondary : "transparent", borderColor: canGoBack ? colors.border : "transparent" }]}
+            activeOpacity={0.7}
+          >
+            <Text style={{ color: canGoBack ? colors.foreground : colors.mutedForeground, fontSize: 18, fontWeight: "600" }}>
+              ←
+            </Text>
+            <Text style={{ color: canGoBack ? colors.foreground : colors.mutedForeground, fontSize: 13, fontFamily: "Inter_500Medium" }}>
+              {canGoBack ? "Back" : ""}
+            </Text>
+          </TouchableOpacity>
+
           <Text style={[styles.title, { color: colors.foreground }]}>⚡ RaftaarRide Payment</Text>
+
+          {/* Close button */}
           <Pressable onPress={onDismiss} style={[styles.closeBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
             <Text style={{ color: colors.mutedForeground, fontSize: 16 }}>✕</Text>
           </Pressable>
@@ -158,9 +178,11 @@ export function RazorpayWebView({
         )}
 
         <WebView
+          ref={webViewRef}
           source={{ html }}
           onMessage={handleMessage}
           onLoad={() => setLoading(false)}
+          onNavigationStateChange={(navState) => setCanGoBack(navState.canGoBack)}
           javaScriptEnabled
           domStorageEnabled
           originWhitelist={["*"]}
@@ -172,20 +194,30 @@ export function RazorpayWebView({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
+  },
+  backBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    minWidth: 60,
   },
   title: {
     fontFamily: "Inter_700Bold",
-    fontSize: 16,
+    fontSize: 15,
+    flex: 1,
+    textAlign: "center",
   },
   closeBtn: {
     width: 34,
@@ -195,10 +227,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  webview: {
-    flex: 1,
-    backgroundColor: "transparent",
-  },
+  webview: { flex: 1, backgroundColor: "transparent" },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
