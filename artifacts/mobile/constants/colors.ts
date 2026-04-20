@@ -34,9 +34,9 @@ const colors = {
     autoColor: "#00A87A",
     cabColor: "#2D72C6",
 
-    glassBackground: "rgba(0,0,0,0.04)",
-    glassBorder: "rgba(0,0,0,0.10)",
-    glassShadow: "rgba(0,0,0,0.12)",
+    glassBackground: "rgba(255,255,255,0.97)",
+    glassBorder: "rgba(0,0,0,0.13)",
+    glassShadow: "rgba(0,0,0,0.10)",
 
     overlayDark: "rgba(10,10,15,0.5)",
     overlayLight: "rgba(255,255,255,0.8)",

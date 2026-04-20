@@ -250,7 +250,7 @@ export function HomeScreen() {
 
       <View style={[styles.topOverlay, { paddingTop: topPad + 8 }]}>
         <Animated.View entering={FadeInDown.springify()} style={styles.topBar}>
-          <Pressable style={styles.locationRow} onPress={handleLocateMe}>
+          <Pressable style={[styles.locationRow, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={handleLocateMe}>
             {locating ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
@@ -604,12 +604,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(22,22,30,0.85)",
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
   },
   locationDot: {
     width: 10,
@@ -804,8 +802,6 @@ const styles = StyleSheet.create({
   },
   bottomCard: {
     borderRadius: 24,
-    backgroundColor: "rgba(22,22,30,0.97)",
-    borderColor: "rgba(255,255,255,0.10)",
   },
   searchContainer: { padding: 16, paddingBottom: 12 },
   searchBar: {

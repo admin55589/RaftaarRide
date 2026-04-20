@@ -94,6 +94,7 @@ const TIMER_RADIUS = 26;
 const CIRCUMFERENCE = 2 * Math.PI * TIMER_RADIUS;
 
 function CircleTimer({ countdown, total = 20 }: { countdown: number; total?: number }) {
+  const colors = useColors();
   const progress = countdown / total;
   const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
   const progressColor = countdown > 10 ? "#22c55e" : countdown > 5 ? "#F5A623" : "#ef4444";
@@ -129,7 +130,7 @@ function CircleTimer({ countdown, total = 20 }: { countdown: number; total?: num
         </Defs>
         <Circle
           cx={cx} cy={cy} r={TIMER_RADIUS}
-          stroke="rgba(255,255,255,0.08)"
+          stroke={colors.border}
           strokeWidth={5}
           fill={bgColor}
         />
@@ -147,7 +148,7 @@ function CircleTimer({ countdown, total = 20 }: { countdown: number; total?: num
       </Svg>
       <View style={{ alignItems: "center" }}>
         <Text style={{ color: progressColor, fontWeight: "800", fontSize: 16, lineHeight: 19 }}>{countdown}</Text>
-        <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 9, lineHeight: 11, marginTop: 1 }}>sec</Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 9, lineHeight: 11, marginTop: 1 }}>sec</Text>
       </View>
     </Animated.View>
   );
@@ -257,6 +258,7 @@ function DriverChatModal({
 }) {
   const [inputText, setInputText] = useState("");
   const flatRef = useRef<FlatList>(null);
+  const colors = useColors();
 
   useEffect(() => {
     if (visible && messages.length > 0) {
@@ -275,20 +277,20 @@ function DriverChatModal({
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <View style={chatStyles.overlay}>
-          <View style={chatStyles.container}>
+          <View style={[chatStyles.container, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Header */}
-            <View style={chatStyles.header}>
+            <View style={[chatStyles.header, { borderColor: colors.border }]}>
               <View style={chatStyles.headerLeft}>
                 <View style={chatStyles.avatarCircle}>
                   <Text style={{ fontSize: 18 }}>👤</Text>
                 </View>
                 <View>
-                  <Text style={chatStyles.headerName}>{activeRide.userName}</Text>
-                  <Text style={chatStyles.headerSub}>🟢 On Ride • {activeRide.from} → {activeRide.to}</Text>
+                  <Text style={[chatStyles.headerName, { color: colors.foreground }]}>{activeRide.userName}</Text>
+                  <Text style={[chatStyles.headerSub, { color: colors.mutedForeground }]}>🟢 On Ride • {activeRide.from} → {activeRide.to}</Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={onClose} style={chatStyles.closeBtn}>
-                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 18 }}>✕</Text>
+              <TouchableOpacity onPress={onClose} style={[chatStyles.closeBtn, { backgroundColor: colors.secondary }]}>
+                <Text style={{ color: colors.foreground, fontSize: 18 }}>✕</Text>
               </TouchableOpacity>
             </View>
 
@@ -302,7 +304,7 @@ function DriverChatModal({
               ListEmptyComponent={
                 <View style={chatStyles.emptyChat}>
                   <Text style={{ fontSize: 32 }}>💬</Text>
-                  <Text style={chatStyles.emptyChatText}>Abhi koi message nahi — user ka wait karo</Text>
+                  <Text style={[chatStyles.emptyChatText, { color: colors.mutedForeground }]}>Abhi koi message nahi — user ka wait karo</Text>
                 </View>
               }
               renderItem={({ item }) => {
@@ -313,15 +315,15 @@ function DriverChatModal({
                     style={[chatStyles.msgRow, isDriver ? chatStyles.msgRowRight : chatStyles.msgRowLeft]}
                   >
                     {!isDriver && (
-                      <View style={chatStyles.msgAvatar}>
+                      <View style={[chatStyles.msgAvatar, { backgroundColor: colors.secondary }]}>
                         <Text style={{ fontSize: 12 }}>👤</Text>
                       </View>
                     )}
-                    <View style={[chatStyles.bubble, isDriver ? chatStyles.driverBubble : chatStyles.userBubble]}>
-                      <Text style={[chatStyles.bubbleText, isDriver ? { color: "#0A0A0F" } : { color: "#fff" }]}>
+                    <View style={[chatStyles.bubble, isDriver ? chatStyles.driverBubble : [chatStyles.userBubble, { backgroundColor: colors.secondary }]]}>
+                      <Text style={[chatStyles.bubbleText, isDriver ? { color: "#0A0A0F" } : { color: colors.foreground }]}>
                         {item.text}
                       </Text>
-                      <Text style={[chatStyles.bubbleTime, { color: isDriver ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)" }]}>
+                      <Text style={[chatStyles.bubbleTime, { color: isDriver ? "rgba(0,0,0,0.5)" : colors.mutedForeground }]}>
                         {new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </Text>
                     </View>
@@ -336,13 +338,13 @@ function DriverChatModal({
             />
 
             {/* Input */}
-            <View style={chatStyles.inputRow}>
+            <View style={[chatStyles.inputRow, { borderColor: colors.border }]}>
               <TextInput
-                style={chatStyles.input}
+                style={[chatStyles.input, { backgroundColor: colors.secondary, color: colors.foreground, borderColor: colors.border }]}
                 value={inputText}
                 onChangeText={setInputText}
                 placeholder="Reply karein..."
-                placeholderTextColor="rgba(255,255,255,0.3)"
+                placeholderTextColor={colors.mutedForeground}
                 multiline
                 returnKeyType="send"
                 onSubmitEditing={handleSend}
@@ -350,7 +352,7 @@ function DriverChatModal({
               <TouchableOpacity
                 onPress={handleSend}
                 activeOpacity={0.8}
-                style={[chatStyles.sendBtn, { backgroundColor: inputText.trim() ? "#F5A623" : "rgba(255,255,255,0.1)" }]}
+                style={[chatStyles.sendBtn, { backgroundColor: inputText.trim() ? "#F5A623" : colors.secondary }]}
               >
                 <Text style={{ fontSize: 18 }}>➤</Text>
               </TouchableOpacity>
@@ -714,7 +716,7 @@ export function DriverModeScreen() {
 
             <View style={styles.activeTripFooter}>
               <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={[styles.metaChip, { backgroundColor: "rgba(255,255,255,0.06)" }]}>
+                <View style={[styles.metaChip, { backgroundColor: colors.secondary }]}>
                   <Text style={{ fontSize: 10 }}>👤</Text>
                   <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{activeRide.userName}</Text>
                 </View>
@@ -1063,8 +1065,6 @@ const styles = StyleSheet.create({
   },
   statsCard: {
     borderRadius: 24,
-    backgroundColor: "rgba(22,22,30,0.97)",
-    borderColor: "rgba(255,255,255,0.1)",
   },
   statsRow: {
     flexDirection: "row",
@@ -1120,8 +1120,6 @@ const styles = StyleSheet.create({
   requestCard: {
     borderRadius: 20,
     marginBottom: 10,
-    backgroundColor: "rgba(22,22,30,0.97)",
-    borderColor: "rgba(255,255,255,0.1)",
   },
   requestHeader: {
     flexDirection: "row",
