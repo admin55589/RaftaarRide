@@ -1,262 +1,213 @@
-import React, { useEffect } from "react";
-import { Dimensions, StyleSheet, Text, View } from "react-native";
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
+import React, { useEffect, useRef } from "react";
+import { StyleSheet, View } from "react-native";
+import { WebView } from "react-native-webview";
 import { useColors } from "@/hooks/useColors";
+import { useApp } from "@/context/AppContext";
 
-const { width } = Dimensions.get("window");
+const MAPBOX_TOKEN = "pk.eyJ1IjoicmFmdGFhcnJpZGUxNTY2IiwiYSI6ImNtbzdscTF3MzA4cTkycHM2czFmbjVocXcifQ.x7rpAJ_b9THRrw_wg76YuQ";
+const DEFAULT_CENTER = { lat: 28.6139, lng: 77.2090 };
 
 interface MapViewProps {
   showRadar?: boolean;
   showRoute?: boolean;
   routeProgress?: number;
+  driverLocation?: { lat: number; lng: number } | null;
 }
 
-function PulseCircle({ delay, size }: { delay: number; size: number }) {
+function buildMapHtml(opts: {
+  pickupLat: number;
+  pickupLng: number;
+  dropLat: number;
+  dropLng: number;
+  showRoute: boolean;
+  showRadar: boolean;
+  routeProgress: number;
+  driverLat: number;
+  driverLng: number;
+  isDark: boolean;
+}) {
+  const {
+    pickupLat, pickupLng,
+    dropLat, dropLng,
+    showRoute, showRadar,
+    routeProgress,
+    driverLat, driverLng,
+    isDark,
+  } = opts;
+
+  const style = isDark
+    ? "mapbox://styles/mapbox/dark-v11"
+    : "mapbox://styles/mapbox/streets-v12";
+
+  const centerLat = showRoute ? (pickupLat + dropLat) / 2 : pickupLat;
+  const centerLng = showRoute ? (pickupLng + dropLng) / 2 : pickupLng;
+  const zoom = showRoute ? 11 : 13;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no"/>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet"/>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{width:100vw;height:100vh;overflow:hidden}
+    #map{width:100%;height:100%}
+    .pickup-marker{
+      width:34px;height:34px;border-radius:50%;
+      background:#F5A623;border:3px solid #fff;
+      box-shadow:0 0 12px rgba(245,166,35,0.8);
+      display:flex;align-items:center;justify-content:center;font-size:14px;
+    }
+    .drop-marker{
+      width:34px;height:34px;border-radius:8px;
+      background:#22c55e;border:3px solid #fff;
+      box-shadow:0 0 12px rgba(34,197,94,0.8);
+      display:flex;align-items:center;justify-content:center;font-size:14px;
+    }
+    .driver-marker{
+      width:40px;height:40px;border-radius:50%;
+      background:#F5A623;border:3px solid #fff;
+      box-shadow:0 0 16px rgba(245,166,35,0.9);
+      display:flex;align-items:center;justify-content:center;font-size:20px;
+      animation:pulse 1.5s infinite;
+    }
+    @keyframes pulse{
+      0%{box-shadow:0 0 0 0 rgba(245,166,35,0.7)}
+      70%{box-shadow:0 0 0 14px rgba(245,166,35,0)}
+      100%{box-shadow:0 0 0 0 rgba(245,166,35,0)}
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    mapboxgl.accessToken='${MAPBOX_TOKEN}';
+    const map=new mapboxgl.Map({
+      container:'map',
+      style:'${style}',
+      center:[${centerLng},${centerLat}],
+      zoom:${zoom},
+      attributionControl:false,
+      logoPosition:'bottom-left'
+    });
+
+    map.on('load',function(){
+
+      ${showRoute ? `
+        const pickupLngLat=[${pickupLng},${pickupLat}];
+        const dropLngLat=[${dropLng},${dropLat}];
+
+        fetch('https://api.mapbox.com/directions/v5/mapbox/driving/'+
+          pickupLngLat[0]+','+pickupLngLat[1]+';'+
+          dropLngLat[0]+','+dropLngLat[1]+
+          '?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}')
+        .then(r=>r.json())
+        .then(data=>{
+          if(!data.routes||!data.routes.length)return;
+          const coords=data.routes[0].geometry.coordinates;
+          const totalPts=coords.length;
+          const donePts=Math.max(1,Math.floor(totalPts*${routeProgress}));
+
+          map.addSource('route',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:coords}}});
+          map.addLayer({id:'route-bg',type:'line',source:'route',paint:{'line-color':'rgba(245,166,35,0.22)','line-width':7,'line-cap':'round','line-join':'round'}});
+
+          if(${routeProgress}>0){
+            map.addSource('route-done',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:coords.slice(0,donePts+1)}}});
+            map.addLayer({id:'route-done',type:'line',source:'route-done',paint:{'line-color':'#22c55e','line-width':7,'line-cap':'round','line-join':'round'}});
+          }
+        }).catch(e=>console.warn(e));
+
+        const pEl=document.createElement('div');pEl.className='pickup-marker';pEl.innerHTML='🟡';
+        new mapboxgl.Marker({element:pEl}).setLngLat(pickupLngLat).addTo(map);
+
+        const dEl=document.createElement('div');dEl.className='drop-marker';dEl.innerHTML='📍';
+        new mapboxgl.Marker({element:dEl}).setLngLat(dropLngLat).addTo(map);
+
+        const carEl=document.createElement('div');carEl.className='driver-marker';carEl.innerHTML='🚗';
+        const driverMarker=new mapboxgl.Marker({element:carEl}).setLngLat([${driverLng},${driverLat}]).addTo(map);
+
+        document.addEventListener('message',function(e){
+          try{const m=JSON.parse(e.data);if(m.type==='driverLocation'){driverMarker.setLngLat([m.lng,m.lat]);}}catch(err){}
+        });
+        window.addEventListener('message',function(e){
+          try{const m=JSON.parse(e.data);if(m.type==='driverLocation'){driverMarker.setLngLat([m.lng,m.lat]);}}catch(err){}
+        });
+      ` : ''}
+
+      ${showRadar && !showRoute ? `
+        const radarEl=document.createElement('div');radarEl.className='driver-marker';radarEl.innerHTML='📍';
+        new mapboxgl.Marker({element:radarEl}).setLngLat([${pickupLng},${pickupLat}]).addTo(map);
+      ` : ''}
+
+      ${!showRoute && !showRadar ? `
+        const pinEl=document.createElement('div');pinEl.className='pickup-marker';pinEl.innerHTML='📍';
+        new mapboxgl.Marker({element:pinEl}).setLngLat([${centerLng},${centerLat}]).addTo(map);
+      ` : ''}
+
+    });
+  </script>
+</body>
+</html>`;
+}
+
+export function MapView({
+  showRadar = false,
+  showRoute = false,
+  routeProgress = 0,
+  driverLocation = null,
+}: MapViewProps) {
   const colors = useColors();
-  const opacity = useSharedValue(0.7);
-  const scale = useSharedValue(0.3);
+  const { pickupCoords, dropCoords } = useApp();
+  const webviewRef = useRef<WebView>(null);
+
+  const isDark = colors.background === "#0A0A0F"
+    || colors.background.startsWith("#0")
+    || colors.background.startsWith("#1");
+
+  const pickupLat = pickupCoords?.lat ?? DEFAULT_CENTER.lat;
+  const pickupLng = pickupCoords?.lng ?? DEFAULT_CENTER.lng;
+  const dropLat = dropCoords?.lat ?? DEFAULT_CENTER.lat + 0.08;
+  const dropLng = dropCoords?.lng ?? DEFAULT_CENTER.lng + 0.06;
+  const driverLat = driverLocation?.lat ?? pickupLat;
+  const driverLng = driverLocation?.lng ?? pickupLng;
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      opacity.value = withRepeat(
-        withSequence(
-          withTiming(0, { duration: 2000, easing: Easing.out(Easing.quad) })
-        ),
-        -1,
-        false
+    if (driverLocation && webviewRef.current) {
+      webviewRef.current.postMessage(
+        JSON.stringify({ type: "driverLocation", lat: driverLocation.lat, lng: driverLocation.lng })
       );
-      scale.value = withRepeat(
-        withSequence(
-          withTiming(1, { duration: 2000, easing: Easing.out(Easing.quad) })
-        ),
-        -1,
-        false
-      );
-    }, delay);
-    return () => clearTimeout(timeout);
-  }, []);
+    }
+  }, [driverLocation]);
 
-  const animStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ scale: scale.value }],
-  }));
+  const html = buildMapHtml({
+    pickupLat, pickupLng,
+    dropLat, dropLng,
+    showRoute, showRadar,
+    routeProgress,
+    driverLat, driverLng,
+    isDark,
+  });
 
   return (
-    <Animated.View
-      style={[
-        {
-          position: "absolute",
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: 2,
-          borderColor: colors.primary,
-        },
-        animStyle,
-      ]}
-    />
-  );
-}
-
-function CarDot() {
-  const colors = useColors();
-  const translateX = useSharedValue(0);
-
-  useEffect(() => {
-    translateX.value = withRepeat(
-      withSequence(
-        withTiming(40, { duration: 2000 }),
-        withTiming(-20, { duration: 1500 }),
-        withTiming(20, { duration: 1800 }),
-      ),
-      -1,
-      false
-    );
-  }, []);
-
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
-
-  return (
-    <Animated.View
-      style={[
-        {
-          width: 36,
-          height: 36,
-          borderRadius: 18,
-          backgroundColor: colors.primary,
-          alignItems: "center",
-          justifyContent: "center",
-          shadowColor: colors.primary,
-          shadowOpacity: 0.6,
-          shadowRadius: 12,
-          elevation: 8,
-        },
-        animStyle,
-      ]}
-    >
-      <Text style={{ fontSize: 16 }}>🚗</Text>
-    </Animated.View>
-  );
-}
-
-export function MapView({ showRadar = false, showRoute = false, routeProgress = 0 }: MapViewProps) {
-  const colors = useColors();
-
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.grid}>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <View
-            key={`h-${i}`}
-            style={[styles.hLine, { borderColor: colors.border, top: `${(i + 1) * 14}%` as any }]}
-          />
-        ))}
-        {Array.from({ length: 8 }).map((_, i) => (
-          <View
-            key={`v-${i}`}
-            style={[styles.vLine, { borderColor: colors.border, left: `${(i + 1) * 12}%` as any }]}
-          />
-        ))}
-      </View>
-
-      <View style={styles.center}>
-        {showRadar && (
-          <>
-            <PulseCircle delay={0} size={80} />
-            <PulseCircle delay={666} size={140} />
-            <PulseCircle delay={1333} size={200} />
-            <View
-              style={[
-                styles.centerDot,
-                { backgroundColor: colors.primary },
-              ]}
-            />
-          </>
-        )}
-
-        {showRoute && (
-          <View style={styles.routeContainer}>
-            <CarDot />
-            <View style={[styles.routeLine, { backgroundColor: colors.primary }]}>
-              <View
-                style={[
-                  styles.routeProgress,
-                  {
-                    width: `${routeProgress * 100}%`,
-                    backgroundColor: colors.success,
-                  },
-                ]}
-              />
-            </View>
-            <View
-              style={[
-                styles.destinationDot,
-                { borderColor: colors.primary, backgroundColor: colors.card },
-              ]}
-            />
-          </View>
-        )}
-
-        {!showRadar && !showRoute && (
-          <View style={[styles.locationPin, { backgroundColor: colors.primary }]}>
-            <View style={[styles.pinInner, { backgroundColor: colors.primaryForeground }]} />
-          </View>
-        )}
-      </View>
-
-      <View style={[styles.streetLabel, { top: "20%", left: "10%" }]}>
-        <Text style={[styles.streetText, { color: colors.mutedForeground }]}>MG Road</Text>
-      </View>
-      <View style={[styles.streetLabel, { top: "55%", right: "12%" }]}>
-        <Text style={[styles.streetText, { color: colors.mutedForeground }]}>Ring Road</Text>
-      </View>
-      <View style={[styles.streetLabel, { bottom: "25%", left: "20%" }]}>
-        <Text style={[styles.streetText, { color: colors.mutedForeground }]}>NH-48</Text>
-      </View>
+    <View style={styles.container}>
+      <WebView
+        ref={webviewRef}
+        source={{ html }}
+        style={styles.webview}
+        scrollEnabled={false}
+        javaScriptEnabled
+        originWhitelist={["*"]}
+        allowsInlineMediaPlayback
+        mediaPlaybackRequiresUserAction={false}
+        onMessage={() => {}}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    position: "relative",
-    overflow: "hidden",
-  },
-  grid: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  hLine: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    borderTopWidth: 1,
-  },
-  vLine: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    borderLeftWidth: 1,
-  },
-  center: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  centerDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-  },
-  locationPin: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pinInner: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  routeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  routeLine: {
-    width: 120,
-    height: 4,
-    borderRadius: 2,
-    overflow: "hidden",
-    opacity: 0.4,
-  },
-  routeProgress: {
-    height: "100%",
-    borderRadius: 2,
-  },
-  destinationDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 3,
-  },
-  streetLabel: {
-    position: "absolute",
-  },
-  streetText: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 10,
-    letterSpacing: 0.5,
-  },
+  container: { flex: 1, overflow: "hidden" },
+  webview: { flex: 1, backgroundColor: "transparent" },
 });

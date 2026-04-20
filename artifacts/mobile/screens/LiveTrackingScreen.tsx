@@ -157,7 +157,7 @@ export function LiveTrackingScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <MapView showRoute routeProgress={progress} />
+      <MapView showRoute routeProgress={progress} driverLocation={driverLiveLocation} />
 
       <View style={[styles.header, { paddingTop: (Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top) + 8, paddingHorizontal: 16 }]}>
         <GlassCard style={styles.headerCard} padding={12}>
