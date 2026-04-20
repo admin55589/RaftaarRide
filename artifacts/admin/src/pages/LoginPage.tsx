@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Zap, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { adminLogin } from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -28,8 +28,8 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
-            <Zap className="w-7 h-7 text-primary" fill="currentColor" />
+          <div className="w-14 h-14 rounded-2xl overflow-hidden border border-primary/20 mx-auto mb-4">
+            <img src="/admin/app-logo.jpg" alt="RaftaarRide" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">RaftaarRide Admin</h1>
           <p className="text-muted-foreground text-sm mt-1">Sign in to your admin account</p>

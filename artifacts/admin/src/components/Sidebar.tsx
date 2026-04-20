@@ -5,7 +5,6 @@ import {
   Car,
   MapPin,
   LogOut,
-  Zap,
   FileCheck,
   Wallet,
 } from "lucide-react";
@@ -32,9 +31,11 @@ export function Sidebar({ isLive = false }: SidebarProps) {
   return (
     <aside className="w-64 shrink-0 h-screen flex flex-col border-r border-sidebar-border bg-sidebar sticky top-0">
       <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-          <Zap className="w-4 h-4 text-primary-foreground" fill="currentColor" />
-        </div>
+        <img
+          src="/admin/app-logo.jpg"
+          alt="RaftaarRide"
+          className="w-8 h-8 rounded-lg object-cover"
+        />
         <div className="flex-1 min-w-0">
           <div className="text-sm font-bold text-foreground tracking-wide">RaftaarRide</div>
           <div className="text-xs text-muted-foreground">Admin Panel</div>

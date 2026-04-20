@@ -89,9 +89,9 @@ export default function LoginScreen() {
         >
           <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.logoRow}>
             <Image
-              source={require("../assets/logo.png")}
+              source={require("../assets/images/app-logo.jpg")}
               style={styles.logoIcon}
-              resizeMode="contain"
+              resizeMode="cover"
             />
             <Text style={styles.appName}>RaftaarRide</Text>
           </Animated.View>

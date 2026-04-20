@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
@@ -83,9 +84,11 @@ export default function SignupScreen() {
               <Text style={{ fontSize: 20, color: "#FFFFFF", lineHeight: 24 }}>←</Text>
             </Pressable>
             <View style={styles.logoRow}>
-              <View style={styles.logoIcon}>
-                <Text style={styles.logoEmoji}>⚡</Text>
-              </View>
+              <Image
+                source={require("../assets/images/app-logo.jpg")}
+                style={styles.logoIcon}
+                resizeMode="cover"
+              />
               <Text style={styles.appName}>RaftaarRide</Text>
             </View>
           </Animated.View>
@@ -245,8 +248,7 @@ const styles = StyleSheet.create({
   },
   logoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   logoIcon: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: "#F5A623", alignItems: "center", justifyContent: "center",
+    width: 40, height: 40, borderRadius: 10, overflow: "hidden",
   },
   logoEmoji: { fontSize: 20 },
   appName: { fontSize: 18, fontWeight: "700", color: "#FFFFFF" },
