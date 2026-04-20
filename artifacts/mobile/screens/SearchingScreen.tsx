@@ -1,23 +1,35 @@
-import React, { useEffect, useRef } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+} from "react-native";
 import Animated, {
   FadeIn,
+  FadeInDown,
+  FadeInUp,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withSequence,
   withTiming,
+  withSpring,
   Easing,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BlurView } from "expo-blur";
 import { useColors } from "@/hooks/useColors";
+import { useTheme } from "@/context/ThemeContext";
 import { useApp, MOCK_DRIVERS } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
 import { useVoiceAI } from "@/hooks/useVoiceAI";
 import { ridesApi, type DriverInfo } from "@/lib/ridesApi";
-import { connectSocket, joinRideRoom, getSocket, disconnectSocket } from "@/lib/socket";
+import { connectSocket, joinRideRoom, getSocket } from "@/lib/socket";
 import { useNotification } from "@/context/NotificationContext";
 
 const MESSAGES = [
@@ -25,12 +37,6 @@ const MESSAGES = [
   "Connecting with drivers...",
   "Driver mil raha hai...",
   "Almost there...",
-];
-
-const HINGLISH_MSGS = [
-  "Aas-paas drivers dhundh rahe hain...",
-  "Aapke liye best driver choose kar rahe hain...",
-  "Driver confirm ho raha hai...",
 ];
 
 function RadarPulse({ delay, size }: { delay: number; size: number }) {
@@ -54,6 +60,82 @@ function RadarPulse({ delay, size }: { delay: number; size: number }) {
   );
 }
 
+function CancelModal({
+  visible,
+  onConfirm,
+  onDismiss,
+}: {
+  visible: boolean;
+  onConfirm: () => void;
+  onDismiss: () => void;
+}) {
+  const { isDark } = useTheme();
+  const iconScale = useSharedValue(0);
+
+  useEffect(() => {
+    if (visible) {
+      iconScale.value = 0;
+      iconScale.value = withSpring(1, { damping: 12, stiffness: 180 });
+    }
+  }, [visible]);
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: iconScale.value }],
+  }));
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onDismiss}>
+      <BlurView intensity={isDark ? 60 : 40} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill}>
+        <Pressable style={styles.modalBackdrop} onPress={onDismiss}>
+          <Animated.View entering={FadeInUp.springify().damping(14)} style={styles.modalCard}>
+            <Pressable>
+              {/* Icon */}
+              <Animated.View style={[styles.modalIconWrap, iconStyle]}>
+                <View style={styles.modalIconOuter}>
+                  <View style={styles.modalIconInner}>
+                    <Text style={styles.modalIconEmoji}>🚫</Text>
+                  </View>
+                </View>
+              </Animated.View>
+
+              {/* Text */}
+              <Animated.View entering={FadeInDown.delay(80)} style={styles.modalTextWrap}>
+                <Text style={styles.modalTitle}>Ride Cancel Karen?</Text>
+                <Text style={styles.modalSubtitle}>
+                  Kya aap sach mein yeh ride cancel karna chahte hain?{"\n"}
+                  <Text style={styles.modalNote}>Driver dhundhna bandh ho jaega.</Text>
+                </Text>
+              </Animated.View>
+
+              {/* Divider */}
+              <View style={styles.modalDivider} />
+
+              {/* Buttons */}
+              <Animated.View entering={FadeInDown.delay(140)} style={styles.modalBtnRow}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalBtnKeep]}
+                  onPress={onDismiss}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.modalBtnKeepText}>⬅  Nahi, Wapas Jao</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalBtnCancel]}
+                  onPress={onConfirm}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.modalBtnCancelText}>✕  Haan, Cancel Karo</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </BlurView>
+    </Modal>
+  );
+}
+
 export function SearchingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -61,6 +143,7 @@ export function SearchingScreen() {
   const { setScreen, setAssignedDriver, selectedVehicle, currentRideId, setCurrentRideId } = useApp();
   const [msgIndex, setMsgIndex] = React.useState(0);
   const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const { announceSearching } = useVoiceAI();
   const { showNotification } = useNotification();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -123,29 +206,19 @@ export function SearchingScreen() {
 
     if (currentRideId && token) {
       const socket = connectSocket();
-
       joinRideRoom(currentRideId);
-
       socket.on("ride:status", (data: { rideId: number; status: string; driver?: DriverInfo | null }) => {
         if (data.rideId !== currentRideId) return;
-        if (data.status === "accepted") {
-          handleDriverFound(data.driver ?? null);
-        } else if (data.status === "cancelled") {
-          handleCancelled();
-        }
+        if (data.status === "accepted") handleDriverFound(data.driver ?? null);
+        else if (data.status === "cancelled") handleCancelled();
       });
-
       pollRef.current = setInterval(async () => {
         try {
           const data = await ridesApi.getRide(token, currentRideId);
-          if (data.ride.status === "accepted" && data.driver) {
-            handleDriverFound(data.driver);
-          } else if (data.ride.status === "cancelled") {
-            handleCancelled();
-          }
+          if (data.ride.status === "accepted" && data.driver) handleDriverFound(data.driver);
+          else if (data.ride.status === "cancelled") handleCancelled();
         } catch { }
       }, 5000);
-
     } else {
       const fallbackTimer = setTimeout(() => {
         clearInterval(timerRef.current!);
@@ -178,27 +251,15 @@ export function SearchingScreen() {
   }, []);
   const dotStyle = useAnimatedStyle(() => ({ opacity: dotOpacity.value }));
 
-  const handleCancel = () => {
-    Alert.alert(
-      "Ride Cancel Karen?",
-      "Kya aap sach mein yeh ride cancel karna chahte hain?",
-      [
-        { text: "Nahi", style: "cancel" },
-        {
-          text: "Haan, Cancel Karo",
-          style: "destructive",
-          onPress: async () => {
-            if (pollRef.current) clearInterval(pollRef.current);
-            if (timerRef.current) clearInterval(timerRef.current);
-            if (currentRideId && token) {
-              try { await ridesApi.cancelRide(token, currentRideId); } catch { }
-              setCurrentRideId(null);
-            }
-            setScreen("home");
-          },
-        },
-      ]
-    );
+  const handleConfirmCancel = async () => {
+    setShowCancelModal(false);
+    if (pollRef.current) clearInterval(pollRef.current);
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (currentRideId && token) {
+      try { await ridesApi.cancelRide(token, currentRideId); } catch { }
+      setCurrentRideId(null);
+    }
+    setScreen("home");
   };
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -240,7 +301,7 @@ export function SearchingScreen() {
           </View>
 
           <Pressable
-            onPress={handleCancel}
+            onPress={() => setShowCancelModal(true)}
             style={[styles.cancelBtn, { borderColor: "rgba(239,68,68,0.5)" }]}
           >
             <Text style={{ fontSize: 14, color: colors.destructive }}>✕</Text>
@@ -248,6 +309,12 @@ export function SearchingScreen() {
           </Pressable>
         </GlassCard>
       </Animated.View>
+
+      <CancelModal
+        visible={showCancelModal}
+        onConfirm={handleConfirmCancel}
+        onDismiss={() => setShowCancelModal(false)}
+      />
     </View>
   );
 }
@@ -283,4 +350,109 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   cancelText: { fontFamily: "Inter_600SemiBold", fontSize: 13 },
+
+  // Modal styles
+  modalBackdrop: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+  modalCard: {
+    width: "100%",
+    borderRadius: 28,
+    overflow: "hidden",
+    backgroundColor: "rgba(18,18,26,0.96)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    shadowColor: "#000",
+    shadowOpacity: 0.5,
+    shadowRadius: 32,
+    shadowOffset: { width: 0, height: 16 },
+    elevation: 20,
+  },
+  modalIconWrap: {
+    alignItems: "center",
+    paddingTop: 32,
+    paddingBottom: 16,
+  },
+  modalIconOuter: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: "rgba(239,68,68,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(239,68,68,0.25)",
+  },
+  modalIconInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(239,68,68,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalIconEmoji: { fontSize: 30 },
+  modalTextWrap: {
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    gap: 10,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#fff",
+    textAlign: "center",
+    fontFamily: "Inter_700Bold",
+    letterSpacing: -0.3,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.6)",
+    textAlign: "center",
+    fontFamily: "Inter_400Regular",
+    lineHeight: 22,
+  },
+  modalNote: {
+    color: "#F87171",
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    marginHorizontal: 0,
+  },
+  modalBtnRow: {
+    flexDirection: "row",
+    gap: 0,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalBtnKeep: {
+    borderRightWidth: 1,
+    borderRightColor: "rgba(255,255,255,0.07)",
+  },
+  modalBtnKeepText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.75)",
+    fontFamily: "Inter_600SemiBold",
+  },
+  modalBtnCancel: {
+    backgroundColor: "rgba(239,68,68,0.10)",
+  },
+  modalBtnCancelText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#F87171",
+    fontFamily: "Inter_700Bold",
+  },
 });
