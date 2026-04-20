@@ -736,19 +736,24 @@ export function DriverModeScreen() {
           </Animated.View>
         )}
 
-        <ScrollView showsVerticalScrollIndicator={false} style={styles.requestsList}>
+        <View style={styles.requestsList}>
           {!activeRide && requests.length > 0 ? (
             <>
-              <Text style={[styles.requestsTitle, { color: colors.mutedForeground }]}>INCOMING REQUESTS</Text>
-              {requests.map((r) => (
-                <RideRequest
-                  key={r.id}
-                  request={r}
-                  vehicleType={driver?.vehicleType}
-                  onAccept={() => handleAccept(r.id)}
-                  onReject={() => handleReject(r.id)}
-                />
-              ))}
+              <View style={styles.requestsTitleRow}>
+                <Text style={[styles.requestsTitle, { color: colors.mutedForeground }]}>INCOMING REQUESTS</Text>
+                {requests.length > 1 && (
+                  <View style={[styles.queueBadge, { backgroundColor: colors.primary + "22", borderColor: colors.primary + "55" }]}>
+                    <Text style={[styles.queueBadgeText, { color: colors.primary }]}>+{requests.length - 1} queue mein</Text>
+                  </View>
+                )}
+              </View>
+              <RideRequest
+                key={requests[0].id}
+                request={requests[0]}
+                vehicleType={driver?.vehicleType}
+                onAccept={() => handleAccept(requests[0].id)}
+                onReject={() => handleReject(requests[0].id)}
+              />
             </>
           ) : !activeRide ? (
             <View style={styles.emptyState}>
@@ -758,7 +763,7 @@ export function DriverModeScreen() {
               </Text>
             </View>
           ) : null}
-        </ScrollView>
+        </View>
       </Animated.View>
 
       {toast.show && (
@@ -1054,7 +1059,7 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 16,
     gap: 10,
-    maxHeight: "74%",
+    maxHeight: "66%",
   },
   statsCard: {
     borderRadius: 24,
@@ -1090,14 +1095,27 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     fontSize: 10,
   },
-  requestsList: {
-    flex: 1,
+  requestsList: {},
+  requestsTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
   },
   requestsTitle: {
     fontFamily: "Inter_500Medium",
     fontSize: 11,
     letterSpacing: 0.8,
-    marginBottom: 8,
+  },
+  queueBadge: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  queueBadgeText: {
+    fontSize: 10,
+    fontFamily: "Inter_600SemiBold",
   },
   requestCard: {
     borderRadius: 20,
