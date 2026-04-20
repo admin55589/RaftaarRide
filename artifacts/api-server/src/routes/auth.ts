@@ -13,14 +13,68 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-async function sendSmsOtp(phone: string, otp: string): Promise<{ sent: boolean; dev: boolean }> {
+const FIREBASE_API_KEY = "AIzaSyBE3Uy6XvWjtpccm92bPDVNK0YFRKmV4fI";
+
+// Send OTP via Firebase Phone Auth REST API — returns sessionInfo on success
+async function firebaseSendOtp(phone: string): Promise<string | null> {
+  const appCheckToken = process.env.FIREBASE_APP_CHECK_TOKEN;
+  if (!appCheckToken) return null;
+
+  // Ensure E.164 format
+  const e164 = phone.startsWith("+") ? phone : `+91${phone.replace(/\D/g, "")}`;
+
+  try {
+    const res = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key=${FIREBASE_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumber: e164, appCheckToken }),
+      }
+    );
+    const data = (await res.json()) as { sessionInfo?: string; error?: { message: string } };
+    if (data.sessionInfo) {
+      console.log(`[OTP][Firebase] SMS sent to ${phone}`);
+      return data.sessionInfo;
+    }
+    console.error("[OTP][Firebase] Failed:", data.error?.message);
+  } catch (err) {
+    console.error("[OTP][Firebase] Error:", err);
+  }
+  return null;
+}
+
+// Verify OTP via Firebase Phone Auth REST API
+async function firebaseVerifyOtp(sessionInfo: string, code: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPhoneNumber?key=${FIREBASE_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionInfo, code }),
+      }
+    );
+    const data = (await res.json()) as { idToken?: string; error?: { message: string } };
+    if (data.idToken) return true;
+    console.error("[OTP][Firebase] Verify failed:", data.error?.message);
+  } catch (err) {
+    console.error("[OTP][Firebase] Verify error:", err);
+  }
+  return false;
+}
+
+async function sendSmsOtp(phone: string, otp: string): Promise<{ sent: boolean; dev: boolean; sessionInfo?: string }> {
   const fast2smsKey = process.env.FAST2SMS_API_KEY;
   const msg91Key = process.env.MSG91_API_KEY;
   const msg91Template = process.env.MSG91_TEMPLATE_ID;
 
-  // Strip country code if present
-  const digits = phone.replace(/^\+91/, "").replace(/^91/, "").replace(/\D/g, "");
+  // 1. Try Firebase Phone Auth (real SMS via Google)
+  const sessionInfo = await firebaseSendOtp(phone);
+  if (sessionInfo) return { sent: true, dev: false, sessionInfo };
 
+  // 2. Try Fast2SMS
+  const digits = phone.replace(/^\+91/, "").replace(/^91/, "").replace(/\D/g, "");
   if (fast2smsKey) {
     try {
       const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${fast2smsKey}&route=otp&variables_values=${otp}&numbers=${digits}`;
@@ -36,17 +90,13 @@ async function sendSmsOtp(phone: string, otp: string): Promise<{ sent: boolean; 
     }
   }
 
+  // 3. Try MSG91
   if (msg91Key && msg91Template) {
     try {
       const res = await fetch("https://control.msg91.com/api/v5/flow/", {
         method: "POST",
         headers: { authkey: msg91Key, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          template_id: msg91Template,
-          short_url: "0",
-          mobiles: `91${digits}`,
-          otp,
-        }),
+        body: JSON.stringify({ template_id: msg91Template, short_url: "0", mobiles: `91${digits}`, otp }),
       });
       const data = (await res.json()) as { type: string };
       if (data.type === "success") {
@@ -59,7 +109,7 @@ async function sendSmsOtp(phone: string, otp: string): Promise<{ sent: boolean; 
     }
   }
 
-  // Dev fallback — no SMS key configured
+  // 4. Dev fallback
   console.log(`[OTP][DEV] Phone: ${phone} → OTP: ${otp}`);
   return { sent: false, dev: true };
 }
@@ -228,12 +278,18 @@ router.post("/auth/send-otp", async (req: Request, res: Response) => {
       });
     }
 
-    const { sent, dev } = await sendSmsOtp(phone, otp);
+    const { sent, dev, sessionInfo } = await sendSmsOtp(phone, otp);
+
+    // If Firebase sent SMS, overwrite otpCode with sessionInfo prefix
+    if (sessionInfo) {
+      await db.update(usersTable)
+        .set({ otpCode: `firebase:${sessionInfo}`, otpExpiresAt: expiresAt })
+        .where(eq(usersTable.phone, phone));
+    }
 
     res.json({
       message: sent ? "OTP aapke phone pe bhej diya gaya" : "OTP ready (dev mode)",
       isNewUser,
-      // Return OTP only in dev mode (no SMS key configured)
       otp: dev ? otp : undefined,
       smsSent: sent,
     });
@@ -263,18 +319,29 @@ router.post("/auth/verify-otp", async (req: Request, res: Response) => {
       .limit(1);
 
     if (!user || !user.otpCode) {
-      res.status(400).json({ message: "OTP not found. Please request again." });
-      return;
-    }
-
-    if (user.otpCode !== otp) {
-      res.status(400).json({ message: "Invalid OTP" });
+      res.status(400).json({ message: "OTP nahi mila. Dobara request karo." });
       return;
     }
 
     if (user.otpExpiresAt && new Date() > user.otpExpiresAt) {
-      res.status(400).json({ message: "OTP has expired. Please request again." });
+      res.status(400).json({ message: "OTP expire ho gaya. Dobara request karo." });
       return;
+    }
+
+    // Firebase sessionInfo verification
+    if (user.otpCode.startsWith("firebase:")) {
+      const sessionInfo = user.otpCode.slice("firebase:".length);
+      const valid = await firebaseVerifyOtp(sessionInfo, otp);
+      if (!valid) {
+        res.status(400).json({ message: "OTP galat hai" });
+        return;
+      }
+    } else {
+      // Custom OTP verification
+      if (user.otpCode !== otp) {
+        res.status(400).json({ message: "OTP galat hai" });
+        return;
+      }
     }
 
     await db
