@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, StyleSheet, TouchableOpacity, Text, Platform } from "react-native";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -19,16 +19,83 @@ import { ScheduledRidesScreen } from "@/screens/ScheduledRidesScreen";
 import { DriverKYCScreen } from "@/screens/DriverKYCScreen";
 import { DriverEarningsScreen } from "@/screens/DriverEarningsScreen";
 
+const MONTHS_SHORT = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+
+function CalendarIcon({ isActive, color }: { isActive: boolean; color: string }) {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const midnight = new Date();
+    midnight.setHours(24, 0, 0, 0);
+    const msUntilMidnight = midnight.getTime() - Date.now();
+    const t = setTimeout(() => {
+      setNow(new Date());
+    }, msUntilMidnight);
+    return () => clearTimeout(t);
+  }, [now]);
+
+  const day = now.getDate();
+  const month = MONTHS_SHORT[now.getMonth()];
+
+  return (
+    <View style={[calStyles.wrap, isActive && { borderColor: color }]}>
+      <View style={[calStyles.header, { backgroundColor: color, opacity: isActive ? 1 : 0.45 }]}>
+        <Text style={calStyles.month}>{month}</Text>
+      </View>
+      <View style={calStyles.body}>
+        <Text style={[calStyles.day, { color: isActive ? color : "#888", opacity: isActive ? 1 : 0.7 }]}>
+          {day}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const calStyles = StyleSheet.create({
+  wrap: {
+    width: 30,
+    height: 28,
+    borderRadius: 6,
+    overflow: "hidden",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  header: {
+    height: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  month: {
+    fontSize: 5.5,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: 0.4,
+    fontFamily: "Inter_700Bold",
+  },
+  body: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+  },
+  day: {
+    fontSize: 12,
+    fontWeight: "800",
+    fontFamily: "Inter_700Bold",
+    lineHeight: 14,
+  },
+});
+
 const USER_TABS = [
-  { key: "home", icon: "🏠", label_hi: "होम", label_en: "Home" },
-  { key: "wallet", icon: "💰", label_hi: "वॉलेट", label_en: "Wallet" },
-  { key: "schedule", icon: "📅", label_hi: "शेड्यूल", label_en: "Schedule" },
+  { key: "home",     icon: "🏠", label_hi: "होम",     label_en: "Home",     custom: false },
+  { key: "wallet",   icon: "💰", label_hi: "वॉलेट",   label_en: "Wallet",   custom: false },
+  { key: "schedule", icon: null, label_hi: "शेड्यूल", label_en: "Schedule", custom: true  },
 ];
 
 const DRIVER_TABS = [
-  { key: "home", icon: "🚗", label_hi: "राइड्स", label_en: "Rides" },
-  { key: "kyc", icon: "📋", label_hi: "KYC", label_en: "KYC" },
-  { key: "earnings", icon: "💵", label_hi: "कमाई", label_en: "Earnings" },
+  { key: "home",     icon: "🚗", label_hi: "राइड्स",  label_en: "Rides",    custom: false },
+  { key: "kyc",      icon: "📋", label_hi: "KYC",      label_en: "KYC",      custom: false },
+  { key: "earnings", icon: "💵", label_hi: "कमाई",    label_en: "Earnings", custom: false },
 ];
 
 const RIDE_SCREENS = ["booking", "searching", "driver_assigned", "live_tracking", "payment"];
@@ -47,26 +114,26 @@ export default function MainScreen() {
   const renderContent = () => {
     if (isDriverLoggedIn) {
       switch (activeTab) {
-        case "kyc": return <DriverKYCScreen />;
+        case "kyc":      return <DriverKYCScreen />;
         case "earnings": return <DriverEarningsScreen />;
-        default: return <DriverModeScreen />;
+        default:         return <DriverModeScreen />;
       }
     }
 
     if (isInRideFlow) {
       switch (screen) {
-        case "booking": return <BookingScreen />;
-        case "searching": return <SearchingScreen />;
+        case "booking":         return <BookingScreen />;
+        case "searching":       return <SearchingScreen />;
         case "driver_assigned": return <DriverAssignedScreen />;
-        case "live_tracking": return <LiveTrackingScreen />;
-        case "payment": return <PaymentScreen />;
+        case "live_tracking":   return <LiveTrackingScreen />;
+        case "payment":         return <PaymentScreen />;
       }
     }
 
     switch (activeTab) {
-      case "wallet": return <WalletScreen />;
+      case "wallet":   return <WalletScreen />;
       case "schedule": return <ScheduledRidesScreen />;
-      default: return <HomeScreen />;
+      default:         return <HomeScreen />;
     }
   };
 
@@ -100,9 +167,13 @@ export default function MainScreen() {
                 activeOpacity={0.7}
               >
                 <View style={[styles.tabIconWrap, isActive && { backgroundColor: colors.primary + "22" }]}>
-                  <Text style={[styles.tabIcon, isActive && styles.tabIconActive]}>
-                    {tab.icon}
-                  </Text>
+                  {tab.custom ? (
+                    <CalendarIcon isActive={isActive} color={colors.primary} />
+                  ) : (
+                    <Text style={[styles.tabIcon, isActive && styles.tabIconActive]}>
+                      {tab.icon}
+                    </Text>
+                  )}
                 </View>
                 <Text
                   style={[
