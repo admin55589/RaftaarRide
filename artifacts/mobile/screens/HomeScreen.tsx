@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Image,
@@ -107,6 +107,20 @@ export function HomeScreen() {
   const [inputValue, setInputValue] = useState("");
   const [locating, setLocating] = useState(false);
 
+  const locationPermGranted = useRef<boolean | null>(null);
+  const ensureLocationPermission = useCallback(async (): Promise<boolean> => {
+    if (locationPermGranted.current === true) return true;
+    const { status: existing } = await Location.getForegroundPermissionsAsync();
+    if (existing === "granted") {
+      locationPermGranted.current = true;
+      return true;
+    }
+    if (locationPermGranted.current === false) return false;
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    locationPermGranted.current = status === "granted";
+    return locationPermGranted.current;
+  }, []);
+
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [editName, setEditName] = useState(user?.name ?? "");
   const [editEmail, setEditEmail] = useState(user?.email ?? "");
@@ -190,8 +204,8 @@ export function HomeScreen() {
   const handleGpsPickup = async () => {
     setGpsLoading(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") { setGpsLoading(false); return; }
+      const granted = await ensureLocationPermission();
+      if (!granted) { setGpsLoading(false); return; }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const [geo] = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
       if (geo) {
@@ -223,8 +237,8 @@ export function HomeScreen() {
   const handleLocateMe = async () => {
     setLocating(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") { setLocating(false); return; }
+      const granted = await ensureLocationPermission();
+      if (!granted) { setLocating(false); return; }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const [geo] = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
       if (geo) {
