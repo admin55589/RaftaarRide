@@ -34,6 +34,9 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
+import { useVoiceAI } from "@/hooks/useVoiceAI";
+import { VoiceMicButton } from "@/components/VoiceMicButton";
 
 function getGreeting(t: (k: any) => string, hour: number) {
   if (hour < 12) return t("good_morning");
@@ -255,6 +258,16 @@ export function HomeScreen() {
     setDestination(dest);
     setScreen("booking");
   };
+
+  const { announceVoicePrompt } = useVoiceAI();
+  const { state: voiceState, toggle: toggleVoice } = useVoiceInput((text) => {
+    if (text.trim()) handleDestinationSelect(text.trim());
+  });
+
+  const handleMicPress = useCallback(async () => {
+    if (voiceState === "idle") announceVoicePrompt();
+    await toggleVoice();
+  }, [voiceState, toggleVoice, announceVoicePrompt]);
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
 
@@ -484,10 +497,14 @@ export function HomeScreen() {
                 returnKeyType="go"
                 style={[styles.searchInput, { color: colors.foreground }]}
               />
-              {inputValue.length > 0 && (
+              {inputValue.length > 0 ? (
                 <Pressable onPress={() => setInputValue("")} style={styles.clearBtn}>
                   <Text style={[styles.clearEmoji, { color: colors.mutedForeground }]}>✕</Text>
                 </Pressable>
+              ) : (
+                <View style={styles.micBtn}>
+                  <VoiceMicButton state={voiceState} onToggle={handleMicPress} size={32} />
+                </View>
               )}
             </View>
           </View>
@@ -835,6 +852,7 @@ const styles = StyleSheet.create({
   },
   clearBtn: { padding: 4 },
   clearEmoji: { fontSize: 15, lineHeight: 20 },
+  micBtn: { padding: 2 },
   suggestionsScroll: { maxHeight: 280 },
   suggestionsContent: {
     paddingHorizontal: 16,

@@ -19,6 +19,7 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { connectSocket, joinRideRoom, getSocket } from "@/lib/socket";
 import { useNotification } from "@/context/NotificationContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useVoiceAI } from "@/hooks/useVoiceAI";
 
 const STAGES = ["Pickup", "On Ride", "Arriving"];
 
@@ -74,6 +75,7 @@ export function LiveTrackingScreen() {
   const { lang, toggleLanguage } = useLanguage();
   const { assignedDriver, setScreen, addRideToHistory, destination, pickup, selectedVehicle, rideMode, estimatedPrice, currentRideId } = useApp();
   const { showNotification } = useNotification();
+  const { announcePickupReached, announceRideStarted, announceArrived } = useVoiceAI();
   const [stage, setStage] = useState(0);
   const [progress, setProgress] = useState(0);
   const [timeLeft, setTimeLeft] = useState(12);
@@ -109,6 +111,7 @@ export function LiveTrackingScreen() {
             icon: "📍",
             duration: 5000,
           });
+          announcePickupReached();
         }
         if (next >= 0.7 && stage <= 1) {
           setStage(2);
@@ -120,6 +123,7 @@ export function LiveTrackingScreen() {
             icon: "🚀",
             duration: 4000,
           });
+          announceRideStarted(destination ?? "manzil");
         }
         if (next >= 1) {
           clearInterval(tick);
@@ -131,6 +135,7 @@ export function LiveTrackingScreen() {
             icon: "🎉",
             duration: 4000,
           });
+          announceArrived();
           setTimeout(() => setScreen("payment"), 800);
           return 1;
         }

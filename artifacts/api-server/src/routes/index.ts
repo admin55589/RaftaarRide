@@ -9,6 +9,7 @@ import usersRouter from "./users";
 import walletRouter from "./wallet";
 import kycRouter from "./kyc";
 import scheduledRouter from "./scheduled";
+import voiceRouter from "./voice";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(usersRouter);
 router.use(walletRouter);
 router.use(kycRouter);
 router.use(scheduledRouter);
+router.use(voiceRouter);
 
 export default router;
