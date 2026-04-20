@@ -81,13 +81,39 @@ export function ScheduledRidesScreen() {
     return d.toISOString().split("T")[0];
   };
 
+  const normalizeDate = (raw: string): string => {
+    return raw.replace(/[\/\.]/g, "-").replace(/[^0-9\-]/g, "");
+  };
+
+  const handleDateChange = (text: string) => {
+    let cleaned = text.replace(/[^0-9]/g, "");
+    if (cleaned.length > 4 && cleaned.length <= 6) cleaned = cleaned.slice(0, 4) + "-" + cleaned.slice(4);
+    else if (cleaned.length > 6) cleaned = cleaned.slice(0, 4) + "-" + cleaned.slice(4, 6) + "-" + cleaned.slice(6, 8);
+    if (text.endsWith("/") || text.endsWith("-") || text.endsWith(".")) {
+      const normalized = normalizeDate(text);
+      if (!normalized.endsWith("-")) setFormDate(normalized);
+      return;
+    }
+    setFormDate(cleaned);
+  };
+
   const handleSubmit = async () => {
     if (!formPickup || !formDest || !formDate || !formTime) {
       showNotification({ title: t("ride_details"), body: "Sabhi fields fill karein", type: "error", icon: "⚠️" });
       return;
     }
 
-    const scheduledAt = new Date(`${formDate}T${formTime}:00`);
+    const normalizedDate = normalizeDate(formDate);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+      showNotification({ title: t("date_label"), body: "Date format sahi karein: YYYY-MM-DD (jaise 2026-04-20)", type: "error", icon: "📅" });
+      return;
+    }
+
+    const scheduledAt = new Date(`${normalizedDate}T${formTime}:00`);
+    if (isNaN(scheduledAt.getTime())) {
+      showNotification({ title: t("date_label"), body: "Date ya time galat hai, dobara check karein", type: "error", icon: "📅" });
+      return;
+    }
     const minTime = new Date(Date.now() + 30 * 60 * 1000);
     if (scheduledAt < minTime) {
       showNotification({ title: t("time_label"), body: "Kam se kam 30 minute baad schedule karein", type: "error", icon: "⏰" });
@@ -119,7 +145,7 @@ export function ScheduledRidesScreen() {
         await fetchRides();
         showNotification({
           title: "Ride Schedule Ho Gayi! 📅",
-          body: `${formPickup} → ${formDest} — ${formDate} ${formTime}`,
+          body: `${formPickup} → ${formDest} — ${normalizedDate} ${formTime}`,
           type: "success",
           icon: "📅",
           duration: 5000,
@@ -228,13 +254,15 @@ export function ScheduledRidesScreen() {
                 onChangeText={setFormDest}
               />
 
-              <Text style={styles.fieldLabel}>{t("date_label")}</Text>
+              <Text style={styles.fieldLabel}>{t("date_label")} ({getMinDate()} format)</Text>
               <TextInput
                 style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
                 placeholder={getMinDate()}
                 placeholderTextColor={colors.textSecondary}
                 value={formDate}
-                onChangeText={setFormDate}
+                onChangeText={handleDateChange}
+                keyboardType="numeric"
+                maxLength={10}
               />
 
               <Text style={styles.fieldLabel}>{t("time_label")}</Text>
