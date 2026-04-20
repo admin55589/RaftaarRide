@@ -72,6 +72,7 @@ export function RidesPage() {
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Route</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Vehicle</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Fare</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide hidden xl:table-cell">Commission</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide hidden xl:table-cell">Date</th>
               </tr>
@@ -80,7 +81,7 @@ export function RidesPage() {
               {isLoading
                 ? Array.from({ length: 8 }).map((_, i) => (
                     <tr key={i}>
-                      {Array.from({ length: 8 }).map((_, j) => (
+                      {Array.from({ length: 9 }).map((_, j) => (
                         <td key={j} className="px-5 py-3.5">
                           <div className="h-4 bg-muted rounded animate-pulse" />
                         </td>
@@ -105,6 +106,18 @@ export function RidesPage() {
                         <VehicleBadge type={ride.vehicleType} />
                       </td>
                       <td className="px-5 py-3.5 font-semibold text-foreground">{formatCurrency(ride.price)}</td>
+                      <td className="px-5 py-3.5 hidden xl:table-cell">
+                        {(ride as any).commissionAmount && parseFloat((ride as any).commissionAmount) > 0 ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                              +{formatCurrency((ride as any).commissionAmount)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">6.7%</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">—</span>
+                        )}
+                      </td>
                       <td className="px-5 py-3.5">
                         <StatusBadge status={ride.status} />
                       </td>

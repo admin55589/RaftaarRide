@@ -211,12 +211,20 @@ router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) 
     if (status === "completed" && updated.driverId) {
       const [driver] = await db.select().from(driversTable).where(eq(driversTable.id, updated.driverId)).limit(1);
       if (driver) {
-        const earning = parseFloat(String(updated.price)) * 0.933;
+        const price = parseFloat(String(updated.price));
+        const commission = parseFloat((price * 0.067).toFixed(2));
+        const earning = parseFloat((price * 0.933).toFixed(2));
+
         await db.update(driversTable).set({
           totalEarnings: String((parseFloat(String(driver.totalEarnings ?? "0")) + earning).toFixed(2)),
           totalRides: (driver.totalRides ?? 0) + 1,
-          isOnline: true,
+          isOnline: false,
         }).where(eq(driversTable.id, updated.driverId));
+
+        await db.update(ridesTable).set({
+          commissionAmount: String(commission),
+          driverEarning: String(earning),
+        }).where(eq(ridesTable.id, rideId));
       }
     }
 

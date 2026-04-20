@@ -100,10 +100,6 @@ router.post("/promo/validate", userAuth, async (req: Request, res: Response) => 
     const discountAmount = Math.round((fareAmount ?? 0) * (promo.discountPct / 100));
     const finalFare = Math.max(0, (fareAmount ?? 0) - discountAmount);
 
-    await db.update(promoCodesTable)
-      .set({ usedCount: promo.usedCount + 1 })
-      .where(eq(promoCodesTable.id, promo.id));
-
     res.json({
       success: true,
       code: promo.code,
