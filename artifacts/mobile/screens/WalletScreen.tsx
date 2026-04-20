@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   TextInput,
   Platform,
   ActivityIndicator,
-  Modal,
 } from "react-native";
 import Animated, {
   FadeInDown,
@@ -25,15 +24,11 @@ import { useTheme } from "@/context/ThemeContext";
 import { useNotification } from "@/context/NotificationContext";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
+import { RazorpayWebView } from "@/components/RazorpayWebView";
+import { paymentApi, type RazorpayOrder } from "@/lib/paymentApi";
 import { BASE_URL } from "@/lib/api";
 
 const QUICK_AMOUNTS = [100, 200, 500, 1000, 2000, 5000];
-const METHODS = [
-  { id: "upi", label: "UPI", icon: "📲" },
-  { id: "paytm", label: "Paytm", icon: "💙" },
-  { id: "card", label: "Card", icon: "💳" },
-  { id: "netbanking", label: "Net Banking", icon: "🏦" },
-];
 
 interface Transaction {
   id: number;
@@ -47,7 +42,7 @@ export function WalletScreen() {
   const colors = useColors();
   const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { t, lang } = useLanguage();
   const { showNotification } = useNotification();
 
@@ -55,19 +50,10 @@ export function WalletScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [topupAmount, setTopupAmount] = useState("");
-  const [selectedMethod, setSelectedMethod] = useState("upi");
-  const [topping, setTopping] = useState(false);
   const [showTopup, setShowTopup] = useState(false);
-
-  const [upiId, setUpiId] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
-  const [bankAccount, setBankAccount] = useState("");
-  const [bankIfsc, setBankIfsc] = useState("");
-
-  const [showPayModal, setShowPayModal] = useState(false);
-  const [payStep, setPayStep] = useState<"idle" | "processing" | "done">("idle");
+  const [creatingOrder, setCreatingOrder] = useState(false);
+  const [razorpayOrder, setRazorpayOrder] = useState<RazorpayOrder | null>(null);
+  const [showRazorpay, setShowRazorpay] = useState(false);
 
   const balanceScale = useSharedValue(1);
   const balanceStyle = useAnimatedStyle(() => ({ transform: [{ scale: balanceScale.value }] }));
@@ -75,7 +61,7 @@ export function WalletScreen() {
   const inputBg = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
   const inputBorder = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)";
 
-  const fetchWallet = async () => {
+  const fetchWallet = useCallback(async () => {
     if (!token) return;
     try {
       setLoading(true);
@@ -89,90 +75,73 @@ export function WalletScreen() {
       if (txnData.success) setTransactions(txnData.transactions);
     } catch { }
     finally { setLoading(false); }
-  };
+  }, [token]);
 
-  useEffect(() => { fetchWallet(); }, [token]);
-
-  const validatePaymentDetails = () => {
-    if (selectedMethod === "upi" || selectedMethod === "paytm") {
-      if (!upiId.includes("@")) {
-        showNotification({ title: t("upi_invalid"), body: "example@upi format mein daalen", type: "error", icon: "❌" });
-        return false;
-      }
-    }
-    if (selectedMethod === "card") {
-      if (cardNumber.replace(/\s/g, "").length < 16) {
-        showNotification({ title: t("card_invalid"), body: "16-digit card number daalen", type: "error", icon: "❌" });
-        return false;
-      }
-      if (!cardExpiry.includes("/")) {
-        showNotification({ title: t("expiry_invalid"), body: "MM/YY format mein daalen", type: "error", icon: "❌" });
-        return false;
-      }
-      if (cardCvv.length < 3) {
-        showNotification({ title: t("cvv_invalid"), body: "3-digit CVV daalen", type: "error", icon: "❌" });
-        return false;
-      }
-    }
-    if (selectedMethod === "netbanking") {
-      if (bankAccount.length < 8) {
-        showNotification({ title: t("account_invalid"), body: "Account number daalen", type: "error", icon: "❌" });
-        return false;
-      }
-      if (bankIfsc.length < 11) {
-        showNotification({ title: t("ifsc_code"), body: "11-character IFSC daalen", type: "error", icon: "❌" });
-        return false;
-      }
-    }
-    return true;
-  };
+  useEffect(() => { fetchWallet(); }, [fetchWallet]);
 
   const handlePayNow = async () => {
     const amt = Number(topupAmount);
     if (!amt || amt < 10 || amt > 50000) {
-      showNotification({ title: t("upi_invalid"), body: "₹10 se ₹50,000 ke beech amount daalen", type: "error", icon: "❌" });
+      showNotification({
+        title: "Amount galat hai",
+        body: "₹10 se ₹50,000 ke beech amount daalen",
+        type: "error",
+        icon: "❌",
+      });
       return;
     }
-    if (!validatePaymentDetails()) return;
 
-    setShowPayModal(true);
-    setPayStep("processing");
+    try {
+      setCreatingOrder(true);
+      const order = await paymentApi.createOrder(amt);
+      setRazorpayOrder(order);
+      setShowRazorpay(true);
+    } catch (err) {
+      showNotification({ title: "Order create nahi hua", body: "Dobara try karein", type: "error", icon: "❌" });
+    } finally {
+      setCreatingOrder(false);
+    }
+  };
 
-    await new Promise((r) => setTimeout(r, 2200));
-
-    setTopping(true);
+  const handleRazorpaySuccess = async (data: {
+    razorpay_payment_id: string;
+    razorpay_order_id: string;
+    razorpay_signature: string;
+  }) => {
+    setShowRazorpay(false);
+    const amt = Number(topupAmount);
     try {
       const res = await fetch(`${BASE_URL}wallet/topup`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ amount: amt, method: selectedMethod }),
+        body: JSON.stringify({
+          amount: amt,
+          method: "razorpay",
+          paymentId: data.razorpay_payment_id,
+          orderId: data.razorpay_order_id,
+        }),
       });
-      const data = await res.json();
-      if (data.success) {
-        balanceScale.value = withSpring(1.2, {}, () => { balanceScale.value = withSpring(1); });
-        setBalance(data.newBalance);
+      const result = await res.json();
+      if (result.success) {
+        balanceScale.value = withSpring(1.18, {}, () => { balanceScale.value = withSpring(1); });
+        setBalance(result.newBalance);
         setTopupAmount("");
-        setPayStep("done");
+        setShowTopup(false);
+        setRazorpayOrder(null);
         await fetchWallet();
-
-        setTimeout(() => {
-          setShowPayModal(false);
-          setPayStep("idle");
-          setShowTopup(false);
-          setUpiId(""); setCardNumber(""); setCardExpiry(""); setCardCvv(""); setBankAccount(""); setBankIfsc("");
-        }, 1800);
-
-        showNotification({ title: "₹" + amt + " Add Ho Gaye! 🎉", body: t("topup_success"), type: "success", icon: "💰" });
+        showNotification({ title: `₹${amt} Add Ho Gaye! 🎉`, body: t("topup_success"), type: "success", icon: "💰" });
       } else {
-        setPayStep("idle");
-        setShowPayModal(false);
-        showNotification({ title: "Top-up Failed", body: data.error ?? "Kuch galat hua", type: "error", icon: "❌" });
+        showNotification({ title: "Top-up failed", body: result.error ?? "Kuch galat hua", type: "error", icon: "❌" });
       }
     } catch {
-      setPayStep("idle");
-      setShowPayModal(false);
       showNotification({ title: "Network Error", body: "Dobara try karein", type: "error", icon: "📵" });
-    } finally { setTopping(false); }
+    }
+  };
+
+  const handleRazorpayDismiss = () => {
+    setShowRazorpay(false);
+    setRazorpayOrder(null);
+    showNotification({ title: "Payment cancel hua", body: "Koi baat nahi, dobara try kar sakte hain", type: "info", icon: "ℹ️" });
   };
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
@@ -194,12 +163,7 @@ export function WalletScreen() {
     quickRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 },
     quickChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
     quickChipText: { fontSize: 14, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
-    input: { borderRadius: 12, padding: 14, fontSize: 16, fontWeight: "600", color: colors.text, marginBottom: 12, borderWidth: 1, fontFamily: "Inter_400Regular" },
-    inputSmall: { borderRadius: 12, padding: 12, fontSize: 14, color: colors.text, borderWidth: 1, fontFamily: "Inter_400Regular" },
-    methodRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
-    methodChip: { flex: 1, alignItems: "center", padding: 10, borderRadius: 10, borderWidth: 1 },
-    methodIcon: { fontSize: 18, marginBottom: 3 },
-    methodLabel: { fontSize: 10, fontFamily: "Inter_500Medium" },
+    input: { borderRadius: 12, padding: 14, fontSize: 16, fontWeight: "600", color: colors.text, marginBottom: 16, borderWidth: 1, fontFamily: "Inter_400Regular" },
     txnCard: { marginHorizontal: 20, marginBottom: 12, borderRadius: 14, padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     txnLeft: { flex: 1 },
     txnDesc: { fontSize: 13, color: colors.text, fontFamily: "Inter_500Medium" },
@@ -207,7 +171,8 @@ export function WalletScreen() {
     txnAmt: { fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
     emptyText: { textAlign: "center", color: colors.textSecondary, fontSize: 14, marginTop: 20, fontFamily: "Inter_400Regular" },
     label: { fontSize: 12, color: colors.textSecondary, marginBottom: 6, fontFamily: "Inter_500Medium" },
-    row2: { flexDirection: "row", gap: 10, marginBottom: 12 },
+    rzpBadge: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", borderWidth: 1, borderColor: colors.border },
+    rzpBadgeText: { fontSize: 12, color: colors.textSecondary, fontFamily: "Inter_400Regular" },
   });
 
   const formatDate = (d: string) => {
@@ -215,129 +180,21 @@ export function WalletScreen() {
     return dt.toLocaleDateString(lang === "hi" ? "hi-IN" : "en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   };
 
-  const renderPaymentDetails = () => {
-    if (selectedMethod === "upi" || selectedMethod === "paytm") {
-      return (
-        <>
-          <Text style={s.label}>{t("enter_upi_label")}</Text>
-          <TextInput
-            style={[s.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
-            placeholder={selectedMethod === "paytm" ? "9876543210@paytm" : "name@upi"}
-            placeholderTextColor={colors.textSecondary}
-            value={upiId}
-            onChangeText={setUpiId}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-        </>
-      );
-    }
-    if (selectedMethod === "card") {
-      return (
-        <>
-          <Text style={s.label}>{t("card_number")}</Text>
-          <TextInput
-            style={[s.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
-            placeholder="4111 1111 1111 1111"
-            placeholderTextColor={colors.textSecondary}
-            value={cardNumber}
-            onChangeText={(v) => setCardNumber(v.replace(/[^0-9]/g, "").replace(/(.{4})/g, "$1 ").trim())}
-            keyboardType="numeric"
-            maxLength={19}
-          />
-          <View style={s.row2}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.label}>{t("expiry_label")}</Text>
-              <TextInput
-                style={[s.inputSmall, { backgroundColor: inputBg, borderColor: inputBorder }]}
-                placeholder="12/27"
-                placeholderTextColor={colors.textSecondary}
-                value={cardExpiry}
-                onChangeText={(v) => {
-                  const clean = v.replace(/[^0-9]/g, "");
-                  setCardExpiry(clean.length > 2 ? `${clean.slice(0, 2)}/${clean.slice(2, 4)}` : clean);
-                }}
-                keyboardType="numeric"
-                maxLength={5}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.label}>CVV:</Text>
-              <TextInput
-                style={[s.inputSmall, { backgroundColor: inputBg, borderColor: inputBorder }]}
-                placeholder="***"
-                placeholderTextColor={colors.textSecondary}
-                value={cardCvv}
-                onChangeText={setCardCvv}
-                keyboardType="numeric"
-                maxLength={4}
-                secureTextEntry
-              />
-            </View>
-          </View>
-        </>
-      );
-    }
-    if (selectedMethod === "netbanking") {
-      return (
-        <>
-          <Text style={s.label}>{t("account_number_label")}</Text>
-          <TextInput
-            style={[s.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
-            placeholder="00112345678901"
-            placeholderTextColor={colors.textSecondary}
-            value={bankAccount}
-            onChangeText={setBankAccount}
-            keyboardType="numeric"
-          />
-          <Text style={s.label}>{t("ifsc_code")}</Text>
-          <TextInput
-            style={[s.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
-            placeholder="SBIN0001234"
-            placeholderTextColor={colors.textSecondary}
-            value={bankIfsc}
-            onChangeText={(v) => setBankIfsc(v.toUpperCase())}
-            autoCapitalize="characters"
-            maxLength={11}
-          />
-        </>
-      );
-    }
-    return null;
-  };
-
   return (
     <View style={s.container}>
-      <Modal visible={showPayModal} transparent animationType="fade">
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.75)", alignItems: "center", justifyContent: "center" }}>
-          <View style={{ backgroundColor: colors.card, borderRadius: 24, padding: 36, alignItems: "center", width: 300 }}>
-            {payStep === "processing" ? (
-              <>
-                <ActivityIndicator color={colors.primary} size="large" />
-                <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700", marginTop: 20, fontFamily: "Inter_700Bold" }}>
-                  {t("processing_payment")}
-                </Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 8, textAlign: "center", fontFamily: "Inter_400Regular" }}>
-                  {METHODS.find(m => m.id === selectedMethod)?.icon} {t("please_wait")}
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={{ fontSize: 56 }}>✅</Text>
-                <Text style={{ color: colors.success, fontSize: 20, fontWeight: "700", marginTop: 12, fontFamily: "Inter_700Bold" }}>
-                  {t("payment_success")}
-                </Text>
-                <Text style={{ color: colors.text, fontSize: 28, fontWeight: "800", marginTop: 8, fontFamily: "Inter_700Bold" }}>
-                  ₹{topupAmount}
-                </Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 6, fontFamily: "Inter_400Regular" }}>
-                  {t("added_to_wallet")}
-                </Text>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+      {razorpayOrder && (
+        <RazorpayWebView
+          visible={showRazorpay}
+          order={razorpayOrder}
+          userInfo={{
+            name: user?.name ?? "RaftaarRide User",
+            email: user?.email ?? undefined,
+            phone: user?.phone ?? undefined,
+          }}
+          onSuccess={handleRazorpaySuccess}
+          onDismiss={handleRazorpayDismiss}
+        />
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.delay(50)} style={s.header}>
@@ -407,31 +264,15 @@ export function WalletScreen() {
                 keyboardType="numeric"
               />
 
-              <Text style={s.label}>{t("choose_method")}</Text>
-              <View style={s.methodRow}>
-                {METHODS.map((m) => (
-                  <TouchableOpacity
-                    key={m.id}
-                    style={[s.methodChip, {
-                      backgroundColor: selectedMethod === m.id ? colors.primary + "22" : inputBg,
-                      borderColor: selectedMethod === m.id ? colors.primary : inputBorder,
-                    }]}
-                    onPress={() => setSelectedMethod(m.id)}
-                  >
-                    <Text style={s.methodIcon}>{m.icon}</Text>
-                    <Text style={[s.methodLabel, { color: selectedMethod === m.id ? colors.primary : colors.textSecondary }]}>
-                      {m.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={s.rzpBadge}>
+                <Text style={{ fontSize: 14 }}>🔒</Text>
+                <Text style={s.rzpBadgeText}>Secured by Razorpay — UPI, Card, Net Banking supported</Text>
               </View>
 
-              {renderPaymentDetails()}
-
               <PrimaryButton
-                title={topping ? t("processing") : `${t("add_money")} ₹${topupAmount || "0"}`}
+                title={creatingOrder ? t("processing") : `⚡ ₹${topupAmount || "0"} ${t("add_money")}`}
                 onPress={handlePayNow}
-                disabled={topping || !topupAmount}
+                disabled={creatingOrder || !topupAmount}
               />
             </GlassCard>
           </Animated.View>

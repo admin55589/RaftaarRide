@@ -31,14 +31,19 @@ router.get("/wallet/balance", userAuth, async (req: Request, res: Response) => {
 
 router.post("/wallet/topup", userAuth, async (req: Request, res: Response) => {
   const userId = (req as any).userId;
-  const { amount, method } = req.body as { amount: number; method: string };
+  const { amount, method, paymentId, orderId } = req.body as {
+    amount: number;
+    method: string;
+    paymentId?: string;
+    orderId?: string;
+  };
 
   if (!amount || amount < 10 || amount > 50000) {
     res.status(400).json({ success: false, error: "Amount 10 se 50,000 ke beech hona chahiye" });
     return;
   }
 
-  const validMethods = ["upi", "card", "netbanking", "wallet"];
+  const validMethods = ["upi", "card", "netbanking", "wallet", "razorpay"];
   if (!method || !validMethods.includes(method)) {
     res.status(400).json({ success: false, error: "Invalid payment method" });
     return;
@@ -55,11 +60,15 @@ router.post("/wallet/topup", userAuth, async (req: Request, res: Response) => {
       .set({ walletBalance: String(newBalance) })
       .where(eq(usersTable.id, userId));
 
+    const desc = method === "razorpay" && paymentId
+      ? `Razorpay Wallet Top-up — ₹${amount} (ID: ${paymentId})`
+      : `Wallet top-up via ${method.toUpperCase()} — ₹${amount}`;
+
     await db.insert(walletTransactionsTable).values({
       userId,
       type: "topup",
       amount: String(amount),
-      description: `Wallet top-up via ${method.toUpperCase()} — ₹${amount}`,
+      description: desc,
     });
 
     res.json({ success: true, newBalance, message: `₹${amount} wallet mein add ho gaye!` });
