@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useRef, useEffect, type ReactNode } from "react";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 
 interface AuthContextType {
@@ -12,23 +12,38 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 const TOKEN_KEY = "raftaar_admin_token";
 
+type LogoutFn = () => void;
+let _globalLogout: LogoutFn | null = null;
+
+export function triggerGlobalLogout() {
+  _globalLogout?.();
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => {
     return localStorage.getItem(TOKEN_KEY);
   });
 
-  useEffect(() => {
-    setAuthTokenGetter(() => token);
-  }, [token]);
+  const tokenRef = useRef<string | null>(token);
+  tokenRef.current = token;
 
-  const login = (newToken: string) => {
-    localStorage.setItem(TOKEN_KEY, newToken);
-    setToken(newToken);
-  };
+  useEffect(() => {
+    setAuthTokenGetter(() => tokenRef.current);
+    return () => setAuthTokenGetter(null);
+  }, []);
 
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
+    tokenRef.current = null;
+  };
+
+  _globalLogout = logout;
+
+  const login = (newToken: string) => {
+    localStorage.setItem(TOKEN_KEY, newToken);
+    tokenRef.current = newToken;
+    setToken(newToken);
   };
 
   return (

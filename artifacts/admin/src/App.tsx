@@ -1,8 +1,8 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryCache } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { AuthProvider, useAuth, triggerGlobalLogout } from "@/context/AuthContext";
 import { Sidebar } from "@/components/Sidebar";
 import { LoginPage } from "@/pages/LoginPage";
 import { DashboardPage } from "@/pages/DashboardPage";
@@ -15,9 +15,21 @@ import NotFound from "@/pages/not-found";
 import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error: unknown) => {
+      const status = (error as any)?.status;
+      if (status === 401) {
+        triggerGlobalLogout();
+        queryClient.clear();
+      }
+    },
+  }),
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: (failureCount, error: unknown) => {
+        if ((error as any)?.status === 401) return false;
+        return failureCount < 1;
+      },
       staleTime: 30000,
     },
   },

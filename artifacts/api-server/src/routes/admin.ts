@@ -37,7 +37,7 @@ router.post("/admin/login", async (req: Request, res: Response) => {
     res.status(401).json({ message: "Invalid credentials" });
     return;
   }
-  const token = jwt.sign({ role: "admin", email }, JWT_SECRET, { expiresIn: "24h" });
+  const token = jwt.sign({ role: "admin", email }, JWT_SECRET, { expiresIn: "7d" });
   res.json({ token, role: "admin" });
 });
 
