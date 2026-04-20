@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -10,6 +11,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
   Platform,
 } from "react-native";
@@ -37,10 +39,29 @@ import { useTheme } from "@/context/ThemeContext";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { MapView } from "@/components/MapView";
+import { connectSocket, sendChatMessage } from "@/lib/socket";
+
+interface ChatMsg {
+  id: string;
+  senderId: string;
+  senderName: string;
+  role: "user" | "driver";
+  text: string;
+  timestamp: number;
+}
+
+interface ActiveRide {
+  rideId: number;
+  from: string;
+  to: string;
+  price: number;
+  distance: string;
+  userName: string;
+}
 
 const MOCK_REQUESTS = [
-  { id: "1", from: "Connaught Place", to: "DLF Cyber Hub", distance: "18 km", price: 320, eta: 3 },
-  { id: "2", from: "Lajpat Nagar", to: "Hauz Khas", distance: "5 km", price: 120, eta: 2 },
+  { id: "1", rideId: 2001, from: "Connaught Place", to: "DLF Cyber Hub", distance: "18 km", price: 320, eta: 3, userName: "Rahul Kumar" },
+  { id: "2", rideId: 2002, from: "Lajpat Nagar", to: "Hauz Khas", distance: "5 km", price: 120, eta: 2, userName: "Priya Singh" },
 ];
 
 function getVehicleIcon(vehicleType?: string): string {
@@ -219,6 +240,128 @@ function RideRequest({
   );
 }
 
+function DriverChatModal({
+  visible,
+  onClose,
+  activeRide,
+  driverName,
+  messages,
+  onSend,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  activeRide: ActiveRide;
+  driverName: string;
+  messages: ChatMsg[];
+  onSend: (text: string) => void;
+}) {
+  const [inputText, setInputText] = useState("");
+  const flatRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    if (visible && messages.length > 0) {
+      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+    }
+  }, [messages.length, visible]);
+
+  const handleSend = () => {
+    const text = inputText.trim();
+    if (!text) return;
+    setInputText("");
+    onSend(text);
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <View style={chatStyles.overlay}>
+          <View style={chatStyles.container}>
+            {/* Header */}
+            <View style={chatStyles.header}>
+              <View style={chatStyles.headerLeft}>
+                <View style={chatStyles.avatarCircle}>
+                  <Text style={{ fontSize: 18 }}>👤</Text>
+                </View>
+                <View>
+                  <Text style={chatStyles.headerName}>{activeRide.userName}</Text>
+                  <Text style={chatStyles.headerSub}>🟢 On Ride • {activeRide.from} → {activeRide.to}</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={onClose} style={chatStyles.closeBtn}>
+                <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 18 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Messages */}
+            <FlatList
+              ref={flatRef}
+              data={messages}
+              keyExtractor={(m) => m.id}
+              contentContainerStyle={chatStyles.messageList}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                <View style={chatStyles.emptyChat}>
+                  <Text style={{ fontSize: 32 }}>💬</Text>
+                  <Text style={chatStyles.emptyChatText}>Abhi koi message nahi — user ka wait karo</Text>
+                </View>
+              }
+              renderItem={({ item }) => {
+                const isDriver = item.role === "driver";
+                return (
+                  <Animated.View
+                    entering={FadeInDown.duration(200)}
+                    style={[chatStyles.msgRow, isDriver ? chatStyles.msgRowRight : chatStyles.msgRowLeft]}
+                  >
+                    {!isDriver && (
+                      <View style={chatStyles.msgAvatar}>
+                        <Text style={{ fontSize: 12 }}>👤</Text>
+                      </View>
+                    )}
+                    <View style={[chatStyles.bubble, isDriver ? chatStyles.driverBubble : chatStyles.userBubble]}>
+                      <Text style={[chatStyles.bubbleText, isDriver ? { color: "#0A0A0F" } : { color: "#fff" }]}>
+                        {item.text}
+                      </Text>
+                      <Text style={[chatStyles.bubbleTime, { color: isDriver ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)" }]}>
+                        {new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </Text>
+                    </View>
+                    {isDriver && (
+                      <View style={[chatStyles.msgAvatar, { backgroundColor: "rgba(245,166,35,0.2)" }]}>
+                        <Text style={{ fontSize: 12 }}>🚗</Text>
+                      </View>
+                    )}
+                  </Animated.View>
+                );
+              }}
+            />
+
+            {/* Input */}
+            <View style={chatStyles.inputRow}>
+              <TextInput
+                style={chatStyles.input}
+                value={inputText}
+                onChangeText={setInputText}
+                placeholder="Reply karein..."
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                multiline
+                returnKeyType="send"
+                onSubmitEditing={handleSend}
+              />
+              <TouchableOpacity
+                onPress={handleSend}
+                activeOpacity={0.8}
+                style={[chatStyles.sendBtn, { backgroundColor: inputText.trim() ? "#F5A623" : "rgba(255,255,255,0.1)" }]}
+              >
+                <Text style={{ fontSize: 18 }}>➤</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 export function DriverModeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -230,6 +373,37 @@ export function DriverModeScreen() {
   const [isOnline, setIsOnline] = useState(true);
   const [requests, setRequests] = useState(MOCK_REQUESTS);
   const ridesCompleted = driver ? driver.totalRides : 7;
+
+  const [activeRide, setActiveRide] = useState<ActiveRide | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
+  const [showChat, setShowChat] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!activeRide) return;
+    const socket = connectSocket();
+    socket.emit("ride:join", activeRide.rideId);
+
+    const handleChatMsg = (data: Omit<ChatMsg, "id">) => {
+      if (data.role === "user") {
+        const msg: ChatMsg = { ...data, id: `${data.timestamp}-${Math.random()}` };
+        setChatMessages((prev) => [...prev, msg]);
+        if (!showChat) {
+          setUnreadCount((n) => n + 1);
+          showNotification({
+            title: `💬 ${data.senderName}`,
+            body: data.text,
+            type: "info",
+            icon: "💬",
+            duration: 4000,
+          });
+        }
+      }
+    };
+
+    socket.on("chat:message", handleChatMsg);
+    return () => { socket.off("chat:message", handleChatMsg); };
+  }, [activeRide?.rideId]);
 
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [editName, setEditName] = useState(driver?.name ?? "");
@@ -337,6 +511,18 @@ export function DriverModeScreen() {
     setRequests((rs) => rs.filter((r) => r.id !== id));
     const price = req?.price ?? 0;
     setDriverEarnings((e) => e + price);
+    if (req) {
+      setChatMessages([]);
+      setUnreadCount(0);
+      setActiveRide({
+        rideId: req.rideId,
+        from: req.from,
+        to: req.to,
+        price: req.price,
+        distance: req.distance,
+        userName: req.userName,
+      });
+    }
     showNotification({
       title: "Ride Accept Ho Gayi! ✅",
       body: `${req?.from ?? ""} → ${req?.to ?? ""} • ₹${price} milenge`,
@@ -344,6 +530,40 @@ export function DriverModeScreen() {
       icon: "✅",
       duration: 4000,
     });
+  };
+
+  const handleSendDriverMessage = (text: string) => {
+    if (!activeRide) return;
+    const msg: ChatMsg = {
+      id: `${Date.now()}-driver`,
+      senderId: driver?.id?.toString() ?? "driver-1",
+      senderName: driver?.name ?? "Driver",
+      role: "driver",
+      text,
+      timestamp: Date.now(),
+    };
+    setChatMessages((prev) => [...prev, msg]);
+    sendChatMessage(activeRide.rideId, msg.senderId, msg.senderName, "driver", text);
+  };
+
+  const handleOpenChat = () => {
+    setShowChat(true);
+    setUnreadCount(0);
+  };
+
+  const handleCompleteRide = () => {
+    if (!activeRide) return;
+    Alert.alert("Ride Complete?", `${activeRide.from} → ${activeRide.to} ki ride complete karna chahte ho?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Complete", onPress: () => {
+          setActiveRide(null);
+          setChatMessages([]);
+          setUnreadCount(0);
+          showNotification({ title: "Ride Complete! 🎉", body: `₹${activeRide.price} earn kiye`, type: "success", icon: "🎉", duration: 4000 });
+        }
+      }
+    ]);
   };
 
   const handleReject = (id: string) => {
@@ -467,8 +687,57 @@ export function DriverModeScreen() {
           </View>
         </GlassCard>
 
+        {/* Active Trip Card */}
+        {activeRide && (
+          <Animated.View entering={FadeInDown.springify()} style={[styles.activeTripCard, { backgroundColor: "rgba(34,197,94,0.08)", borderColor: "rgba(34,197,94,0.25)" }]}>
+            <View style={styles.activeTripHeader}>
+              <View style={styles.activeTripBadge}>
+                <Text style={{ fontSize: 10 }}>🟢</Text>
+                <Text style={{ color: "#4ADE80", fontSize: 11, fontWeight: "700" }}>ACTIVE RIDE</Text>
+              </View>
+              <TouchableOpacity onPress={handleCompleteRide} style={styles.completeBtn}>
+                <Text style={{ color: "#4ADE80", fontSize: 11, fontWeight: "700" }}>Complete ✓</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.activeTripRoute}>
+              <View style={styles.routeRow}>
+                <View style={[styles.routeDot, { backgroundColor: "#F5A623" }]} />
+                <Text style={[styles.routeText, { color: colors.foreground, flex: 1 }]} numberOfLines={1}>{activeRide.from}</Text>
+              </View>
+              <View style={[styles.routeLine, { backgroundColor: colors.border }]} />
+              <View style={styles.routeRow}>
+                <View style={[styles.routeDot, { backgroundColor: "#4ADE80" }]} />
+                <Text style={[styles.routeText, { color: colors.foreground, flex: 1 }]} numberOfLines={1}>{activeRide.to}</Text>
+              </View>
+            </View>
+
+            <View style={styles.activeTripFooter}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={[styles.metaChip, { backgroundColor: "rgba(255,255,255,0.06)" }]}>
+                  <Text style={{ fontSize: 10 }}>👤</Text>
+                  <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{activeRide.userName}</Text>
+                </View>
+                <View style={[styles.metaChip, { backgroundColor: "rgba(245,166,35,0.12)" }]}>
+                  <Text style={[styles.metaPrice, { color: "#F5A623", fontSize: 12 }]}>₹{activeRide.price}</Text>
+                </View>
+              </View>
+
+              {/* Chat Button with unread badge */}
+              <TouchableOpacity onPress={handleOpenChat} activeOpacity={0.8} style={styles.chatBtn}>
+                <Text style={{ fontSize: 18 }}>💬</Text>
+                {unreadCount > 0 && (
+                  <Animated.View entering={FadeInDown.duration(200)} style={styles.unreadBadge}>
+                    <Text style={styles.unreadText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+                  </Animated.View>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        )}
+
         <ScrollView showsVerticalScrollIndicator={false} style={styles.requestsList}>
-          {requests.length > 0 ? (
+          {!activeRide && requests.length > 0 ? (
             <>
               <Text style={[styles.requestsTitle, { color: colors.mutedForeground }]}>INCOMING REQUESTS</Text>
               {requests.map((r) => (
@@ -481,14 +750,14 @@ export function DriverModeScreen() {
                 />
               ))}
             </>
-          ) : (
+          ) : !activeRide ? (
             <View style={styles.emptyState}>
               <Text style={{ fontSize: 32 }}>📡</Text>
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
                 {isOnline ? "Waiting for ride requests..." : "Go online to receive requests"}
               </Text>
             </View>
-          )}
+          ) : null}
         </ScrollView>
       </Animated.View>
 
@@ -510,6 +779,17 @@ export function DriverModeScreen() {
             <Text style={styles.toastSubtitle}>{toast.subtitle}</Text>
           </View>
         </Animated.View>
+      )}
+
+      {activeRide && (
+        <DriverChatModal
+          visible={showChat}
+          onClose={() => setShowChat(false)}
+          activeRide={activeRide}
+          driverName={driver?.name ?? "Driver"}
+          messages={chatMessages}
+          onSend={handleSendDriverMessage}
+        />
       )}
 
       <Modal visible={showProfileEdit} transparent animationType="slide" onRequestClose={() => { setShowProfileEdit(false); setProfileError(""); }}>
@@ -921,9 +1201,173 @@ const styles = StyleSheet.create({
     padding: 32,
     gap: 12,
   },
+  activeTripCard: {
+    borderRadius: 18,
+    borderWidth: 1.5,
+    padding: 14,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    gap: 10,
+  },
+  activeTripHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  activeTripBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(74,222,128,0.1)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  completeBtn: {
+    backgroundColor: "rgba(74,222,128,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(74,222,128,0.3)",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  activeTripRoute: { gap: 0, marginVertical: 4 },
+  activeTripFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 4,
+  },
+  chatBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(245,166,35,0.15)",
+    borderWidth: 1.5,
+    borderColor: "rgba(245,166,35,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  unreadBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  unreadText: { color: "#fff", fontSize: 10, fontWeight: "800" },
   emptyText: {
     fontFamily: "Inter_400Regular",
     fontSize: 14,
     textAlign: "center",
+  },
+});
+
+const chatStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "flex-end",
+  },
+  container: {
+    backgroundColor: "#10101A",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: "85%",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(245,166,35,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "rgba(245,166,35,0.35)",
+  },
+  headerName: { color: "#fff", fontFamily: "Inter_700Bold", fontSize: 15 },
+  headerSub: { color: "rgba(255,255,255,0.5)", fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  messageList: { padding: 16, gap: 10, flexGrow: 1 },
+  emptyChat: { alignItems: "center", padding: 40, gap: 10 },
+  emptyChatText: { color: "rgba(255,255,255,0.4)", fontFamily: "Inter_400Regular", fontSize: 13, textAlign: "center" },
+  msgRow: { flexDirection: "row", alignItems: "flex-end", gap: 8, marginBottom: 4 },
+  msgRowLeft: { justifyContent: "flex-start" },
+  msgRowRight: { justifyContent: "flex-end" },
+  msgAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  bubble: {
+    maxWidth: "72%",
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 18,
+    gap: 3,
+  },
+  userBubble: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderBottomLeftRadius: 4,
+  },
+  driverBubble: {
+    backgroundColor: "#F5A623",
+    borderBottomRightRadius: 4,
+  },
+  bubbleText: { fontFamily: "Inter_400Regular", fontSize: 14 },
+  bubbleTime: { fontFamily: "Inter_400Regular", fontSize: 10, alignSelf: "flex-end" },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
+    padding: 12,
+    borderTopWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  input: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    color: "#fff",
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
+    maxHeight: 100,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  sendBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
