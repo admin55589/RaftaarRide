@@ -22,6 +22,11 @@
     },
     "android": {
       "package": "com.raftaarride.app",
+      "statusBar": {
+        "style": "auto",
+        "translucent": true,
+        "backgroundColor": "#00000000"
+      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/app-logo.jpg",
         "backgroundColor": "#F5A623"
