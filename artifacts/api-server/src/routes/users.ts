@@ -112,4 +112,15 @@ router.post("/promo/validate", userAuth, async (req: Request, res: Response) => 
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
+/* PATCH /api/users/push-token — save Expo push token for user */
+router.patch("/users/push-token", userAuth, async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  const { pushToken } = req.body as { pushToken?: string };
+  if (!pushToken) { res.status(400).json({ success: false, error: "pushToken required" }); return; }
+  try {
+    await db.update(usersTable).set({ pushToken }).where(eq(usersTable.id, userId));
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
 export default router;

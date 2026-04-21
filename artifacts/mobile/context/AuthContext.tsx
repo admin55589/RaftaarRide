@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { authApi } from "@/lib/authApi";
+import { registerForPushNotificationsAsync, savePushTokenForUser } from "@/hooks/usePushNotifications";
 
 export interface AuthUser {
   id: string | number;
@@ -60,6 +61,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ]);
     setToken(newToken);
     setUser(newUser);
+    /* Register & save Expo push token — non-blocking */
+    registerForPushNotificationsAsync().then((pushToken) => {
+      if (pushToken) savePushTokenForUser(pushToken, newToken);
+    });
   };
 
   const logout = async () => {

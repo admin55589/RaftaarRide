@@ -260,6 +260,23 @@ router.patch("/driver-auth/me", async (req: Request, res: Response) => {
   }
 });
 
+/* PATCH /driver-auth/push-token — save Expo push token for driver */
+router.patch("/driver-auth/push-token", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) { res.status(401).json({ success: false, message: "Token required" }); return; }
+  const token = authHeader.split(" ")[1];
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { driverId: number; role: string };
+    if (payload.role !== "driver") { res.status(403).json({ success: false, message: "Driver token required" }); return; }
+    const { pushToken } = req.body as { pushToken?: string };
+    if (!pushToken) { res.status(400).json({ success: false, message: "pushToken required" }); return; }
+    await db.update(driversTable).set({ pushToken }).where(eq(driversTable.id, payload.driverId));
+    res.json({ success: true });
+  } catch {
+    res.status(401).json({ success: false, message: "Invalid token" });
+  }
+});
+
 /* PATCH /driver-auth/location — update driver's GPS coordinates */
 router.patch("/driver-auth/location", async (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;

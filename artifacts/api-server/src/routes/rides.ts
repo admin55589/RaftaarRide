@@ -1,9 +1,10 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { ridesTable, driversTable } from "@workspace/db/schema";
+import { ridesTable, driversTable, usersTable } from "@workspace/db/schema";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { emitRideUpdate, emitAdminUpdate } from "../lib/socket";
+import { sendPushNotification } from "../lib/expoPush";
 
 const router: IRouter = Router();
 const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
@@ -115,6 +116,17 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
 
     emitRideUpdate(ride.id, "ride:status", { rideId: ride.id, status: ride.status, driver: driverPayload });
     emitAdminUpdate("admin:ride:new", { ride, driver: driverPayload });
+
+    /* Push notification to assigned driver */
+    if (matchedDriver?.pushToken) {
+      await sendPushNotification({
+        to: matchedDriver.pushToken,
+        title: "🚖 Naya Ride Request!",
+        body: `${pickupAddress} → ${dropAddress} — ₹${finalPrice}`,
+        data: { screen: "DriverMode", rideId: ride.id, type: "new_ride" },
+        priority: "high",
+      });
+    }
 
     res.status(200).json({
       success: true,

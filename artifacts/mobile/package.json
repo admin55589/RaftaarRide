@@ -57,6 +57,7 @@
   },
   "dependencies": {
     "expo-av": "^16.0.8",
+    "expo-device": "^8.0.10",
     "expo-notifications": "^0.32.16",
     "expo-speech": "^14.0.8",
     "firebase": "^12.12.0",

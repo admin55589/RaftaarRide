@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { registerForPushNotificationsAsync, savePushTokenForDriver } from "@/hooks/usePushNotifications";
 
 export interface DriverUser {
   id: number;
@@ -63,6 +64,10 @@ export function DriverAuthProvider({ children }: { children: React.ReactNode }) 
     ]);
     setDriverToken(newToken);
     setDriver(newDriver);
+    /* Register & save Expo push token — non-blocking */
+    registerForPushNotificationsAsync().then((pushToken) => {
+      if (pushToken) savePushTokenForDriver(pushToken, newToken);
+    });
   };
 
   const driverLogout = async () => {

@@ -24,6 +24,7 @@ export const usersTable = pgTable("users", {
   status: text("status").notNull().default("active"),
   walletBalance: numeric("wallet_balance", { precision: 10, scale: 2 }).notNull().default("0"),
   preferredLanguage: text("preferred_language").notNull().default("hi"),
+  pushToken: text("push_token"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -51,6 +52,7 @@ export const driversTable = pgTable("drivers", {
   walletBalance: numeric("wallet_balance", { precision: 10, scale: 2 }).notNull().default("0"),
   totalRides: integer("total_rides").notNull().default(0),
   preferredLanguage: text("preferred_language").notNull().default("hi"),
+  pushToken: text("push_token"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

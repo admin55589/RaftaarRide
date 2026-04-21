@@ -1,21 +1,40 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+
+import { registerForPushNotificationsAsync, savePushTokenForUser, savePushTokenForDriver } from "@/hooks/usePushNotifications";
+import { useAuth } from "@/context/AuthContext";
+import { useDriverAuth } from "@/context/DriverAuthContext";
 
 export default function NotificationPermissionScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const handleAllow = () => {
-    router.replace("/(tabs)");
+  const { token: authToken } = useAuth();
+  const { driverToken } = useDriverAuth();
+  const [loading, setLoading] = useState(false);
+
+  const handleAllow = async () => {
+    setLoading(true);
+    try {
+      const pushToken = await registerForPushNotificationsAsync();
+      if (pushToken) {
+        if (authToken) await savePushTokenForUser(pushToken, authToken);
+        if (driverToken) await savePushTokenForDriver(pushToken, driverToken);
+      }
+    } catch { /* silent */ }
+    finally {
+      setLoading(false);
+      router.replace("/(tabs)");
+    }
   };
 
   const handleLater = () => {
@@ -50,7 +69,7 @@ export default function NotificationPermissionScreen() {
         <Animated.View entering={FadeInDown.delay(350).springify()} style={styles.benefitsCard}>
           <View style={styles.benefitRow}>
             <View style={styles.benefitIcon}>
-              <Text style={{ fontSize: 20, lineHeight: 24 }}>📍</Text>
+              <Text style={{ fontSize: 20, lineHeight: 24 }}>🚖</Text>
             </View>
             <View style={styles.benefitText}>
               <Text style={styles.benefitTitle}>Real-time Driver Updates</Text>
@@ -64,26 +83,43 @@ export default function NotificationPermissionScreen() {
 
           <View style={styles.benefitRow}>
             <View style={styles.benefitIcon}>
-              <Text style={{ fontSize: 20, lineHeight: 24 }}>🔊</Text>
+              <Text style={{ fontSize: 20, lineHeight: 24 }}>💰</Text>
             </View>
             <View style={styles.benefitText}>
-              <Text style={styles.benefitTitle}>Offers aur News</Text>
+              <Text style={styles.benefitTitle}>Offers aur Cashback</Text>
               <Text style={styles.benefitDesc}>
-                Naye offers aur features sabse pehle aapko milenge
+                Naye offers aur cashback sabse pehle aapko milenge
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.separator} />
+
+          <View style={styles.benefitRow}>
+            <View style={styles.benefitIcon}>
+              <Text style={{ fontSize: 20, lineHeight: 24 }}>📍</Text>
+            </View>
+            <View style={styles.benefitText}>
+              <Text style={styles.benefitTitle}>Driver Offline Alert (Drivers ke liye)</Text>
+              <Text style={styles.benefitDesc}>
+                Naya ride request aane pe turant notification — chahe app band ho
               </Text>
             </View>
           </View>
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(450).springify()} style={styles.buttonsWrap}>
-          <Pressable style={styles.allowBtn} onPress={handleAllow}>
+          <Pressable style={styles.allowBtn} onPress={handleAllow} disabled={loading}>
             <LinearGradient colors={["#F5A623", "#E09010"]} style={styles.allowGrad}>
-              <Text style={{ fontSize: 18, lineHeight: 22 }}>🔔</Text>
-              <Text style={styles.allowText}>Allow Karo</Text>
+              {loading
+                ? <ActivityIndicator color="#0A0A0F" size="small" />
+                : <Text style={{ fontSize: 18, lineHeight: 22 }}>🔔</Text>
+              }
+              <Text style={styles.allowText}>{loading ? "Setting up..." : "Allow Karo"}</Text>
             </LinearGradient>
           </Pressable>
 
-          <Pressable style={styles.laterBtn} onPress={handleLater}>
+          <Pressable style={styles.laterBtn} onPress={handleLater} disabled={loading}>
             <Text style={styles.laterText}>Baad mein</Text>
           </Pressable>
         </Animated.View>
@@ -116,11 +152,12 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "#2A2A38", padding: 20,
     marginBottom: 32, flex: 1,
   },
-  benefitRow: { flexDirection: "row", gap: 16, alignItems: "flex-start" },
+  benefitRow: { flexDirection: "row", alignItems: "flex-start" },
   benefitIcon: {
     width: 44, height: 44, borderRadius: 12,
     backgroundColor: "rgba(245,166,35,0.1)",
     alignItems: "center", justifyContent: "center",
+    marginRight: 16,
   },
   benefitText: { flex: 1 },
   benefitTitle: { color: "#FFFFFF", fontWeight: "700", fontSize: 15, marginBottom: 4 },

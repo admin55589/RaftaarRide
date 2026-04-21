@@ -17,6 +17,7 @@ import { View } from "react-native";
 
 import { AppSplash } from "@/components/AppSplash";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useNotificationHandler } from "@/hooks/usePushNotifications";
 import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { DriverAuthProvider, useDriverAuth } from "@/context/DriverAuthContext";
@@ -75,6 +76,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       router.replace("/auth/login");
     }
   }, [isLoggedIn, isDriverLoggedIn, anyLoading, segments]);
+
+  useNotificationHandler();
 
   if (anyLoading) {
     return <AppSplash />;
