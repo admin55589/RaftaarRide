@@ -146,25 +146,26 @@ export function RazorpayWebView({
     >
       <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top }]}>
         <View style={[styles.header, { borderColor: colors.border }]}>
-          {/* Back button */}
+          {/* Back button — fixed width 44 */}
           <TouchableOpacity
             onPress={handleBack}
-            style={[styles.backBtn, { backgroundColor: canGoBack ? colors.secondary : "transparent", borderColor: canGoBack ? colors.border : "transparent" }]}
+            style={[styles.sideBtn, { backgroundColor: canGoBack ? colors.secondary : "transparent", borderColor: canGoBack ? colors.border : "transparent" }]}
             activeOpacity={0.7}
           >
-            <Text style={{ color: canGoBack ? colors.foreground : colors.mutedForeground, fontSize: 18, fontWeight: "600" }}>
-              ←
-            </Text>
-            <Text style={{ color: canGoBack ? colors.foreground : colors.mutedForeground, fontSize: 13, fontFamily: "Inter_500Medium" }}>
-              {canGoBack ? "Back" : ""}
-            </Text>
+            <Text style={{ color: canGoBack ? colors.foreground : "transparent", fontSize: 20, lineHeight: 24 }}>←</Text>
           </TouchableOpacity>
 
-          <Text style={[styles.title, { color: colors.foreground }]}>⚡ RaftaarRide Payment</Text>
+          {/* Title — absolutely centered */}
+          <View style={styles.titleWrap} pointerEvents="none">
+            <View style={styles.titleInner}>
+              <Text style={styles.titleBolt}>⚡</Text>
+              <Text style={[styles.titleText, { color: colors.foreground }]}>RaftaarRide Payment</Text>
+            </View>
+          </View>
 
-          {/* Close button */}
-          <Pressable onPress={onDismiss} style={[styles.closeBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-            <Text style={{ color: colors.mutedForeground, fontSize: 16 }}>✕</Text>
+          {/* Close button — same fixed width 44 */}
+          <Pressable onPress={onDismiss} style={[styles.sideBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+            <Text style={{ color: colors.mutedForeground, fontSize: 16, lineHeight: 20 }}>✕</Text>
           </Pressable>
         </View>
 
@@ -199,33 +200,36 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
   },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    minWidth: 60,
-  },
-  title: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 15,
-    flex: 1,
-    textAlign: "center",
-  },
-  closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  sideBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  titleWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  titleInner: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  titleBolt: {
+    fontSize: 17,
+    marginRight: 6,
+    lineHeight: 22,
+  },
+  titleText: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 16,
+    letterSpacing: 0.2,
   },
   webview: { flex: 1, backgroundColor: "transparent" },
   loadingOverlay: {
