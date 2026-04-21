@@ -98,7 +98,6 @@ export default function SignupScreen() {
                 style={styles.logoIcon}
                 resizeMode="cover"
               />
-              <Text style={styles.appName}>RaftaarRide</Text>
             </View>
           </Animated.View>
 
