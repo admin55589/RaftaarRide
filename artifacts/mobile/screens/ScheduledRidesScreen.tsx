@@ -18,73 +18,11 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useNotification } from "@/context/NotificationContext";
 import { GlassCard } from "@/components/GlassCard";
+import { LiveCalendarIcon } from "@/components/LiveCalendarIcon";
 import { BASE_URL } from "@/lib/api";
 
 const MONTHS_SHORT = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 
-function LiveCalendarIcon() {
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const midnight = new Date();
-    midnight.setHours(24, 0, 0, 0);
-    const msUntilMidnight = midnight.getTime() - Date.now();
-    const t = setTimeout(() => setNow(new Date()), msUntilMidnight);
-    return () => clearTimeout(t);
-  }, [now]);
-
-  const day = now.getDate();
-  const month = MONTHS_SHORT[now.getMonth()];
-
-  return (
-    <View style={liveCal.wrap}>
-      <View style={liveCal.header}>
-        <Text style={liveCal.month}>{month}</Text>
-      </View>
-      <View style={liveCal.body}>
-        <Text style={liveCal.day}>{day}</Text>
-      </View>
-    </View>
-  );
-}
-
-const liveCal = StyleSheet.create({
-  wrap: {
-    width: 38,
-    height: 36,
-    borderRadius: 7,
-    overflow: "hidden",
-    borderWidth: 1.5,
-    borderColor: "#F5A623",
-    marginRight: 10,
-  },
-  header: {
-    height: 11,
-    backgroundColor: "#F5A623",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  month: {
-    fontSize: 6.5,
-    fontWeight: "800",
-    color: "#fff",
-    letterSpacing: 0.5,
-    fontFamily: "Inter_700Bold",
-  },
-  body: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#fff",
-  },
-  day: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#F5A623",
-    fontFamily: "Inter_700Bold",
-    lineHeight: 16,
-  },
-});
 
 function FormDateCalendarIcon({ dateStr }: { dateStr: string }) {
   let day: string = "--";
@@ -350,8 +288,8 @@ export function ScheduledRidesScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.delay(50)} style={styles.header}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <LiveCalendarIcon />
-            <Text style={styles.title}>{t("schedule_ride")}</Text>
+            <LiveCalendarIcon size="md" primaryColor="#F5A623" bgColor="#fff" />
+            <Text style={[styles.title, { marginLeft: 10 }]}>{t("schedule_ride")}</Text>
           </View>
           <Text style={styles.subtitle}>{t("advance_book")}</Text>
         </Animated.View>
@@ -464,7 +402,9 @@ export function ScheduledRidesScreen() {
           <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
         ) : rides.length === 0 ? (
           <Animated.View entering={FadeInDown.delay(200)}>
-            <Text style={styles.emptyIcon}>📅</Text>
+            <View style={{ alignItems: "center", marginTop: 40, marginBottom: 12 }}>
+              <LiveCalendarIcon size="lg" primaryColor="#F5A623" bgColor="#fff" />
+            </View>
             <Text style={styles.emptyText}>{t("no_scheduled_yet")}</Text>
             <Text style={[styles.emptyText, { fontSize: 12, marginTop: 6 }]}>{t("use_btn_above")}</Text>
           </Animated.View>
@@ -483,7 +423,10 @@ export function ScheduledRidesScreen() {
                 </View>
 
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailText}>📅 {formatScheduled(ride.scheduledAt)}</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <LiveCalendarIcon size="sm" primaryColor="#F5A623" bgColor="#fff" />
+                    <Text style={styles.detailText}>{formatScheduled(ride.scheduledAt)}</Text>
+                  </View>
                   <Text style={[styles.detailText, { color: colors.primary, fontWeight: "700" }]}>₹{Number(ride.price).toFixed(0)}</Text>
                 </View>
 

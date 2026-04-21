@@ -125,7 +125,7 @@ export const TRANSLATIONS = {
     vehicle_type: "वाहन प्रकार:",
     special_instructions: "विशेष निर्देश (वैकल्पिक)...",
     scheduling: "शेड्यूल हो रहा है...",
-    schedule_btn: "📅 राइड शेड्यूल करें",
+    schedule_btn: "राइड शेड्यूल करें",
     no_scheduled_yet: "अभी तक कोई शेड्यूल राइड नहीं",
     use_btn_above: "ऊपर बटन से शेड्यूल करें",
     // Driver Mode
@@ -315,7 +315,7 @@ export const TRANSLATIONS = {
     vehicle_type: "Vehicle type:",
     special_instructions: "Special instructions (optional)...",
     scheduling: "Scheduling...",
-    schedule_btn: "📅 Schedule Ride",
+    schedule_btn: "Schedule Ride",
     no_scheduled_yet: "No scheduled rides yet",
     use_btn_above: "Use the button above to schedule",
     // Driver Mode
