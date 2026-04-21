@@ -57,15 +57,45 @@ function SuccessTick() {
   );
 }
 
-function StarRating() {
+function StarRating({
+  rideId, driverId, token,
+}: { rideId: number | null; driverId: string | null; token: string | null }) {
   const [rating, setRating] = useState(0);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleRate = async (stars: number) => {
+    if (submitted || submitting) return;
+    setRating(stars);
+    if (!rideId || !token) return;
+    setSubmitting(true);
+    try {
+      await fetch(`${BASE_URL}rides/${rideId}/rate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ rating: stars }),
+      });
+      setSubmitted(true);
+    } catch { /* silent */ }
+    finally { setSubmitting(false); }
+  };
+
+  if (submitted) {
+    return (
+      <View style={s.ratingDone}>
+        <Text style={s.ratingDoneText}>⭐ Shukriya! Rating submit ho gayi</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={s.stars}>
       {Array.from({ length: 5 }).map((_, i) => (
-        <Pressable key={i} onPress={() => setRating(i + 1)}>
-          <Text style={[s.starText, { opacity: i < rating ? 1 : 0.35 }]}>⭐</Text>
+        <Pressable key={i} onPress={() => handleRate(i + 1)} disabled={submitting}>
+          <Text style={[s.starText, { opacity: i < rating ? 1 : 0.32 }]}>⭐</Text>
         </Pressable>
       ))}
+      {submitting && <ActivityIndicator size="small" color="#F5A623" style={{ marginLeft: 8 }} />}
     </View>
   );
 }
@@ -81,6 +111,8 @@ export function PaymentScreen() {
   } = useApp();
 
   const [paid, setPaid] = useState(false);
+  const [completedRideId, setCompletedRideId] = useState<number | null>(null);
+  const [completedDriverId, setCompletedDriverId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [razorpayOrder, setRazorpayOrder] = useState<RazorpayOrder | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<string>(paymentMethod ?? "UPI");
@@ -108,6 +140,9 @@ export function PaymentScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     announcePaymentSuccess(paidAmount);
     const driver = assignedDriver ?? { name: "Raj Kumar", rating: 4.8, vehicle: "Swift Dzire", vehicleNumber: "DL 4C AB 1234", vehicleType: selectedVehicle, eta: 5, photo: "RK", id: "1" };
+    /* Capture IDs for rating before they are cleared */
+    setCompletedRideId(currentRideId);
+    setCompletedDriverId(driver.id ?? null);
     addRideToHistory({
       id: currentRideId ? String(currentRideId) : Date.now().toString(),
       pickup, destination, vehicleType: selectedVehicle, rideMode, price: paidAmount,
@@ -236,7 +271,7 @@ export function PaymentScreen() {
 
             <Animated.View entering={FadeInDown.delay(700).springify()} style={s.ratingContainer}>
               <Text style={[s.ratingTitle, { color: colors.foreground }]}>Rate your driver</Text>
-              <StarRating />
+              <StarRating rideId={completedRideId} driverId={completedDriverId} token={token} />
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(900).springify()} style={{ width: "100%" }}>
@@ -417,6 +452,8 @@ const s = StyleSheet.create({
   receiptValue: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
   ratingContainer: { alignItems: "center", gap: 12 },
   ratingTitle: { fontFamily: "Inter_600SemiBold", fontSize: 18 },
-  stars: { flexDirection: "row", gap: 4 },
+  stars: { flexDirection: "row", gap: 4, alignItems: "center" },
   starText: { fontSize: 36 },
+  ratingDone: { paddingVertical: 10, paddingHorizontal: 16, backgroundColor: "rgba(74,222,128,0.12)", borderRadius: 12, borderWidth: 1, borderColor: "#4ADE80" },
+  ratingDoneText: { color: "#4ADE80", fontFamily: "Inter_600SemiBold", fontSize: 14 },
 });

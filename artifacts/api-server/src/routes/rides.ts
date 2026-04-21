@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { ridesTable, driversTable, usersTable } from "@workspace/db/schema";
-import { eq, desc, and, inArray } from "drizzle-orm";
+import { eq, desc, and, inArray, avg, isNotNull } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { emitRideUpdate, emitAdminUpdate } from "../lib/socket";
 import { sendPushNotification } from "../lib/expoPush";
@@ -245,6 +245,66 @@ router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) 
 
     res.json({ success: true, ride: updated, driverRating });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+/* POST /api/rides/:id/rate — user rates the driver after ride completion */
+router.post("/rides/:id/rate", userAuth, async (req: Request, res: Response) => {
+  const rideId = Number(req.params.id);
+  const userId = (req as any).userId;
+  const { rating } = req.body as { rating?: number };
+
+  if (!rating || rating < 1 || rating > 5) {
+    res.status(400).json({ success: false, error: "Rating 1-5 ke beech honi chahiye" });
+    return;
+  }
+
+  try {
+    /* Verify ride belongs to this user */
+    const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
+    if (!ride) { res.status(404).json({ success: false, error: "Ride nahi mili" }); return; }
+    if (ride.userId !== userId) { res.status(403).json({ success: false, error: "Yeh aapki ride nahi hai" }); return; }
+    if (ride.userRating) { res.status(400).json({ success: false, error: "Is ride ko aap pehle hi rate kar chuke hain" }); return; }
+
+    /* Save rating on the ride */
+    await db.update(ridesTable).set({ userRating: rating }).where(eq(ridesTable.id, rideId));
+
+    /* Recalculate driver's average rating from all rated rides */
+    if (ride.driverId) {
+      const result = await db
+        .select({ avgRating: avg(ridesTable.userRating) })
+        .from(ridesTable)
+        .where(and(eq(ridesTable.driverId, ride.driverId), isNotNull(ridesTable.userRating)));
+
+      const newAvg = result[0]?.avgRating;
+      if (newAvg) {
+        await db
+          .update(driversTable)
+          .set({ rating: String(parseFloat(newAvg).toFixed(2)) })
+          .where(eq(driversTable.id, ride.driverId));
+      }
+
+      /* Thank-you push to driver */
+      const [driver] = await db
+        .select({ pushToken: driversTable.pushToken, name: driversTable.name })
+        .from(driversTable)
+        .where(eq(driversTable.id, ride.driverId))
+        .limit(1);
+
+      if (driver?.pushToken) {
+        const stars = "⭐".repeat(rating);
+        await sendPushNotification({
+          to: driver.pushToken,
+          title: `${stars} Tumhe ${rating}-star rating mili!`,
+          body: `Ek passenger ne aapki service ko ${rating}/5 diya — keep it up!`,
+          data: { type: "rating_received", rideId },
+        });
+      }
+    }
+
+    res.json({ success: true, message: `${rating}-star rating save ho gayi!` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
 });
 
 export default router;
