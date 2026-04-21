@@ -50,4 +50,4 @@ channel = "stable-25_05"
 
 [userenv.shared]
 EXPO_PUBLIC_FIREBASE_API_KEY = "AIzaSyBE3Uy6XvWjtpccm92bPDVNK0YFRKmV4fI"
-EXPO_PUBLIC_RAZORPAY_KEY_ID = "rzp_test_Sf010jpanzlXgt"
+EXPO_PUBLIC_RAZORPAY_KEY_ID = "rzp_live_Sg3CLXTtuWJcBv"
