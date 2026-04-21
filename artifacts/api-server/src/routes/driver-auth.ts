@@ -260,4 +260,33 @@ router.patch("/driver-auth/me", async (req: Request, res: Response) => {
   }
 });
 
+/* PATCH /driver-auth/location — update driver's GPS coordinates */
+router.patch("/driver-auth/location", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({ success: false, message: "Token required" });
+    return;
+  }
+  const token = authHeader.split(" ")[1];
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { driverId: number; role: string };
+    if (payload.role !== "driver") {
+      res.status(403).json({ success: false, message: "Driver token required" });
+      return;
+    }
+    const { lat, lng } = req.body as { lat?: number; lng?: number };
+    if (typeof lat !== "number" || typeof lng !== "number") {
+      res.status(400).json({ success: false, message: "lat aur lng dono chahiye" });
+      return;
+    }
+    await db
+      .update(driversTable)
+      .set({ driverLat: String(lat), driverLng: String(lng) })
+      .where(eq(driversTable.id, payload.driverId));
+    res.json({ success: true, message: "Location update ho gayi", lat, lng });
+  } catch {
+    res.status(401).json({ success: false, message: "Invalid token" });
+  }
+});
+
 export default router;

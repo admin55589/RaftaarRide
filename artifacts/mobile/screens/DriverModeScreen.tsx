@@ -16,6 +16,7 @@ import {
   Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
 import Animated, {
   FadeInDown,
   SlideInUp,
@@ -407,6 +408,49 @@ export function DriverModeScreen() {
     return () => { socket.off("chat:message", handleChatMsg); };
   }, [activeRide?.rideId]);
 
+  const [locUpdating, setLocUpdating] = useState(false);
+  const [lastLocTime, setLastLocTime] = useState<Date | null>(null);
+
+  const handleLocationUpdate = async (silent = false) => {
+    if (locUpdating) return;
+    setLocUpdating(true);
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      let granted = status === "granted";
+      if (!granted) {
+        const { status: req } = await Location.requestForegroundPermissionsAsync();
+        granted = req === "granted";
+      }
+      if (!granted) {
+        if (!silent) showNotification({ title: "Location Permission", body: "GPS permission do taaki rides mile", type: "error", icon: "📍" });
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const { latitude, longitude } = pos.coords;
+      if (driverToken) {
+        await fetch(`${API_BASE}/driver-auth/location`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${driverToken}` },
+          body: JSON.stringify({ lat: latitude, lng: longitude }),
+        });
+      }
+      setLastLocTime(new Date());
+      if (!silent) showNotification({ title: "📍 Location Update Ho Gayi!", body: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`, type: "success", icon: "✅" });
+    } catch (_) {
+      if (!silent) showNotification({ title: "Location Error", body: "GPS se location nahi mili", type: "error", icon: "❌" });
+    } finally {
+      setLocUpdating(false);
+    }
+  };
+
+  /* Auto-update location every 90s when online */
+  useEffect(() => {
+    if (!isOnline) return;
+    handleLocationUpdate(true);
+    const interval = setInterval(() => handleLocationUpdate(true), 90000);
+    return () => clearInterval(interval);
+  }, [isOnline]);
+
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [editName, setEditName] = useState(driver?.name ?? "");
   const [editPhoto, setEditPhoto] = useState<string | null>(driver?.photoUrl ?? null);
@@ -617,6 +661,21 @@ export function DriverModeScreen() {
             style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
           >
             <Text style={{ fontSize: 15 }}>{isDark ? "☀️" : "🌙"}</Text>
+          </Pressable>
+
+          {/* GPS Location Update Button */}
+          <Pressable
+            onPress={() => handleLocationUpdate(false)}
+            disabled={locUpdating}
+            style={[styles.backBtn, {
+              backgroundColor: locUpdating ? colors.secondary : (lastLocTime ? "rgba(74,222,128,0.12)" : "rgba(245,166,35,0.12)"),
+              borderColor: locUpdating ? colors.border : (lastLocTime ? "#4ADE80" : colors.primary),
+            }]}
+          >
+            {locUpdating
+              ? <ActivityIndicator size="small" color={colors.primary} />
+              : <Text style={{ fontSize: 15, lineHeight: 19 }}>📍</Text>
+            }
           </Pressable>
 
           <GlassCard style={styles.onlineToggle} padding={10}>
