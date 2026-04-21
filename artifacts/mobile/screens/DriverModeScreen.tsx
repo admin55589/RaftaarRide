@@ -40,7 +40,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { MapView } from "@/components/MapView";
-import { connectSocket, sendChatMessage, emitDriverLocation } from "@/lib/socket";
+import { connectSocket, sendChatMessage, emitDriverLocation, joinDriverRoom, getSocket } from "@/lib/socket";
 
 interface ChatMsg {
   id: string;
@@ -60,10 +60,7 @@ interface ActiveRide {
   userName: string;
 }
 
-const MOCK_REQUESTS = [
-  { id: "1", rideId: 2001, from: "Connaught Place", to: "DLF Cyber Hub", distance: "18 km", price: 320, eta: 3, userName: "Rahul Kumar" },
-  { id: "2", rideId: 2002, from: "Lajpat Nagar", to: "Hauz Khas", distance: "5 km", price: 120, eta: 2, userName: "Priya Singh" },
-];
+const MOCK_REQUESTS: Array<{ id: string; rideId: number; from: string; to: string; distance: string; price: number; eta: number; userName: string }> = [];
 
 function getVehicleIcon(vehicleType?: string): string {
   switch ((vehicleType ?? "").toLowerCase()) {
@@ -480,6 +477,48 @@ export function DriverModeScreen() {
     return "http://localhost:8080/api";
   })();
 
+  /* Join driver socket room + fetch real rides + listen for new ride events */
+  useEffect(() => {
+    if (!driverToken || !driver?.id) return;
+    const socket = connectSocket();
+    joinDriverRoom(driver.id);
+
+    /* Fetch existing active rides for this driver */
+    fetch(`${API_BASE}/driver-auth/rides/active`, {
+      headers: { Authorization: `Bearer ${driverToken}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.rides) && data.rides.length > 0) {
+          /* Only add if there's no current activeRide and no existing requests */
+          setRequests((prev) => {
+            const existingIds = new Set(prev.map((r) => r.id));
+            const newRides = data.rides.filter((r: { id: string }) => !existingIds.has(r.id));
+            return [...prev, ...newRides];
+          });
+        }
+      })
+      .catch(() => {});
+
+    /* Real-time new ride via socket */
+    function onNewRide(data: { id: string; rideId: number; from: string; to: string; distance: string; price: number; eta: number; userName: string }) {
+      setRequests((prev) => {
+        if (prev.some((r) => r.id === data.id)) return prev;
+        return [...prev, data];
+      });
+      showNotification({
+        title: "🚖 Naya Ride Request!",
+        body: `${data.from} → ${data.to} • ₹${data.price}`,
+        type: "success",
+        icon: "🚖",
+        duration: 5000,
+      });
+    }
+
+    socket.on("driver:new_ride", onNewRide);
+    return () => { socket.off("driver:new_ride", onNewRide); };
+  }, [driverToken, driver?.id]);
+
   const handlePickPhoto = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { Alert.alert("Permission chahiye", "Gallery access allow karo"); return; }
@@ -562,26 +601,38 @@ export function DriverModeScreen() {
   }, []);
   const dotStyle = useAnimatedStyle(() => ({ transform: [{ scale: dotScale.value }] }));
 
-  const handleAccept = (id: string) => {
+  const handleAccept = async (id: string) => {
     const req = requests.find((r) => r.id === id);
+    if (!req) return;
     setRequests((rs) => rs.filter((r) => r.id !== id));
-    const price = req?.price ?? 0;
-    setDriverEarnings((e) => e + price);
-    if (req) {
-      setChatMessages([]);
-      setUnreadCount(0);
-      setActiveRide({
-        rideId: req.rideId,
-        from: req.from,
-        to: req.to,
-        price: req.price,
-        distance: req.distance,
-        userName: req.userName,
-      });
+    setDriverEarnings((e) => e + req.price);
+    setChatMessages([]);
+    setUnreadCount(0);
+    setActiveRide({
+      rideId: req.rideId,
+      from: req.from,
+      to: req.to,
+      price: req.price,
+      distance: req.distance,
+      userName: req.userName,
+    });
+
+    /* Join ride socket room so we can send/receive events for this ride */
+    const socket = connectSocket();
+    socket.emit("ride:join", req.rideId);
+
+    /* Notify backend that driver is on the way (status → arrived) */
+    if (driverToken) {
+      fetch(`${API_BASE}/driver-auth/rides/${req.rideId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${driverToken}` },
+        body: JSON.stringify({ status: "arrived" }),
+      }).catch(() => {});
     }
+
     showNotification({
       title: "Ride Accept Ho Gayi! ✅",
-      body: `${req?.from ?? ""} → ${req?.to ?? ""} • ₹${price} milenge`,
+      body: `${req.from} → ${req.to} • ₹${req.price} milenge`,
       type: "success",
       icon: "✅",
       duration: 4000,

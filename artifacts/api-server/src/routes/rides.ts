@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { ridesTable, driversTable, usersTable } from "@workspace/db/schema";
 import { eq, desc, and, inArray, avg, isNotNull } from "drizzle-orm";
 import jwt from "jsonwebtoken";
-import { emitRideUpdate, emitAdminUpdate } from "../lib/socket";
+import { emitRideUpdate, emitAdminUpdate, emitToDriver } from "../lib/socket";
 import { sendPushNotification } from "../lib/expoPush";
 
 const router: IRouter = Router();
@@ -114,8 +114,48 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       eta: Math.floor(Math.random() * 5) + 2,
     } : null;
 
+    /* Generate PIN immediately when driver auto-assigned */
+    let completionPin: number | null = null;
+    if (matchedDriver) {
+      completionPin = 1000 + Math.floor(Math.random() * 9000);
+      await db.update(ridesTable).set({ completionPin }).where(eq(ridesTable.id, ride.id));
+    }
+
+    /* Fetch user name for driver's ride card */
+    const [rideUser] = await db.select({ name: usersTable.name, pushToken: usersTable.pushToken })
+      .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+
     emitRideUpdate(ride.id, "ride:status", { rideId: ride.id, status: ride.status, driver: driverPayload });
     emitAdminUpdate("admin:ride:new", { ride, driver: driverPayload });
+
+    /* Emit ride to driver's socket room (real-time card in driver app) */
+    if (matchedDriver) {
+      emitToDriver(matchedDriver.id, "driver:new_ride", {
+        id: String(ride.id),
+        rideId: ride.id,
+        from: pickupAddress,
+        to: dropAddress,
+        distance: `${ride.distanceKm ?? "?"} km`,
+        price: finalPrice,
+        eta: driverPayload?.eta ?? 3,
+        userName: rideUser?.name ?? "Passenger",
+      });
+
+      /* Emit PIN to ride room so passenger sees it immediately */
+      if (completionPin) {
+        emitRideUpdate(ride.id, "ride:pin", { rideId: ride.id, pin: completionPin });
+      }
+
+      /* Push PIN to user */
+      if (rideUser?.pushToken && completionPin) {
+        await sendPushNotification({
+          to: rideUser.pushToken,
+          title: "🔐 Aapka Ride PIN",
+          body: `Driver ko yeh PIN batao ride complete karne ke liye: ${completionPin}`,
+          data: { type: "ride_pin", rideId: ride.id, pin: completionPin },
+        });
+      }
+    }
 
     /* Push notification to assigned driver */
     if (matchedDriver?.pushToken) {

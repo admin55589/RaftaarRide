@@ -1,9 +1,10 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { driversTable } from "@workspace/db/schema";
-import { eq, or } from "drizzle-orm";
+import { driversTable, ridesTable, usersTable } from "@workspace/db/schema";
+import { eq, or, inArray } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import { emitRideUpdate } from "../lib/socket";
 
 const router: IRouter = Router();
 const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
@@ -301,6 +302,115 @@ router.patch("/driver-auth/location", async (req: Request, res: Response) => {
       .set({ driverLat: String(lat), driverLng: String(lng) })
       .where(eq(driversTable.id, payload.driverId));
     res.json({ success: true, message: "Location update ho gayi", lat, lng });
+  } catch {
+    res.status(401).json({ success: false, message: "Invalid token" });
+  }
+});
+
+/* PATCH /api/driver-auth/rides/:id/status — driver updates ride status (arrived, onRide, completed) */
+router.patch("/driver-auth/rides/:id/status", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({ success: false, message: "Unauthorized" });
+    return;
+  }
+  try {
+    const payload = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { driverId: number; role: string };
+    if (payload.role !== "driver") {
+      res.status(403).json({ success: false, message: "Driver token required" });
+      return;
+    }
+    const rideId = parseInt(req.params.id, 10);
+    const { status } = req.body as { status: string };
+    const allowedStatuses = ["arrived", "onRide", "completed", "cancelled"];
+    if (!allowedStatuses.includes(status)) {
+      res.status(400).json({ success: false, message: `Status '${status}' allowed nahi hai` });
+      return;
+    }
+    /* Verify this ride belongs to this driver */
+    const [ride] = await db.select().from(ridesTable)
+      .where(eq(ridesTable.id, rideId)).limit(1);
+    if (!ride) {
+      res.status(404).json({ success: false, message: "Ride nahi mili" });
+      return;
+    }
+    if (ride.driverId !== payload.driverId) {
+      res.status(403).json({ success: false, message: "Yeh ride aapki nahi hai" });
+      return;
+    }
+    await db.update(ridesTable).set({ status }).where(eq(ridesTable.id, rideId));
+
+    /* Re-enable driver when ride completed or cancelled */
+    if (status === "completed" || status === "cancelled") {
+      await db.update(driversTable).set({ isOnline: true }).where(eq(driversTable.id, payload.driverId));
+    }
+
+    /* Emit status change to passenger ride room */
+    emitRideUpdate(rideId, "ride:status", { rideId, status, driverId: payload.driverId });
+
+    res.json({ success: true, rideId, status, message: `Status update: ${status}` });
+  } catch {
+    res.status(401).json({ success: false, message: "Invalid token" });
+  }
+});
+
+/* GET /api/driver-auth/rides/active — returns the active ride assigned to this driver */
+router.get("/driver-auth/rides/active", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({ success: false, message: "Unauthorized" });
+    return;
+  }
+  try {
+    const payload = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { driverId: number; role: string };
+    if (payload.role !== "driver") {
+      res.status(403).json({ success: false, message: "Driver token required" });
+      return;
+    }
+    /* Find non-completed rides assigned to this driver */
+    const activeRides = await db
+      .select({
+        id: ridesTable.id,
+        pickup: ridesTable.pickup,
+        destination: ridesTable.destination,
+        distanceKm: ridesTable.distanceKm,
+        price: ridesTable.price,
+        status: ridesTable.status,
+        completionPin: ridesTable.completionPin,
+        userId: ridesTable.userId,
+        createdAt: ridesTable.createdAt,
+      })
+      .from(ridesTable)
+      .where(
+        eq(ridesTable.driverId, payload.driverId),
+      )
+      .orderBy(ridesTable.createdAt)
+      .limit(10);
+
+    const nonCompleted = activeRides.filter(
+      (r) => !["completed", "cancelled"].includes(r.status ?? "")
+    );
+
+    /* Fetch user names */
+    const userIds = [...new Set(nonCompleted.map((r) => r.userId).filter(Boolean))] as number[];
+    const users = userIds.length > 0
+      ? await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(inArray(usersTable.id, userIds))
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u.name]));
+
+    const result = nonCompleted.map((r) => ({
+      id: String(r.id),
+      rideId: r.id,
+      from: r.pickup ?? "",
+      to: r.destination ?? "",
+      distance: r.distanceKm ? `${r.distanceKm} km` : "? km",
+      price: parseFloat(String(r.price ?? "0")),
+      eta: 3,
+      userName: (r.userId ? userMap.get(r.userId) : null) ?? "Passenger",
+      status: r.status,
+    }));
+
+    res.json({ success: true, rides: result });
   } catch {
     res.status(401).json({ success: false, message: "Invalid token" });
   }
