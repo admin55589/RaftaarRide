@@ -1,8 +1,13 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "uyF4uskBs2hNwpriKFkHb"
 uri = "file://artifacts/mobile/assets/images/icon.png"
 type = "image"
 title = "raftaarride app icon"
+
+[[outputs]]
+id = "41Z-rz8ZbMm4U_s0WR1A_"
+uri = "file://RaftaarRide_FullApp.tar.gz"
+type = "unspecified"
+title = "RaftaarRide Full App (tar.gz)"
