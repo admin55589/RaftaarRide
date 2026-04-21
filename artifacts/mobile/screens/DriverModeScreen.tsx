@@ -40,7 +40,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { MapView } from "@/components/MapView";
-import { connectSocket, sendChatMessage } from "@/lib/socket";
+import { connectSocket, sendChatMessage, emitDriverLocation } from "@/lib/socket";
 
 interface ChatMsg {
   id: string;
@@ -378,9 +378,14 @@ export function DriverModeScreen() {
   const ridesCompleted = driver ? driver.totalRides : 7;
 
   const [activeRide, setActiveRide] = useState<ActiveRide | null>(null);
+  const activeRideRef = useRef<ActiveRide | null>(null);
+  useEffect(() => { activeRideRef.current = activeRide; }, [activeRide]);
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
   const [showChat, setShowChat] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pinModalVisible, setPinModalVisible] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinLoading, setPinLoading] = useState(false);
 
   useEffect(() => {
     if (!activeRide) return;
@@ -434,6 +439,10 @@ export function DriverModeScreen() {
           body: JSON.stringify({ lat: latitude, lng: longitude }),
         });
       }
+      /* Emit real-time socket location if there's an active ride */
+      if (driver?.id && activeRideRef.current?.rideId) {
+        emitDriverLocation(driver.id, activeRideRef.current.rideId, latitude, longitude);
+      }
       setLastLocTime(new Date());
       if (!silent) showNotification({ title: "📍 Location Update Ho Gayi!", body: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`, type: "success", icon: "✅" });
     } catch (_) {
@@ -443,13 +452,14 @@ export function DriverModeScreen() {
     }
   };
 
-  /* Auto-update location every 90s when online */
+  /* Auto-update location: 10s during active ride, 90s otherwise */
   useEffect(() => {
     if (!isOnline) return;
     handleLocationUpdate(true);
-    const interval = setInterval(() => handleLocationUpdate(true), 90000);
+    const intervalMs = activeRide ? 10000 : 90000;
+    const interval = setInterval(() => handleLocationUpdate(true), intervalMs);
     return () => clearInterval(interval);
-  }, [isOnline]);
+  }, [isOnline, activeRide?.rideId]);
 
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [editName, setEditName] = useState(driver?.name ?? "");
@@ -599,17 +609,38 @@ export function DriverModeScreen() {
 
   const handleCompleteRide = () => {
     if (!activeRide) return;
-    Alert.alert("Ride Complete?", `${activeRide.from} → ${activeRide.to} ki ride complete karna chahte ho?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Complete", onPress: () => {
-          setActiveRide(null);
-          setChatMessages([]);
-          setUnreadCount(0);
-          showNotification({ title: "Ride Complete! 🎉", body: `₹${activeRide.price} earn kiye`, type: "success", icon: "🎉", duration: 4000 });
-        }
+    setPinInput("");
+    setPinModalVisible(true);
+  };
+
+  const handlePinSubmit = async () => {
+    if (!activeRide || pinInput.length !== 4) {
+      Alert.alert("Invalid PIN", "4-digit PIN zaroori hai");
+      return;
+    }
+    setPinLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/rides/${activeRide.rideId}/verify-pin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${driverToken}` },
+        body: JSON.stringify({ pin: Number(pinInput) }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPinModalVisible(false);
+        setPinInput("");
+        setActiveRide(null);
+        setChatMessages([]);
+        setUnreadCount(0);
+        showNotification({ title: "Ride Complete! 🎉", body: `₹${activeRide.price} earn kiye`, type: "success", icon: "🎉", duration: 4000 });
+      } else {
+        Alert.alert("Galat PIN ❌", data.error ?? "PIN sahi nahi — passenger se dobara poochho");
       }
-    ]);
+    } catch {
+      Alert.alert("Network Error", "Dobara try karo");
+    } finally {
+      setPinLoading(false);
+    }
   };
 
   const handleReject = (id: string) => {
@@ -911,6 +942,44 @@ export function DriverModeScreen() {
                   <Text style={styles.saveBtnText}>✅ Save Karo</Text>
                 )}
               </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* PIN Entry Modal */}
+      <Modal visible={pinModalVisible} transparent animationType="fade" onRequestClose={() => setPinModalVisible(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
+          <View style={styles.pinOverlay}>
+            <View style={styles.pinCard}>
+              <Text style={styles.pinTitle}>🔐 Ride Complete PIN</Text>
+              <Text style={styles.pinSubtitle}>Passenger se 4-digit PIN maango</Text>
+              <TextInput
+                style={styles.pinInput}
+                value={pinInput}
+                onChangeText={(t) => setPinInput(t.replace(/[^0-9]/g, "").slice(0, 4))}
+                keyboardType="number-pad"
+                maxLength={4}
+                placeholder="- - - -"
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                textAlign="center"
+                autoFocus
+              />
+              <View style={styles.pinActions}>
+                <Pressable style={styles.pinCancelBtn} onPress={() => setPinModalVisible(false)} disabled={pinLoading}>
+                  <Text style={styles.pinCancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.pinSubmitBtn, (pinInput.length !== 4 || pinLoading) && { opacity: 0.5 }]}
+                  onPress={handlePinSubmit}
+                  disabled={pinInput.length !== 4 || pinLoading}
+                >
+                  {pinLoading
+                    ? <ActivityIndicator color="#0A0A0F" size="small" />
+                    : <Text style={styles.pinSubmitText}>✅ Verify & Complete</Text>
+                  }
+                </Pressable>
+              </View>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -1444,5 +1513,76 @@ const chatStyles = StyleSheet.create({
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
+  },
+  pinOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  pinCard: {
+    backgroundColor: "#1A1A2E",
+    borderRadius: 24,
+    padding: 28,
+    width: "100%",
+    alignItems: "center",
+    gap: 16,
+    borderWidth: 1,
+    borderColor: "rgba(245,166,35,0.3)",
+  },
+  pinTitle: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 20,
+    color: "#F5A623",
+  },
+  pinSubtitle: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.65)",
+    textAlign: "center",
+  },
+  pinInput: {
+    width: "100%",
+    fontSize: 36,
+    letterSpacing: 16,
+    color: "#FFFFFF",
+    fontFamily: "Inter_700Bold",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "rgba(245,166,35,0.5)",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  pinActions: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  pinCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+  },
+  pinCancelText: {
+    color: "rgba(255,255,255,0.6)",
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
+  },
+  pinSubmitBtn: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: "#F5A623",
+    alignItems: "center",
+  },
+  pinSubmitText: {
+    color: "#0A0A0F",
+    fontFamily: "Inter_700Bold",
+    fontSize: 15,
   },
 });

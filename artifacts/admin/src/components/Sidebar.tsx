@@ -8,17 +8,11 @@ import {
   FileCheck,
   Wallet,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 
-const nav = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard },
-  { label: "Users", href: "/users", icon: Users },
-  { label: "Drivers", href: "/drivers", icon: Car },
-  { label: "Rides", href: "/rides", icon: MapPin },
-  { label: "KYC Verification", href: "/kyc", icon: FileCheck },
-  { label: "Withdrawals", href: "/withdrawals", icon: Wallet },
-];
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 interface SidebarProps {
   isLive?: boolean;
@@ -26,7 +20,30 @@ interface SidebarProps {
 
 export function Sidebar({ isLive = false }: SidebarProps) {
   const [location] = useLocation();
-  const { logout } = useAuth();
+  const { logout, token } = useAuth();
+
+  const { data: kycPending = 0 } = useQuery<number>({
+    queryKey: ["kyc-pending-count"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/admin/kyc`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return 0;
+      const list: Array<{ status: string }> = await res.json();
+      return list.filter((k) => k.status === "pending").length;
+    },
+    enabled: !!token,
+    refetchInterval: 30000,
+  });
+
+  const nav = [
+    { label: "Dashboard", href: "/", icon: LayoutDashboard, badge: 0 },
+    { label: "Users", href: "/users", icon: Users, badge: 0 },
+    { label: "Drivers", href: "/drivers", icon: Car, badge: 0 },
+    { label: "Rides", href: "/rides", icon: MapPin, badge: 0 },
+    { label: "KYC Verification", href: "/kyc", icon: FileCheck, badge: kycPending },
+    { label: "Withdrawals", href: "/withdrawals", icon: Wallet, badge: 0 },
+  ];
 
   return (
     <aside className="w-64 shrink-0 h-screen flex flex-col border-r border-sidebar-border bg-sidebar sticky top-0">
@@ -54,7 +71,7 @@ export function Sidebar({ isLive = false }: SidebarProps) {
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {nav.map(({ label, href, icon: Icon }) => {
+        {nav.map(({ label, href, icon: Icon, badge }) => {
           const active = href === "/" ? location === "/" : location.startsWith(href);
           return (
             <Link key={href} href={href}>
@@ -67,7 +84,12 @@ export function Sidebar({ isLive = false }: SidebarProps) {
                 )}
               >
                 <Icon className="w-4 h-4 shrink-0" />
-                {label}
+                <span className="flex-1">{label}</span>
+                {badge > 0 && (
+                  <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-yellow-500 text-black text-[10px] font-bold flex items-center justify-center">
+                    {badge}
+                  </span>
+                )}
               </div>
             </Link>
           );

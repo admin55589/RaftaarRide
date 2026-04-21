@@ -9,6 +9,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import jwt from "jsonwebtoken";
+import { sendPushNotification } from "../lib/expoPush";
 
 const router: IRouter = Router();
 
@@ -351,6 +352,31 @@ router.patch("/admin/kyc/:id/verify", authMiddleware, async (req: Request, res: 
         status: action === "approve" ? "active" : driversTable.status,
       })
       .where(eq(driversTable.id, kyc.driverId));
+
+    /* Push notification to driver */
+    const [driverRecord] = await db
+      .select({ pushToken: driversTable.pushToken, name: driversTable.name })
+      .from(driversTable)
+      .where(eq(driversTable.id, kyc.driverId))
+      .limit(1);
+
+    if (driverRecord?.pushToken) {
+      if (action === "approve") {
+        await sendPushNotification({
+          to: driverRecord.pushToken,
+          title: "✅ KYC Approved! Shukriya",
+          body: "Aapki KYC verify ho gayi — ab aap rides accept kar sakte hain!",
+          data: { type: "kyc_approved" },
+        });
+      } else {
+        await sendPushNotification({
+          to: driverRecord.pushToken,
+          title: "❌ KYC Rejected",
+          body: updated.rejectionReason ?? "Aapke documents reject ho gaye — dobara upload karo",
+          data: { type: "kyc_rejected", reason: updated.rejectionReason },
+        });
+      }
+    }
 
     res.json({ success: true, kyc: updated, message: action === "approve" ? "KYC approve ho gaya!" : "KYC reject ho gaya" });
   } catch { res.status(500).json({ message: "Server error" }); }

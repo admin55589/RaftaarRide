@@ -220,6 +220,30 @@ router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) 
     const [updated] = await db.update(ridesTable).set({ status }).where(eq(ridesTable.id, rideId)).returning();
     if (!updated) { res.status(404).json({ success: false, error: "Ride not found" }); return; }
 
+    /* Generate 4-digit completion PIN when driver accepts */
+    if (status === "accepted") {
+      const pin = 1000 + Math.floor(Math.random() * 9000);
+      await db.update(ridesTable).set({ completionPin: pin }).where(eq(ridesTable.id, rideId));
+      emitRideUpdate(rideId, "ride:pin", { rideId, pin });
+
+      /* Push PIN to user */
+      if (updated.userId) {
+        const [rideUser] = await db
+          .select({ pushToken: usersTable.pushToken })
+          .from(usersTable)
+          .where(eq(usersTable.id, updated.userId))
+          .limit(1);
+        if (rideUser?.pushToken) {
+          await sendPushNotification({
+            to: rideUser.pushToken,
+            title: "🔐 Aapka Ride PIN",
+            body: `Driver ko yeh PIN batao ride complete karne ke liye: ${pin}`,
+            data: { type: "ride_pin", rideId, pin },
+          });
+        }
+      }
+    }
+
     if (status === "completed" && updated.driverId) {
       const [driver] = await db.select().from(driversTable).where(eq(driversTable.id, updated.driverId)).limit(1);
       if (driver) {
@@ -245,6 +269,73 @@ router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) 
 
     res.json({ success: true, ride: updated, driverRating });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+/* POST /api/rides/:id/verify-pin — driver submits PIN to complete ride */
+router.post("/rides/:id/verify-pin", async (req: Request, res: Response) => {
+  const rideId = Number(req.params.id);
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) { res.status(401).json({ success: false, error: "Unauthorized" }); return; }
+
+  try {
+    const payload = jwt.verify(auth.split(" ")[1], JWT_SECRET) as { driverId: number };
+    const driverId = payload.driverId;
+    if (!driverId) { res.status(401).json({ success: false, error: "Driver token invalid" }); return; }
+
+    const { pin } = req.body as { pin: string | number };
+    if (!pin) { res.status(400).json({ success: false, error: "PIN dena zaroori hai" }); return; }
+
+    const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
+    if (!ride) { res.status(404).json({ success: false, error: "Ride nahi mili" }); return; }
+    if (ride.driverId !== driverId) { res.status(403).json({ success: false, error: "Yeh aapki ride nahi hai" }); return; }
+    if (["completed", "cancelled"].includes(ride.status)) {
+      res.status(400).json({ success: false, error: `Ride already ${ride.status} hai` }); return;
+    }
+    if (String(ride.completionPin) !== String(pin)) {
+      res.status(400).json({ success: false, error: "❌ Galat PIN! Passenger se sahi 4-digit PIN lein" }); return;
+    }
+
+    /* Mark ride as completed */
+    const [updated] = await db.update(ridesTable).set({ status: "completed" }).where(eq(ridesTable.id, rideId)).returning();
+
+    /* Calculate earnings */
+    const [driver] = await db.select().from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
+    if (driver) {
+      const price = parseFloat(String(updated.price));
+      const commission = parseFloat((price * 0.067).toFixed(2));
+      const earning = parseFloat((price * 0.933).toFixed(2));
+      await db.update(driversTable).set({
+        totalEarnings: String((parseFloat(String(driver.totalEarnings ?? "0")) + earning).toFixed(2)),
+        totalRides: (driver.totalRides ?? 0) + 1,
+        isOnline: false,
+      }).where(eq(driversTable.id, driverId));
+      await db.update(ridesTable).set({ commissionAmount: String(commission), driverEarning: String(earning) })
+        .where(eq(ridesTable.id, rideId));
+    }
+
+    /* Notify passenger: PIN confirmed → go to payment */
+    emitRideUpdate(rideId, "ride:pin:confirmed", { rideId });
+    emitRideUpdate(rideId, "ride:status", { rideId, status: "completed" });
+    emitAdminUpdate("admin:ride:updated", { rideId, status: "completed" });
+
+    /* Push notification to user */
+    if (ride.userId) {
+      const [rideUser] = await db.select({ pushToken: usersTable.pushToken }).from(usersTable)
+        .where(eq(usersTable.id, ride.userId)).limit(1);
+      if (rideUser?.pushToken) {
+        await sendPushNotification({
+          to: rideUser.pushToken,
+          title: "✅ Ride Complete! Bhugtan karo",
+          body: "Driver ne ride complete kar di — payment screen khulegi",
+          data: { type: "ride_completed", rideId },
+        });
+      }
+    }
+
+    res.json({ success: true, message: "Ride complete ho gayi! 🎉" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
 });
 
 /* POST /api/rides/:id/rate — user rates the driver after ride completion */

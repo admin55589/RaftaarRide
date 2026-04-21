@@ -80,6 +80,7 @@ export function LiveTrackingScreen() {
   const [progress, setProgress] = useState(0);
   const [timeLeft, setTimeLeft] = useState(12);
   const [driverLiveLocation, setDriverLiveLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [ridePin, setRidePin] = useState<number | null>(null);
 
   useEffect(() => {
     if (!currentRideId) return;
@@ -90,10 +91,31 @@ export function LiveTrackingScreen() {
       setDriverLiveLocation({ lat: data.lat, lng: data.lng });
     }
 
+    function onRidePin(data: { pin: number }) {
+      setRidePin(data.pin);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }
+
+    function onPinConfirmed() {
+      setTimeout(() => setScreen("payment"), 600);
+    }
+
+    function onRideStatus(data: { status: string }) {
+      if (data.status === "completed") {
+        setTimeout(() => setScreen("payment"), 600);
+      }
+    }
+
     socket.on("driver:location", onDriverLocation);
+    socket.on("ride:pin", onRidePin);
+    socket.on("ride:pin:confirmed", onPinConfirmed);
+    socket.on("ride:status", onRideStatus);
 
     return () => {
       socket.off("driver:location", onDriverLocation);
+      socket.off("ride:pin", onRidePin);
+      socket.off("ride:pin:confirmed", onPinConfirmed);
+      socket.off("ride:status", onRideStatus);
     };
   }, [currentRideId]);
 
@@ -220,6 +242,14 @@ export function LiveTrackingScreen() {
                 <Text style={styles.callBtnEmoji}>📞</Text>
               </Pressable>
             </View>
+
+            {ridePin && (
+              <View style={[styles.pinBox, { borderColor: colors.primary + "66", backgroundColor: colors.primary + "18" }]}>
+                <Text style={[styles.pinLabel, { color: colors.mutedForeground }]}>🔐 Driver ko yeh PIN batao</Text>
+                <Text style={[styles.pinNumber, { color: colors.primary }]}>{ridePin}</Text>
+                <Text style={[styles.pinHint, { color: colors.mutedForeground }]}>Ride complete hone par driver maangega</Text>
+              </View>
+            )}
 
             <View style={styles.sosRow}>
               <Pressable style={[styles.sosBtn, { backgroundColor: "rgba(239,68,68,0.13)", borderColor: colors.destructive }]}>
@@ -397,5 +427,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  pinBox: {
+    borderWidth: 1.5,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    gap: 4,
+  },
+  pinLabel: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+  },
+  pinNumber: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 40,
+    letterSpacing: 10,
+  },
+  pinHint: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
   },
 });
