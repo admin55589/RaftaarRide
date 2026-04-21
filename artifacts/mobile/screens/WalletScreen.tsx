@@ -171,8 +171,9 @@ export function WalletScreen() {
     txnAmt: { fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" },
     emptyText: { textAlign: "center", color: colors.textSecondary, fontSize: 14, marginTop: 20, fontFamily: "Inter_400Regular" },
     label: { fontSize: 12, color: colors.textSecondary, marginBottom: 6, fontFamily: "Inter_500Medium" },
-    rzpBadge: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", borderWidth: 1, borderColor: colors.border },
-    rzpBadgeText: { fontSize: 12, color: colors.textSecondary, fontFamily: "Inter_400Regular" },
+    rzpBadge: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 14, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)", borderWidth: 1, borderColor: colors.border },
+    rzpLock: { fontSize: 15, marginRight: 8, lineHeight: 20 },
+    rzpBadgeText: { fontSize: 12, color: colors.textSecondary, fontFamily: "Inter_400Regular", flexShrink: 1, flexWrap: "wrap" },
   });
 
   const formatDate = (d: string) => {
@@ -265,7 +266,7 @@ export function WalletScreen() {
               />
 
               <View style={s.rzpBadge}>
-                <Text style={{ fontSize: 14 }}>🔒</Text>
+                <Text style={s.rzpLock}>🔒</Text>
                 <Text style={s.rzpBadgeText}>Secured by Razorpay — UPI, Card, Net Banking supported</Text>
               </View>
 
