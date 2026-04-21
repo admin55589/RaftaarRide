@@ -107,6 +107,7 @@ export default function LoginScreen() {
               style={styles.logoIcon}
               resizeMode="cover"
             />
+            <Text style={styles.appName}>RaftaarRide</Text>
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(200).springify()}>
