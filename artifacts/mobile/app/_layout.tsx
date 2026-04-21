@@ -13,8 +13,9 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider, initialWindowMetrics } from "react-native-safe-area-context";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 
+import { AppSplash } from "@/components/AppSplash";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
@@ -76,11 +77,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [isLoggedIn, isDriverLoggedIn, anyLoading, segments]);
 
   if (anyLoading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: "#0A0A0F", alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator color="#F5A623" size="large" />
-      </View>
-    );
+    return <AppSplash />;
   }
 
   return <>{children}</>;
@@ -100,7 +97,7 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  useFonts({
+  const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
@@ -108,8 +105,10 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+    if (fontsLoaded) SplashScreen.hideAsync();
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return <AppSplash />;
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
