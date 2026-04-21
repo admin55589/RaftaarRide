@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Dimensions,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -18,7 +20,6 @@ import Animated, {
   withTiming,
   withSpring,
   Easing,
-  interpolate,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
@@ -28,11 +29,12 @@ import { useTheme } from "@/context/ThemeContext";
 import { useApp, MOCK_DRIVERS } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { MapView } from "@/components/MapView";
-import { GlassCard } from "@/components/GlassCard";
 import { useVoiceAI } from "@/hooks/useVoiceAI";
 import { ridesApi, type DriverInfo } from "@/lib/ridesApi";
 import { connectSocket, joinRideRoom, getSocket } from "@/lib/socket";
 import { useNotification } from "@/context/NotificationContext";
+
+const { height: SCREEN_H } = Dimensions.get("window");
 
 const MESSAGES = [
   "Nearby drivers dhundh rahe hain...",
@@ -56,7 +58,7 @@ function RadarRing({ delay, size }: { delay: number; size: number }) {
     <Animated.View style={[{
       position: "absolute", width: size, height: size,
       borderRadius: size / 2, borderWidth: 1.5,
-      borderColor: "rgba(245,166,35,0.6)",
+      borderColor: "rgba(245,166,35,0.5)",
     }, style]} />
   );
 }
@@ -94,6 +96,23 @@ function PulsingDots() {
         const s = useAnimatedStyle(() => ({ opacity: op.value }));
         return <Animated.View key={i} style={[styles.dot, s]} />;
       })}
+    </View>
+  );
+}
+
+function LiveBadge() {
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(withTiming(1.3, { duration: 700 }), withTiming(1, { duration: 700 })),
+      -1, false
+    );
+  }, []);
+  const dotStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+  return (
+    <View style={styles.liveChip}>
+      <Animated.View style={[styles.liveDot, dotStyle]} />
+      <Text style={styles.liveText}>LIVE</Text>
     </View>
   );
 }
@@ -161,6 +180,7 @@ export function SearchingScreen() {
 
   const vehicleIcon = selectedVehicle === "bike" ? "🏍️" : selectedVehicle === "auto" ? "🛺" : "🚗";
   const vehicleLabel = selectedVehicle === "bike" ? "Bike" : selectedVehicle === "auto" ? "Auto" : "Cab";
+  const vehicleColor = selectedVehicle === "bike" ? "#F5A623" : selectedVehicle === "auto" ? "#22c55e" : "#818cf8";
 
   useEffect(() => {
     announceSearching();
@@ -240,6 +260,18 @@ export function SearchingScreen() {
   }, []);
   const msgStyle = useAnimatedStyle(() => ({ opacity: msgOpacity.value }));
 
+  /* Animated progress fill */
+  const progressWidth = useSharedValue(0);
+  useEffect(() => {
+    progressWidth.value = withRepeat(
+      withSequence(
+        withTiming(0.9, { duration: 3200, easing: Easing.out(Easing.quad) }),
+        withTiming(0.1, { duration: 800, easing: Easing.in(Easing.quad) }),
+      ), -1, false
+    );
+  }, []);
+  const progressStyle = useAnimatedStyle(() => ({ width: `${progressWidth.value * 100}%` as any }));
+
   const handleConfirmCancel = async () => {
     setShowCancelModal(false);
     if (pollRef.current) clearInterval(pollRef.current);
@@ -253,99 +285,133 @@ export function SearchingScreen() {
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
+  /* Cap sheet height so it never overflows the screen */
+  const maxSheetH = SCREEN_H * 0.62;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <MapView showRadar />
 
-      <Animated.View entering={FadeIn.springify()} style={[styles.bottomSheet, { paddingBottom: insets.bottom + 12 }]}>
+      <Animated.View entering={FadeIn.springify()} style={[styles.bottomSheet, { maxHeight: maxSheetH, paddingBottom: insets.bottom + 8 }]}>
+
+        {/* Gradient fade at top of sheet */}
         <LinearGradient
-          colors={[`${colors.background}00`, colors.background]}
+          colors={[`${colors.background}00`, `${colors.background}CC`]}
           style={styles.fadeTop}
           pointerEvents="none"
         />
+
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+
+          {/* Drag handle */}
           <View style={[styles.handle, { backgroundColor: colors.border }]} />
 
-          {/* Header row */}
-          <Animated.View entering={FadeInDown.delay(60)} style={styles.headerRow}>
-            <View style={styles.headerTextCol}>
-              <Text style={[styles.headerTitle, { color: colors.foreground }]}>Driver Mil Raha Hai</Text>
-              <Animated.Text style={[styles.headerSub, msgStyle, { color: colors.mutedForeground }]}>{MESSAGES[msgIndex]}</Animated.Text>
-            </View>
-            <View style={styles.liveChip}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>LIVE</Text>
-            </View>
-          </Animated.View>
-
-          {/* Vehicle + Radar */}
-          <Animated.View entering={FadeInDown.delay(100)} style={styles.radarSection}>
-            <View style={styles.radarWrap}>
-              <RadarRing delay={0} size={90} />
-              <RadarRing delay={740} size={150} />
-              <RadarRing delay={1480} size={210} />
-              <View style={styles.vehicleIconWrap}>
-                <LinearGradient
-                  colors={["#F5A623", "#e8920e"]}
-                  style={styles.vehicleIconBg}
-                >
-                  <Text style={styles.vehicleEmoji}>{vehicleIcon}</Text>
-                </LinearGradient>
-                <SpinningRing />
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* ── Header ── */}
+            <Animated.View entering={FadeInDown.delay(60)} style={styles.headerRow}>
+              <View style={styles.headerTextCol}>
+                <Text style={[styles.headerTitle, { color: colors.foreground }]}>Driver Mil Raha Hai</Text>
+                <Animated.Text style={[styles.headerSub, msgStyle, { color: colors.mutedForeground }]}>
+                  {MESSAGES[msgIndex]}
+                </Animated.Text>
               </View>
-            </View>
-            <PulsingDots />
-            <Text style={[styles.vehicleLabel, { color: colors.mutedForeground }]}>
-              {vehicleLabel} dhundh rahe hain aapke liye
-            </Text>
-          </Animated.View>
+              <LiveBadge />
+            </Animated.View>
 
-          {/* Stats */}
-          <Animated.View entering={FadeInDown.delay(160)} style={[styles.statsRow, { borderColor: colors.border }]}>
-            <LinearGradient
-              colors={["rgba(245,166,35,0.12)", "rgba(245,166,35,0.04)"]}
-              style={[styles.statCard, { borderColor: "rgba(245,166,35,0.25)" }]}
-            >
-              <Text style={styles.statEmoji}>👥</Text>
-              <Text style={styles.statNum}>12</Text>
-              <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Paas ke Drivers</Text>
-            </LinearGradient>
+            {/* ── Radar + Vehicle (compact) ── */}
+            <Animated.View entering={FadeInDown.delay(100)} style={styles.radarRow}>
+              {/* Left: radar */}
+              <View style={styles.radarWrap}>
+                <RadarRing delay={0} size={72} />
+                <RadarRing delay={740} size={112} />
+                <RadarRing delay={1480} size={152} />
+                <View style={styles.vehicleIconWrap}>
+                  <LinearGradient
+                    colors={[vehicleColor, vehicleColor + "CC"]}
+                    style={styles.vehicleIconBg}
+                  >
+                    <Text style={styles.vehicleEmoji}>{vehicleIcon}</Text>
+                  </LinearGradient>
+                  <SpinningRing />
+                </View>
+              </View>
 
-            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+              {/* Right: info */}
+              <View style={styles.radarInfo}>
+                <PulsingDots />
+                <Text style={[styles.vehicleLabel, { color: colors.foreground }]}>
+                  {vehicleLabel} dhundh{"\n"}rahe hain...
+                </Text>
+                <View style={[styles.etaBadge, { backgroundColor: vehicleColor + "18", borderColor: vehicleColor + "44" }]}>
+                  <Text style={[styles.etaText, { color: vehicleColor }]}>⏱ {formatTime(elapsedSeconds)}</Text>
+                </View>
+              </View>
+            </Animated.View>
 
-            <LinearGradient
-              colors={["rgba(99,102,241,0.12)", "rgba(99,102,241,0.04)"]}
-              style={[styles.statCard, { borderColor: "rgba(99,102,241,0.25)" }]}
-            >
-              <Text style={styles.statEmoji}>⏱️</Text>
-              <Text style={[styles.statNum, { color: "#818cf8" }]}>{formatTime(elapsedSeconds)}</Text>
-              <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Intezaar ka Waqt</Text>
-            </LinearGradient>
-          </Animated.View>
-
-          {/* Progress bar */}
-          <Animated.View entering={FadeInDown.delay(200)} style={styles.progressWrap}>
-            <View style={[styles.progressBg, { backgroundColor: colors.secondary }]}>
-              <Animated.View style={[styles.progressFill]} />
-            </View>
-            <Text style={[styles.progressHint, { color: colors.mutedForeground }]}>Best match dhundha ja raha hai...</Text>
-          </Animated.View>
-
-          {/* Cancel button */}
-          <Animated.View entering={FadeInDown.delay(240)} style={{ width: "100%" }}>
-            <Pressable
-              onPress={() => setShowCancelModal(true)}
-              style={styles.cancelBtn}
-            >
+            {/* ── Stats row ── */}
+            <Animated.View entering={FadeInDown.delay(160)} style={styles.statsRow}>
               <LinearGradient
-                colors={["rgba(239,68,68,0.15)", "rgba(239,68,68,0.08)"]}
-                style={styles.cancelGrad}
+                colors={["rgba(245,166,35,0.12)", "rgba(245,166,35,0.04)"]}
+                style={[styles.statCard, { borderColor: "rgba(245,166,35,0.25)" }]}
               >
-                <Text style={styles.cancelX}>✕</Text>
-                <Text style={styles.cancelText}>Ride Cancel Karo</Text>
+                <Text style={styles.statEmoji}>👥</Text>
+                <Text style={styles.statNum}>12</Text>
+                <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Paas ke{"\n"}Drivers</Text>
               </LinearGradient>
-            </Pressable>
-          </Animated.View>
+
+              <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+              <LinearGradient
+                colors={["rgba(99,102,241,0.12)", "rgba(99,102,241,0.04)"]}
+                style={[styles.statCard, { borderColor: "rgba(99,102,241,0.25)" }]}
+              >
+                <Text style={styles.statEmoji}>⏱️</Text>
+                <Text style={[styles.statNum, { color: "#818cf8" }]}>{formatTime(elapsedSeconds)}</Text>
+                <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Intezaar{"\n"}ka Waqt</Text>
+              </LinearGradient>
+
+              <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+
+              <LinearGradient
+                colors={["rgba(34,197,94,0.12)", "rgba(34,197,94,0.04)"]}
+                style={[styles.statCard, { borderColor: "rgba(34,197,94,0.25)" }]}
+              >
+                <Text style={styles.statEmoji}>🗺️</Text>
+                <Text style={[styles.statNum, { color: "#22c55e", fontSize: 18 }]}>2km</Text>
+                <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Search{"\n"}Radius</Text>
+              </LinearGradient>
+            </Animated.View>
+
+            {/* ── Progress bar ── */}
+            <Animated.View entering={FadeInDown.delay(200)} style={styles.progressWrap}>
+              <View style={[styles.progressBg, { backgroundColor: colors.secondary }]}>
+                <Animated.View style={[styles.progressFill, progressStyle]} />
+              </View>
+              <Text style={[styles.progressHint, { color: colors.mutedForeground }]}>
+                Best match dhundha ja raha hai...
+              </Text>
+            </Animated.View>
+
+            {/* ── Cancel button ── */}
+            <Animated.View entering={FadeInDown.delay(240)}>
+              <Pressable
+                onPress={() => setShowCancelModal(true)}
+                style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.75 : 1 }]}
+              >
+                <LinearGradient
+                  colors={["rgba(239,68,68,0.14)", "rgba(239,68,68,0.07)"]}
+                  style={styles.cancelGrad}
+                >
+                  <Text style={styles.cancelX}>✕</Text>
+                  <Text style={styles.cancelText}>Ride Cancel Karo</Text>
+                </LinearGradient>
+              </Pressable>
+            </Animated.View>
+          </ScrollView>
         </View>
       </Animated.View>
 
@@ -363,10 +429,10 @@ const styles = StyleSheet.create({
 
   fadeTop: {
     position: "absolute",
-    top: -48,
+    top: -40,
     left: 0,
     right: 0,
-    height: 56,
+    height: 48,
     zIndex: 1,
   },
 
@@ -380,49 +446,54 @@ const styles = StyleSheet.create({
   card: {
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    paddingTop: 8,
-    paddingHorizontal: 20,
-    paddingBottom: 4,
-    gap: 16,
     borderWidth: 1,
     borderBottomWidth: 0,
     shadowColor: "#000",
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.45,
     shadowRadius: 24,
-    shadowOffset: { width: 0, height: -8 },
+    shadowOffset: { width: 0, height: -6 },
     elevation: 20,
+    overflow: "hidden",
   },
 
   handle: {
-    width: 40,
+    width: 38,
     height: 4,
     borderRadius: 2,
     alignSelf: "center",
-    marginBottom: 4,
+    marginTop: 10,
+    marginBottom: 2,
   },
 
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 6,
+    gap: 14,
+  },
+
+  /* ── Header ── */
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingTop: 4,
   },
   headerTextCol: { flex: 1 },
   headerTitle: {
     fontFamily: "Inter_700Bold",
-    fontSize: 20,
-    letterSpacing: -0.3,
+    fontSize: 21,
+    letterSpacing: -0.4,
   },
   headerSub: {
     fontFamily: "Inter_400Regular",
-    fontSize: 13,
+    fontSize: 12.5,
     marginTop: 2,
   },
-
   liveChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(34,197,94,0.14)",
+    backgroundColor: "rgba(34,197,94,0.13)",
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -442,108 +513,128 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
-  radarSection: { alignItems: "center", gap: 10, paddingVertical: 4 },
-
+  /* ── Radar row (horizontal layout) ── */
+  radarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+    paddingVertical: 6,
+  },
   radarWrap: {
-    width: 180,
-    height: 180,
+    width: 140,
+    height: 140,
     alignItems: "center",
     justifyContent: "center",
   },
-
   vehicleIconWrap: {
-    width: 72,
-    height: 72,
+    width: 60,
+    height: 60,
     alignItems: "center",
     justifyContent: "center",
   },
   vehicleIconBg: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#F5A623",
     shadowOpacity: 0.5,
-    shadowRadius: 16,
+    shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 10,
+    elevation: 8,
   },
-  vehicleEmoji: { fontSize: 30 },
+  vehicleEmoji: { fontSize: 26 },
 
   spinRing: {
-    borderRadius: 36,
+    borderRadius: 30,
     alignItems: "center",
   },
   spinDot: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: 4,
     backgroundColor: "#F5A623",
     position: "absolute",
     top: 0,
     left: "50%",
-    marginLeft: -4,
+    marginLeft: -3.5,
     shadowColor: "#F5A623",
     shadowOpacity: 0.9,
-    shadowRadius: 6,
+    shadowRadius: 5,
     elevation: 5,
   },
 
-  dotsRow: { flexDirection: "row", gap: 6, alignItems: "center" },
+  radarInfo: {
+    flex: 1,
+    gap: 8,
+  },
+  dotsRow: { flexDirection: "row", gap: 5, alignItems: "center" },
   dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: "#F5A623",
   },
-
   vehicleLabel: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-    textAlign: "center",
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  etaBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  etaText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 12,
   },
 
+  /* ── Stats ── */
   statsRow: {
     flexDirection: "row",
     alignItems: "stretch",
-    borderRadius: 18,
+    borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
   },
   statCard: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 14,
-    gap: 3,
-    borderWidth: 0,
+    paddingVertical: 12,
+    gap: 2,
   },
   statDivider: {
     width: 1,
     marginVertical: 8,
   },
-  statEmoji: { fontSize: 20 },
+  statEmoji: { fontSize: 18 },
   statNum: {
     fontFamily: "Inter_700Bold",
-    fontSize: 24,
+    fontSize: 20,
     color: "#F5A623",
     letterSpacing: -0.5,
   },
   statLbl: {
     fontFamily: "Inter_400Regular",
-    fontSize: 11,
+    fontSize: 10,
     textAlign: "center",
+    lineHeight: 14,
   },
 
-  progressWrap: { gap: 6 },
+  /* ── Progress ── */
+  progressWrap: { gap: 5 },
   progressBg: {
-    height: 3,
+    height: 4,
     borderRadius: 2,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    width: "65%",
     backgroundColor: "#F5A623",
     borderRadius: 2,
   },
@@ -553,10 +644,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
+  /* ── Cancel ── */
   cancelBtn: {
     borderRadius: 16,
     overflow: "hidden",
-    marginBottom: 4,
     borderWidth: 1,
     borderColor: "rgba(239,68,68,0.3)",
   },
@@ -565,16 +656,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 14,
+    paddingVertical: 13,
   },
-  cancelX: { fontSize: 13, color: "#f87171" },
+  cancelX: { fontSize: 12, color: "#f87171" },
   cancelText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
     color: "#f87171",
   },
 
-  // Modal
+  /* ── Cancel Modal ── */
   modalBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28 },
   modalCard: {
     width: "100%", borderRadius: 28, overflow: "hidden",
