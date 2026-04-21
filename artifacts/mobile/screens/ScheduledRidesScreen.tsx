@@ -18,7 +18,6 @@ import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useNotification } from "@/context/NotificationContext";
 import { GlassCard } from "@/components/GlassCard";
-import { PrimaryButton } from "@/components/PrimaryButton";
 import { BASE_URL } from "@/lib/api";
 
 const MONTHS_SHORT = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
@@ -84,6 +83,72 @@ const liveCal = StyleSheet.create({
     color: "#F5A623",
     fontFamily: "Inter_700Bold",
     lineHeight: 16,
+  },
+});
+
+function FormDateCalendarIcon({ dateStr }: { dateStr: string }) {
+  let day: string = "--";
+  let month: string = "---";
+
+  if (dateStr && dateStr.length === 10) {
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+      const d = parseInt(parts[2], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      if (!isNaN(d) && !isNaN(m) && m >= 0 && m < 12) {
+        day = String(d);
+        month = MONTHS_SHORT[m];
+      }
+    }
+  }
+
+  return (
+    <View style={formCal.wrap}>
+      <View style={formCal.header}>
+        <Text style={formCal.month}>{month}</Text>
+      </View>
+      <View style={formCal.body}>
+        <Text style={formCal.day}>{day}</Text>
+      </View>
+    </View>
+  );
+}
+
+const formCal = StyleSheet.create({
+  wrap: {
+    width: 44,
+    height: 42,
+    borderRadius: 8,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "#fff",
+    marginRight: 12,
+  },
+  header: {
+    height: 13,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  month: {
+    fontSize: 7,
+    fontWeight: "800",
+    color: "#F5A623",
+    letterSpacing: 0.6,
+    fontFamily: "Inter_700Bold",
+  },
+  body: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+  },
+  day: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#fff",
+    fontFamily: "Inter_700Bold",
+    lineHeight: 19,
   },
 });
 
@@ -371,11 +436,26 @@ export function ScheduledRidesScreen() {
                 multiline
               />
 
-              <PrimaryButton
-                title={submitting ? t("scheduling") : t("schedule_btn")}
+              <TouchableOpacity
                 onPress={handleSubmit}
                 disabled={submitting}
-              />
+                activeOpacity={0.82}
+                style={{
+                  backgroundColor: submitting ? "rgba(245,166,35,0.5)" : "#F5A623",
+                  borderRadius: 16,
+                  height: 58,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginTop: 8,
+                  paddingHorizontal: 20,
+                }}
+              >
+                <FormDateCalendarIcon dateStr={formDate} />
+                <Text style={{ color: "#000", fontSize: 16, fontWeight: "700", fontFamily: "Inter_700Bold" }}>
+                  {submitting ? t("scheduling") : t("schedule_btn")}
+                </Text>
+              </TouchableOpacity>
             </GlassCard>
           </Animated.View>
         )}
