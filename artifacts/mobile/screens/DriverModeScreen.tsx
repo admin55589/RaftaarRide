@@ -605,7 +605,7 @@ export function DriverModeScreen() {
     const req = requests.find((r) => r.id === id);
     if (!req) return;
     setRequests((rs) => rs.filter((r) => r.id !== id));
-    setDriverEarnings((e) => e + req.price);
+    setDriverEarnings(driverEarnings + req.price);
     setChatMessages([]);
     setUnreadCount(0);
     setActiveRide({
@@ -777,7 +777,7 @@ export function DriverModeScreen() {
         </View>
 
         {driver && (
-          <GlassCard style={[styles.profileChip, { marginHorizontal: 16 }]} padding={10}>
+          <GlassCard style={{ ...styles.profileChip, marginHorizontal: 16 }} padding={10}>
             <Pressable onPress={() => { setEditName(driver.name); setEditPhoto(driver.photoUrl ?? null); setShowProfileEdit(true); }}>
               {driver.photoUrl ? (
                 <Image source={{ uri: driver.photoUrl }} style={styles.profileAvatarImg} />
@@ -1460,6 +1460,77 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
   },
+  pinOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  pinCard: {
+    backgroundColor: "#1A1A2E",
+    borderRadius: 24,
+    padding: 28,
+    width: "100%",
+    alignItems: "center",
+    gap: 16,
+    borderWidth: 1,
+    borderColor: "rgba(245,166,35,0.3)",
+  },
+  pinTitle: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 20,
+    color: "#F5A623",
+  },
+  pinSubtitle: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.65)",
+    textAlign: "center",
+  },
+  pinInput: {
+    width: "100%",
+    fontSize: 36,
+    letterSpacing: 16,
+    color: "#FFFFFF",
+    fontFamily: "Inter_700Bold",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "rgba(245,166,35,0.5)",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  pinActions: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  pinCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+  },
+  pinCancelText: {
+    color: "rgba(255,255,255,0.6)",
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
+  },
+  pinSubmitBtn: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: "#F5A623",
+    alignItems: "center",
+  },
+  pinSubmitText: {
+    color: "#0A0A0F",
+    fontFamily: "Inter_700Bold",
+    fontSize: 15,
+  },
 });
 
 const chatStyles = StyleSheet.create({
@@ -1564,76 +1635,5 @@ const chatStyles = StyleSheet.create({
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-  },
-  pinOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.75)",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-  },
-  pinCard: {
-    backgroundColor: "#1A1A2E",
-    borderRadius: 24,
-    padding: 28,
-    width: "100%",
-    alignItems: "center",
-    gap: 16,
-    borderWidth: 1,
-    borderColor: "rgba(245,166,35,0.3)",
-  },
-  pinTitle: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 20,
-    color: "#F5A623",
-  },
-  pinSubtitle: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.65)",
-    textAlign: "center",
-  },
-  pinInput: {
-    width: "100%",
-    fontSize: 36,
-    letterSpacing: 16,
-    color: "#FFFFFF",
-    fontFamily: "Inter_700Bold",
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "rgba(245,166,35,0.5)",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-  },
-  pinActions: {
-    flexDirection: "row",
-    gap: 12,
-    width: "100%",
-  },
-  pinCancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-  },
-  pinCancelText: {
-    color: "rgba(255,255,255,0.6)",
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 15,
-  },
-  pinSubmitBtn: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: "#F5A623",
-    alignItems: "center",
-  },
-  pinSubmitText: {
-    color: "#0A0A0F",
-    fontFamily: "Inter_700Bold",
-    fontSize: 15,
   },
 });

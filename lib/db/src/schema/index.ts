@@ -7,8 +7,6 @@ import {
   timestamp,
   boolean,
 } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -28,8 +26,7 @@ export const usersTable = pgTable("users", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true });
-export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertUser = typeof usersTable.$inferInsert;
 export type User = typeof usersTable.$inferSelect;
 
 export const driversTable = pgTable("drivers", {
@@ -56,8 +53,7 @@ export const driversTable = pgTable("drivers", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertDriverSchema = createInsertSchema(driversTable).omit({ id: true, createdAt: true });
-export type InsertDriver = z.infer<typeof insertDriverSchema>;
+export type InsertDriver = typeof driversTable.$inferInsert;
 export type Driver = typeof driversTable.$inferSelect;
 
 export const ridesTable = pgTable("rides", {
@@ -84,8 +80,7 @@ export const ridesTable = pgTable("rides", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertRideSchema = createInsertSchema(ridesTable).omit({ id: true, createdAt: true });
-export type InsertRide = z.infer<typeof insertRideSchema>;
+export type InsertRide = typeof ridesTable.$inferInsert;
 export type Ride = typeof ridesTable.$inferSelect;
 
 export const promoCodesTable = pgTable("promo_codes", {

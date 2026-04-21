@@ -13,7 +13,7 @@ import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
-import { useApp } from "@/context/AppContext";
+import { useApp, type VehicleType } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useNotification } from "@/context/NotificationContext";
@@ -355,7 +355,7 @@ export function ScheduledRidesScreen() {
                       backgroundColor: formVehicle === v ? colors.primary + "22" : inputBg,
                       borderColor: formVehicle === v ? colors.primary : inputBorder,
                     }]}
-                    onPress={() => setFormVehicle(v)}
+                    onPress={() => setFormVehicle(v as VehicleType)}
                   >
                     <Text style={styles.vehicleIcon}>{icon}</Text>
                     <Text style={[styles.vehicleName, { color: formVehicle === v ? colors.primary : colors.textSecondary }]}>
