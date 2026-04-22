@@ -23,3 +23,9 @@ id = "4cywhCaI-ZdPE1RydSydh"
 uri = "file://RaftaarRide_Admin_Panel.tar.gz"
 type = "unspecified"
 title = "RaftaarRide Admin Panel — Complete Source Code"
+
+[[outputs]]
+id = "sVJ3Z1slc9uPnOYEVE-M9"
+uri = "file://RaftaarRide_Android_App.tar.gz"
+type = "unspecified"
+title = "RaftaarRide Android App — Complete Source Code"
