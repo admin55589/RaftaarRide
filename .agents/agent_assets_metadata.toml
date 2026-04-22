@@ -11,3 +11,9 @@ id = "41Z-rz8ZbMm4U_s0WR1A_"
 uri = "file://RaftaarRide_FullApp.tar.gz"
 type = "unspecified"
 title = "RaftaarRide Full App (tar.gz)"
+
+[[outputs]]
+id = "zSPSWnJMmOS5ZFIJg4CK8"
+uri = "file://RaftaarRide_Complete.tar.gz"
+type = "unspecified"
+title = "RaftaarRide Complete Project (app + admin + backend)"
