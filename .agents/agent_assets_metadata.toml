@@ -17,3 +17,9 @@ id = "zSPSWnJMmOS5ZFIJg4CK8"
 uri = "file://RaftaarRide_Complete.tar.gz"
 type = "unspecified"
 title = "RaftaarRide Complete Project (app + admin + backend)"
+
+[[outputs]]
+id = "4cywhCaI-ZdPE1RydSydh"
+uri = "file://RaftaarRide_Admin_Panel.tar.gz"
+type = "unspecified"
+title = "RaftaarRide Admin Panel — Complete Source Code"
