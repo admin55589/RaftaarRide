@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "796255910809",
+    "project_id": "raftaarride-31847",
+    "storage_bucket": "raftaarride-31847.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:796255910809:android:d7d981dbe6a67f5e1eb108",
+        "android_client_info": {
+          "package_name": "com.raftaarride.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "REPLACE_WITH_YOUR_FIREBASE_API_KEY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
