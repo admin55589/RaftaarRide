@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useDriverAuth } from "@/context/DriverAuthContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { saveDriverToFirestore } from "@/lib/authApi";
+import { firebaseDriverRegister } from "@/lib/authApi";
 
 const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
@@ -108,29 +108,41 @@ export default function DriverRegisterScreen() {
       const formatted = phone.trim().startsWith("+91")
         ? phone.trim()
         : `+91${phone.trim()}`;
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanName = name.trim();
+      const cleanVehicleNumber = vehicleNumber.trim().toUpperCase();
+
+      // Step 1: Firebase Authentication account + Firestore "drivers" mein save
+      try {
+        await firebaseDriverRegister({
+          name: cleanName,
+          email: cleanEmail,
+          password,
+          phone: formatted,
+          vehicleType,
+          vehicleNumber: cleanVehicleNumber,
+          licenseNumber: licenseNumber.trim(),
+        });
+      } catch (fbErr: any) {
+        // Firebase email already in use
+        if (fbErr?.code === "auth/email-already-in-use") {
+          throw new Error("Yeh email already registered hai");
+        }
+        // Firebase config issue — continue without Firebase
+        console.warn("[Firebase] Driver auth skipped:", fbErr?.code);
+      }
+
+      // Step 2: Backend PostgreSQL mein bhi save karo
       const res = await driverRegister({
-        name: name.trim(),
+        name: cleanName,
         phone: formatted,
-        email: email.trim().toLowerCase(),
+        email: cleanEmail,
         password,
         vehicleType,
-        vehicleNumber: vehicleNumber.trim().toUpperCase(),
+        vehicleNumber: cleanVehicleNumber,
         licenseNumber: licenseNumber.trim(),
       });
       await saveDriverLogin(res.token, res.driver);
-
-      // Firestore "drivers" collection mein save karo (users mein nahi)
-      const cleanPhone = phone.trim().replace(/\D/g, "");
-      const docId = `driver_${cleanPhone}`;
-      await saveDriverToFirestore({
-        docId,
-        name: name.trim(),
-        phone: formatted,
-        vehicleType,
-        vehicleNumber: vehicleNumber.trim().toUpperCase(),
-        licenseNumber: licenseNumber.trim(),
-      });
-
       router.replace("/(tabs)");
     } catch (err: any) {
       setError(err.message || "Registration failed");

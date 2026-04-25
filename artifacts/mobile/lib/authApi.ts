@@ -132,7 +132,9 @@ async function firebaseLogin(params: {
 // ─── Driver Firestore save (separate "drivers" collection) ────────
 export async function saveDriverToFirestore(params: {
   docId: string;
+  uid?: string;
   name: string;
+  email?: string;
   phone: string;
   vehicleType: string;
   vehicleNumber: string;
@@ -145,15 +147,16 @@ export async function saveDriverToFirestore(params: {
     await setDoc(
       doc(db, "drivers", params.docId),
       {
-        uid: params.docId,
+        uid: params.uid ?? params.docId,
         name: params.name,
+        email: params.email ?? "",
         phone: params.phone,
         role: "driver",
         vehicleType: params.vehicleType,
         vehicleNumber: params.vehicleNumber,
         licenseNumber: params.licenseNumber ?? "",
         isOnline: false,
-        rating: 5.0,
+        rating: 0,
         createdAt: serverTimestamp(),
       },
       { merge: true }
@@ -161,6 +164,48 @@ export async function saveDriverToFirestore(params: {
   } catch (e) {
     console.warn("[Firestore] saveDriverToFirestore failed:", e);
   }
+}
+
+// ─── Firebase Auth + Firestore for Driver ─────────────────────────
+export async function firebaseDriverRegister(params: {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
+  vehicleType: string;
+  vehicleNumber: string;
+  licenseNumber?: string;
+}): Promise<{ uid: string; token: string }> {
+  const { createUserWithEmailAndPassword, updateProfile } = await import(
+    "firebase/auth"
+  );
+  const auth = await getFirebaseAuth();
+
+  // 1. Firebase Authentication account banao
+  const cred = await createUserWithEmailAndPassword(
+    auth,
+    params.email,
+    params.password
+  );
+  const user = cred.user;
+
+  // 2. Display name set karo
+  await updateProfile(user, { displayName: params.name });
+
+  // 3. Firestore "drivers" collection mein save karo (uid = doc ID)
+  await saveDriverToFirestore({
+    docId: user.uid,
+    uid: user.uid,
+    name: params.name,
+    email: params.email,
+    phone: params.phone,
+    vehicleType: params.vehicleType,
+    vehicleNumber: params.vehicleNumber,
+    licenseNumber: params.licenseNumber,
+  });
+
+  const token = await user.getIdToken();
+  return { uid: user.uid, token };
 }
 
 // ─── Shared Firestore save helper (users collection) ──────────────
