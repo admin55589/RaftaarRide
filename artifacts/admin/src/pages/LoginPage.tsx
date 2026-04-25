@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { adminLogin } from "@workspace/api-client-react";
+import { firebaseAdminLogin } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 
 export function LoginPage() {
@@ -15,10 +15,23 @@ export function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const res = await adminLogin({ email, password });
-      login(res.token);
-    } catch {
-      setError("Invalid credentials. Please check your email and password.");
+      const token = await firebaseAdminLogin(email, password);
+      login(token);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg === "ACCESS_DENIED") {
+        setError("Yeh account admin nahi hai. Sirf admin email se login karo.");
+      } else if (
+        msg.includes("auth/invalid-credential") ||
+        msg.includes("auth/wrong-password") ||
+        msg.includes("auth/user-not-found")
+      ) {
+        setError("Email ya password galat hai. Dobara check karo.");
+      } else if (msg.includes("auth/too-many-requests")) {
+        setError("Bahut zyada attempts. Thodi der baad try karo.");
+      } else {
+        setError("Login failed. Check your email and password.");
+      }
     } finally {
       setLoading(false);
     }
@@ -76,7 +89,7 @@ export function LoginPage() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-4">
-          Demo credentials pre-filled above
+          Firebase Authentication — RaftaarRide Admin
         </p>
       </div>
     </div>
