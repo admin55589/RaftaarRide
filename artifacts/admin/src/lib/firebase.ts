@@ -29,22 +29,36 @@ export async function firebaseAdminLogin(email: string, password: string): Promi
     throw new Error("ACCESS_DENIED");
   }
 
+  const firebaseToken = await cred.user.getIdToken();
+
   const apiBase = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
 
   try {
-    const res = await fetch(`${apiBase}/api/admin/login`, {
+    const res = await fetch(`${apiBase}/api/admin/firebase-verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ idToken: firebaseToken }),
     });
     if (res.ok) {
       const data = await res.json() as { token: string };
-      return data.token;
+      if (data.token) return data.token;
     }
   } catch {
   }
 
-  const firebaseToken = await cred.user.getIdToken();
+  try {
+    const res2 = await fetch(`${apiBase}/api/admin/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    if (res2.ok) {
+      const data = await res2.json() as { token: string };
+      if (data.token) return data.token;
+    }
+  } catch {
+  }
+
   return firebaseToken;
 }
 
