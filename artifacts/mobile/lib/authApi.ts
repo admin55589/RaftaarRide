@@ -130,13 +130,14 @@ async function firebaseLogin(params: {
 }
 
 // ─── Shared Firestore save helper ─────────────────────────────────
-async function saveUserToFirestore(params: {
+export async function saveUserToFirestore(params: {
   docId: string;
   uid?: string;
   name: string;
   email?: string | null;
   phone: string;
   role?: string;
+  extraFields?: Record<string, string | boolean | number | null>;
 }) {
   if (!isFirebaseReady) return;
   try {
@@ -151,8 +152,9 @@ async function saveUserToFirestore(params: {
         phone: params.phone,
         role: params.role ?? "user",
         createdAt: serverTimestamp(),
+        ...(params.extraFields ?? {}),
       },
-      { merge: true } // existing user ka data overwrite nahi hoga
+      { merge: true }
     );
   } catch (e) {
     console.warn("[Firestore] saveUserToFirestore failed:", e);
