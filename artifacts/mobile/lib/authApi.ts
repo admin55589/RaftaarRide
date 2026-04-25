@@ -68,10 +68,8 @@ async function firebaseRegister(params: {
   const { createUserWithEmailAndPassword, updateProfile } = await import(
     "firebase/auth"
   );
-  const { doc, setDoc, serverTimestamp } = await import("firebase/firestore");
 
   const auth = await getFirebaseAuth();
-  const db = await getFirebaseFirestore();
 
   const cred = await createUserWithEmailAndPassword(
     auth,
@@ -82,14 +80,14 @@ async function firebaseRegister(params: {
 
   await updateProfile(user, { displayName: params.name });
 
-  // Save user profile to Firestore "users" collection
-  await setDoc(doc(db, "users", user.uid), {
+  // Save user profile to Firestore "users" collection (doc ID = Firebase uid)
+  await saveUserToFirestore({
+    docId: user.uid,
     uid: user.uid,
     name: params.name,
     email: params.email,
     phone: params.phone ?? "",
     role: "user",
-    createdAt: serverTimestamp(),
   });
 
   const token = await user.getIdToken();
@@ -129,6 +127,36 @@ async function firebaseLogin(params: {
       isFirebase: true,
     },
   };
+}
+
+// ─── Shared Firestore save helper ─────────────────────────────────
+async function saveUserToFirestore(params: {
+  docId: string;
+  uid?: string;
+  name: string;
+  email?: string | null;
+  phone: string;
+  role?: string;
+}) {
+  if (!isFirebaseReady) return;
+  try {
+    const { doc, setDoc, serverTimestamp } = await import("firebase/firestore");
+    const db = await getFirebaseFirestore();
+    await setDoc(
+      doc(db, "users", params.docId),
+      {
+        uid: params.uid ?? params.docId,
+        name: params.name,
+        email: params.email ?? "",
+        phone: params.phone,
+        role: params.role ?? "user",
+        createdAt: serverTimestamp(),
+      },
+      { merge: true } // existing user ka data overwrite nahi hoga
+    );
+  } catch (e) {
+    console.warn("[Firestore] saveUserToFirestore failed:", e);
+  }
 }
 
 async function firebaseLogout() {
@@ -215,8 +243,19 @@ export const authApi = {
   sendOtp: (phone: string) =>
     post<{ message: string; otp?: string; isNewUser?: boolean; smsSent?: boolean }>("/auth/send-otp", { phone }),
 
-  verifyOtp: (body: { phone: string; otp: string }) =>
-    post<AuthResponse>("/auth/verify-otp", body),
+  verifyOtp: async (body: { phone: string; otp: string; name?: string }): Promise<AuthResponse> => {
+    const res = await post<AuthResponse>("/auth/verify-otp", body);
+    // Phone OTP signup — save to Firestore (doc ID = "phone_<number>")
+    const docId = `phone_${res.user.phone.replace(/\D/g, "")}`;
+    await saveUserToFirestore({
+      docId,
+      name: res.user.name || body.name || "",
+      email: res.user.email ?? "",
+      phone: res.user.phone,
+      role: "user",
+    });
+    return res;
+  },
 
   firebaseLogout,
 };
