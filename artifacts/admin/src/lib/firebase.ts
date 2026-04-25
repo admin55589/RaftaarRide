@@ -31,7 +31,9 @@ export async function firebaseAdminLogin(email: string, password: string): Promi
 
   const firebaseToken = await cred.user.getIdToken();
 
-  const apiBase = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
+  const REPLIT_API_URL = "https://68e41a5f-c1bd-4337-9c0e-5f9c6dd535e1-00-3rxx9zjx78ze2.janeway.replit.dev";
+  const apiBase = ((import.meta.env.VITE_API_URL as string | undefined) ??
+    (import.meta.env.DEV ? "" : REPLIT_API_URL)).replace(/\/+$/, "");
 
   try {
     const res = await fetch(`${apiBase}/api/admin/firebase-verify`, {
