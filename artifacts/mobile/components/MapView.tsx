@@ -5,7 +5,7 @@ import * as Location from "expo-location";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 
-const MAPBOX_TOKEN = "pk.eyJ1IjoicmFmdGFhcnJpZGUxNTY2IiwiYSI6ImNtbzdscTF3MzA4cTkycHM2czFmbjVocXcifQ.x7rpAJ_b9THRrw_wg76YuQ";
+const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || "";
 const DEFAULT_CENTER = { lat: 28.6139, lng: 77.2090 };
 
 interface MapViewProps {
