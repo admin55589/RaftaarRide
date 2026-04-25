@@ -23,12 +23,29 @@ const ADMIN_EMAILS = ["admin.raftaarride@gmail.com"];
 
 export async function firebaseAdminLogin(email: string, password: string): Promise<string> {
   const cred = await signInWithEmailAndPassword(auth, email, password);
+
   if (!ADMIN_EMAILS.includes(cred.user.email ?? "")) {
     await signOut(auth);
     throw new Error("ACCESS_DENIED");
   }
-  const token = await cred.user.getIdToken();
-  return token;
+
+  const apiBase = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
+
+  try {
+    const res = await fetch(`${apiBase}/api/admin/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    if (res.ok) {
+      const data = await res.json() as { token: string };
+      return data.token;
+    }
+  } catch {
+  }
+
+  const firebaseToken = await cred.user.getIdToken();
+  return firebaseToken;
 }
 
 export async function firebaseAdminLogout(): Promise<void> {

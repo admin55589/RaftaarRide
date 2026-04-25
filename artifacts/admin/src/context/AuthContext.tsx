@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useRef, useEffect, type ReactNode } from "react";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
-import { firebaseAdminLogout, auth, onAuthStateChanged } from "@/lib/firebase";
+import { firebaseAdminLogout } from "@/lib/firebase";
 
 interface AuthContextType {
   token: string | null;
@@ -31,18 +31,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setAuthTokenGetter(() => tokenRef.current);
     return () => setAuthTokenGetter(null);
-  }, []);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const freshToken = await user.getIdToken();
-        localStorage.setItem(TOKEN_KEY, freshToken);
-        tokenRef.current = freshToken;
-        setToken(freshToken);
-      }
-    });
-    return unsub;
   }, []);
 
   const logout = async () => {
