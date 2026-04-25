@@ -33,48 +33,74 @@ export interface AuthResponse {
   };
 }
 
+const firebaseConfig = {
+  apiKey: FIREBASE_API_KEY,
+  authDomain: "raftaarride-31847.firebaseapp.com",
+  projectId: "raftaarride-31847",
+  storageBucket: "raftaarride-31847.firebasestorage.app",
+  messagingSenderId: "796255910809",
+  appId: "1:796255910809:android:d7d981dbe6a67f5e1eb108",
+};
+
+async function getFirebaseApp() {
+  const { initializeApp, getApps, getApp } = await import("firebase/app");
+  return getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+}
+
 async function getFirebaseAuth() {
-  const { initializeApp, getApps } = await import("firebase/app");
   const { getAuth } = await import("firebase/auth");
-
-  const firebaseConfig = {
-    apiKey: FIREBASE_API_KEY,
-    authDomain: "raftaarride-31847.firebaseapp.com",
-    projectId: "raftaarride-31847",
-    storageBucket: "raftaarride-31847.firebasestorage.app",
-    messagingSenderId: "796255910809",
-    appId: "1:796255910809:android:d7d981dbe6a67f5e1eb108",
-  };
-
-  const app =
-    getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+  const app = await getFirebaseApp();
   return getAuth(app);
+}
+
+async function getFirebaseFirestore() {
+  const { getFirestore } = await import("firebase/firestore");
+  const app = await getFirebaseApp();
+  return getFirestore(app);
 }
 
 async function firebaseRegister(params: {
   name: string;
   email: string;
   password: string;
+  phone?: string;
 }): Promise<AuthResponse> {
   const { createUserWithEmailAndPassword, updateProfile } = await import(
     "firebase/auth"
   );
+  const { doc, setDoc, serverTimestamp } = await import("firebase/firestore");
+
   const auth = await getFirebaseAuth();
+  const db = await getFirebaseFirestore();
+
   const cred = await createUserWithEmailAndPassword(
     auth,
     params.email,
     params.password
   );
-  await updateProfile(cred.user, { displayName: params.name });
-  const token = await cred.user.getIdToken();
+  const user = cred.user;
+
+  await updateProfile(user, { displayName: params.name });
+
+  // Save user profile to Firestore "users" collection
+  await setDoc(doc(db, "users", user.uid), {
+    uid: user.uid,
+    name: params.name,
+    email: params.email,
+    phone: params.phone ?? "",
+    role: "user",
+    createdAt: serverTimestamp(),
+  });
+
+  const token = await user.getIdToken();
   return {
     token,
     user: {
-      id: cred.user.uid,
+      id: user.uid,
       name: params.name,
-      phone: "",
+      phone: params.phone ?? "",
       email: params.email,
-      isVerified: cred.user.emailVerified,
+      isVerified: user.emailVerified,
       isFirebase: true,
     },
   };
@@ -143,6 +169,7 @@ export const authApi = {
           name: body.name,
           email: body.email,
           password: body.password,
+          phone: body.phone,
         });
       } catch (err: any) {
         const mapped = mapFirebaseError(err?.code ?? "");
