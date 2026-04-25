@@ -2,6 +2,5 @@
   "framework": "vite",
   "buildCommand": "vite build",
   "outputDirectory": "dist",
-  "installCommand": "pnpm install",
-  "rootDirectory": "artifacts/admin"
+  "installCommand": "pnpm install"
 }
