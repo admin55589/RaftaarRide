@@ -1,0 +1,6 @@
+{
+  "framework": "vite",
+  "buildCommand": "cd artifacts/admin && npx vite build --config vite.config.vercel.ts",
+  "outputDirectory": "artifacts/admin/dist",
+  "installCommand": "pnpm install --frozen-lockfile"
+}
