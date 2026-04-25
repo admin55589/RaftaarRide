@@ -129,7 +129,41 @@ async function firebaseLogin(params: {
   };
 }
 
-// ─── Shared Firestore save helper ─────────────────────────────────
+// ─── Driver Firestore save (separate "drivers" collection) ────────
+export async function saveDriverToFirestore(params: {
+  docId: string;
+  name: string;
+  phone: string;
+  vehicleType: string;
+  vehicleNumber: string;
+  licenseNumber?: string;
+}) {
+  if (!isFirebaseReady) return;
+  try {
+    const { doc, setDoc, serverTimestamp } = await import("firebase/firestore");
+    const db = await getFirebaseFirestore();
+    await setDoc(
+      doc(db, "drivers", params.docId),
+      {
+        uid: params.docId,
+        name: params.name,
+        phone: params.phone,
+        role: "driver",
+        vehicleType: params.vehicleType,
+        vehicleNumber: params.vehicleNumber,
+        licenseNumber: params.licenseNumber ?? "",
+        isOnline: false,
+        rating: 5.0,
+        createdAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn("[Firestore] saveDriverToFirestore failed:", e);
+  }
+}
+
+// ─── Shared Firestore save helper (users collection) ──────────────
 export async function saveUserToFirestore(params: {
   docId: string;
   uid?: string;

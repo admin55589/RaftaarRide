@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useDriverAuth } from "@/context/DriverAuthContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { saveUserToFirestore } from "@/lib/authApi";
+import { saveDriverToFirestore } from "@/lib/authApi";
 
 const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
@@ -119,21 +119,16 @@ export default function DriverRegisterScreen() {
       });
       await saveDriverLogin(res.token, res.driver);
 
-      // Firestore mein driver data save karo
+      // Firestore "drivers" collection mein save karo (users mein nahi)
       const cleanPhone = phone.trim().replace(/\D/g, "");
       const docId = `driver_${cleanPhone}`;
-      await saveUserToFirestore({
+      await saveDriverToFirestore({
         docId,
         name: name.trim(),
-        email: email.trim().toLowerCase(),
         phone: formatted,
-        role: "driver",
-        extraFields: {
-          vehicleType,
-          vehicleNumber: vehicleNumber.trim().toUpperCase(),
-          licenseNumber: licenseNumber.trim(),
-          isApproved: false,
-        },
+        vehicleType,
+        vehicleNumber: vehicleNumber.trim().toUpperCase(),
+        licenseNumber: licenseNumber.trim(),
       });
 
       router.replace("/(tabs)");
