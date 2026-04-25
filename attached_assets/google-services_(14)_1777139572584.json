@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "796255910809",
+    "project_id": "raftaarride-31847",
+    "storage_bucket": "raftaarride-31847.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:796255910809:android:d7d981dbe6a67f5e1eb108",
+        "android_client_info": {
+          "package_name": "com.raftaarride.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "796255910809-5lv0b7c48uluid0itrvi2bb8n6us7gr6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.raftaarride.app",
+            "certificate_hash": "65ecd466875e7a5f7bc56728e875cce73dccd96d"
+          }
+        },
+        {
+          "client_id": "796255910809-nsog2u0ik6k3amgrupnkpom0v7fqcfcp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1bBRw_CsD8y_nlI5szxYk4aFZBxOVjW8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "796255910809-nsog2u0ik6k3amgrupnkpom0v7fqcfcp.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -42,6 +42,39 @@ router.post("/admin/login", async (req: Request, res: Response) => {
   res.json({ token, role: "admin" });
 });
 
+router.post("/admin/firebase-verify", async (req: Request, res: Response) => {
+  const { idToken } = req.body as { idToken: string };
+  if (!idToken) {
+    res.status(400).json({ message: "idToken required" });
+    return;
+  }
+  try {
+    const FIREBASE_API_KEY = "AIzaSyC1bBRw_CsD8y_nlI5szxYk4aFZBxOVjW8";
+    const lookupRes = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      }
+    );
+    const lookupData = await lookupRes.json() as { users?: Array<{ email: string }> };
+    const firebaseUser = lookupData.users?.[0];
+    if (!firebaseUser?.email) {
+      res.status(401).json({ message: "Invalid Firebase token" });
+      return;
+    }
+    if (firebaseUser.email !== ADMIN_EMAIL) {
+      res.status(403).json({ message: "Not an admin account" });
+      return;
+    }
+    const token = jwt.sign({ role: "admin", email: firebaseUser.email }, JWT_SECRET, { expiresIn: "7d" });
+    res.json({ token, role: "admin" });
+  } catch {
+    res.status(500).json({ message: "Firebase verification failed" });
+  }
+});
+
 router.get("/admin/stats", authMiddleware, async (_req: Request, res: Response) => {
   const [totalUsersResult] = await db.select({ count: sql<number>`count(*)` }).from(usersTable);
   const [totalDriversResult] = await db.select({ count: sql<number>`count(*)` }).from(driversTable);

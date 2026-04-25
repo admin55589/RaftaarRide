@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useRef, useEffect, type ReactNode } from "react";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { firebaseAdminLogout } from "@/lib/firebase";
+import { setGlobalLogout } from "./logout";
 
 interface AuthContextType {
   token: string | null;
@@ -12,13 +13,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const TOKEN_KEY = "raftaar_admin_token";
-
-type LogoutFn = () => void;
-let _globalLogout: LogoutFn | null = null;
-
-export function triggerGlobalLogout() {
-  _globalLogout?.();
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => {
@@ -40,7 +34,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try { await firebaseAdminLogout(); } catch { }
   };
 
-  _globalLogout = logout;
+  useEffect(() => {
+    setGlobalLogout(logout);
+    return () => setGlobalLogout(null);
+  });
 
   const login = (newToken: string) => {
     localStorage.setItem(TOKEN_KEY, newToken);
