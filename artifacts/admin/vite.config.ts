@@ -64,6 +64,9 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    proxy: {
+      "/api": { target: "http://localhost:8080", changeOrigin: true },
+    },
   },
   preview: {
     port: isNaN(port) || port <= 0 ? 3000 : port,
