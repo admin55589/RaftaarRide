@@ -168,7 +168,7 @@ router.get("/privacy", (_req: Request, res: Response) => {
     <p>We share your information only in the following circumstances:</p>
     <ul>
       <li><strong>With Drivers/Users:</strong> Your name and pickup location are shared with the matched Driver (or Driver details shared with the User) for the purpose of completing the ride.</li>
-      <li><strong>Service Providers:</strong> We work with trusted third parties such as Razorpay (payments), Fast2SMS / Firebase (OTP delivery), and Mapbox (mapping). Each provider has its own privacy policy.</li>
+      <li><strong>Service Providers:</strong> We work with trusted third parties such as Razorpay (payments), Firebase (OTP delivery and authentication), and Mapbox (mapping). Each provider has its own privacy policy.</li>
       <li><strong>Legal Requirements:</strong> We may disclose information when required by law, court order, or government authority in India.</li>
       <li><strong>Business Transfer:</strong> In the event of a merger or acquisition, user data may be transferred as a business asset.</li>
     </ul>

@@ -13,15 +13,18 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+// Firebase Blaze plan — Phone Auth via REST API
 const FIREBASE_API_KEY = "AIzaSyBE3Uy6XvWjtpccm92bPDVNK0YFRKmV4fI";
 
 // Send OTP via Firebase Phone Auth REST API — returns sessionInfo on success
 async function firebaseSendOtp(phone: string): Promise<string | null> {
-  const appCheckToken = process.env.FIREBASE_APP_CHECK_TOKEN;
-  if (!appCheckToken) return null;
-
-  // Ensure E.164 format
+  // E.164 format ensure karo
   const e164 = phone.startsWith("+") ? phone : `+91${phone.replace(/\D/g, "")}`;
+
+  // App Check token optional hai — agar set hai toh use karo
+  const appCheckToken = process.env.FIREBASE_APP_CHECK_TOKEN;
+  const body: Record<string, string> = { phoneNumber: e164 };
+  if (appCheckToken) body.appCheckToken = appCheckToken;
 
   try {
     const res = await fetch(
@@ -29,12 +32,12 @@ async function firebaseSendOtp(phone: string): Promise<string | null> {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneNumber: e164, appCheckToken }),
+        body: JSON.stringify(body),
       }
     );
     const data = (await res.json()) as { sessionInfo?: string; error?: { message: string } };
     if (data.sessionInfo) {
-      console.log(`[OTP][Firebase] SMS sent to ${phone}`);
+      console.log(`[OTP][Firebase] SMS sent to ${e164}`);
       return data.sessionInfo;
     }
     console.error("[OTP][Firebase] Failed:", data.error?.message);
@@ -64,52 +67,13 @@ async function firebaseVerifyOtp(sessionInfo: string, code: string): Promise<boo
   return false;
 }
 
+// Sirf Firebase Blaze plan — koi Fast2SMS/MSG91 nahi
 async function sendSmsOtp(phone: string, otp: string): Promise<{ sent: boolean; dev: boolean; sessionInfo?: string }> {
-  const fast2smsKey = process.env.FAST2SMS_API_KEY;
-  const msg91Key = process.env.MSG91_API_KEY;
-  const msg91Template = process.env.MSG91_TEMPLATE_ID;
-
-  // 1. Try Firebase Phone Auth (real SMS via Google)
+  // Firebase Phone Auth (Blaze plan)
   const sessionInfo = await firebaseSendOtp(phone);
   if (sessionInfo) return { sent: true, dev: false, sessionInfo };
 
-  // 2. Try Fast2SMS
-  const digits = phone.replace(/^\+91/, "").replace(/^91/, "").replace(/\D/g, "");
-  if (fast2smsKey) {
-    try {
-      const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${fast2smsKey}&route=otp&variables_values=${otp}&numbers=${digits}`;
-      const res = await fetch(url, { headers: { "cache-control": "no-cache" } });
-      const data = (await res.json()) as { return: boolean; message?: string[] };
-      if (data.return) {
-        console.log(`[OTP][Fast2SMS] Sent to ${phone}`);
-        return { sent: true, dev: false };
-      }
-      console.error("[OTP][Fast2SMS] Failed:", data.message);
-    } catch (err) {
-      console.error("[OTP][Fast2SMS] Error:", err);
-    }
-  }
-
-  // 3. Try MSG91
-  if (msg91Key && msg91Template) {
-    try {
-      const res = await fetch("https://control.msg91.com/api/v5/flow/", {
-        method: "POST",
-        headers: { authkey: msg91Key, "Content-Type": "application/json" },
-        body: JSON.stringify({ template_id: msg91Template, short_url: "0", mobiles: `91${digits}`, otp }),
-      });
-      const data = (await res.json()) as { type: string };
-      if (data.type === "success") {
-        console.log(`[OTP][MSG91] Sent to ${phone}`);
-        return { sent: true, dev: false };
-      }
-      console.error("[OTP][MSG91] Failed:", data);
-    } catch (err) {
-      console.error("[OTP][MSG91] Error:", err);
-    }
-  }
-
-  // 4. Dev fallback
+  // Dev fallback (jab tak Firebase configure nahi)
   console.log(`[OTP][DEV] Phone: ${phone} → OTP: ${otp}`);
   return { sent: false, dev: true };
 }
