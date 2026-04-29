@@ -107,16 +107,28 @@ export function RidesPage() {
                       </td>
                       <td className="px-5 py-3.5 font-semibold text-foreground">{formatCurrency(ride.price)}</td>
                       <td className="px-5 py-3.5 hidden xl:table-cell">
-                        {(ride as any).commissionAmount && parseFloat((ride as any).commissionAmount) > 0 ? (
-                          <div className="flex flex-col gap-0.5">
+                        <div className="flex flex-col gap-1">
+                          {(ride as any).commissionAmount && parseFloat((ride as any).commissionAmount) > 0 ? (
                             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                               +{formatCurrency((ride as any).commissionAmount)}
                             </span>
-                            <span className="text-xs text-muted-foreground">6.7%</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">—</span>
-                        )}
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">—</span>
+                          )}
+                          {(ride as any).paymentMethod && (
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full w-fit ${
+                              (ride as any).paymentMethod === "Cash"
+                                ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"
+                                : "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                            }`}>
+                              {(ride as any).paymentMethod === "Cash" ? "💵 Cash" :
+                               (ride as any).paymentMethod === "UPI" ? "📲 UPI" :
+                               (ride as any).paymentMethod === "Card" ? "💳 Card" :
+                               (ride as any).paymentMethod === "RaftaarWallet" ? "👛 Wallet" :
+                               (ride as any).paymentMethod}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-5 py-3.5">
                         <StatusBadge status={ride.status} />
