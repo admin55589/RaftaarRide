@@ -183,21 +183,42 @@ function SOSModal({ visible, onClose }: { visible: boolean; onClose: () => void 
   const { isDark } = useTheme();
   const colors = useColors();
   const pulseScale = useSharedValue(1);
+  const ringScale = useSharedValue(1);
+  const ringOpacity = useSharedValue(0.6);
 
   useEffect(() => {
     if (visible) {
       pulseScale.value = withRepeat(
-        withSequence(withTiming(1.12, { duration: 600, easing: Easing.out(Easing.sin) }), withTiming(1, { duration: 600 })),
+        withSequence(
+          withTiming(1.1, { duration: 700, easing: Easing.out(Easing.sin) }),
+          withTiming(1, { duration: 700 })
+        ),
+        -1, false
+      );
+      ringScale.value = withRepeat(
+        withSequence(withTiming(1.5, { duration: 1000 }), withTiming(1, { duration: 0 })),
+        -1, false
+      );
+      ringOpacity.value = withRepeat(
+        withSequence(withTiming(0, { duration: 1000 }), withTiming(0.5, { duration: 0 })),
         -1, false
       );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } else {
+      pulseScale.value = 1;
+      ringScale.value = 1;
+      ringOpacity.value = 0.6;
     }
   }, [visible]);
 
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseScale.value }] }));
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: ringScale.value }],
+    opacity: ringOpacity.value,
+  }));
 
   const dial = async (number: string, label: string) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     onClose();
     if (Platform.OS === "web") {
       Alert.alert(`📞 ${label}`, `Calling ${number}...\n\n(On physical device, this dials immediately)`);
@@ -220,48 +241,73 @@ function SOSModal({ visible, onClose }: { visible: boolean; onClose: () => void 
   ];
 
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
-      <BlurView intensity={isDark ? 70 : 50} tint="dark" style={StyleSheet.absoluteFill}>
+    <Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
+      <BlurView intensity={isDark ? 80 : 60} tint="dark" style={StyleSheet.absoluteFill}>
         <Pressable style={s.modalBackdrop} onPress={onClose}>
-          <Animated.View entering={FadeInUp.springify().damping(13)} style={[s.sosCard, { backgroundColor: colors.card }]}>
-            <Pressable>
-              <Animated.View style={[s.sosPulseWrap, pulseStyle]}>
-                <View style={s.sosPulseOuter}>
+
+          <Animated.View entering={FadeInUp.springify().damping(14).stiffness(120)} style={s.sosSheet}>
+            {/* Stop propagation so tapping card doesn't close */}
+            <Pressable style={{ width: "100%" }}>
+
+              {/* Pulsing SOS Icon */}
+              <View style={s.sosPulseContainer}>
+                <Animated.View style={[s.sosPulseRing, ringStyle]} />
+                <Animated.View style={[s.sosPulseBtn, pulseStyle]}>
                   <View style={s.sosPulseInner}>
-                    <Text style={{ fontSize: 36 }}>🆘</Text>
+                    <Text style={{ fontSize: 32, lineHeight: 38 }}>🆘</Text>
                   </View>
-                </View>
-              </Animated.View>
+                </Animated.View>
+              </View>
 
-              <Text style={[s.sosModalTitle, { color: colors.foreground }]}>Emergency SOS</Text>
-              <Text style={[s.sosModalSub, { color: colors.mutedForeground }]}>Apni safety ke liye turant help maangein</Text>
+              {/* Title */}
+              <Text style={s.sosTitle}>Emergency SOS</Text>
+              <Text style={s.sosSub}>Apni safety ke liye turant help maangein</Text>
 
-              <View style={s.sosOptions}>
+              {/* Emergency Contact Cards */}
+              <View style={s.sosOptionsList}>
                 {EMERGENCY_OPTIONS.map((opt, i) => (
-                  <Animated.View key={opt.number} entering={FadeInDown.delay(60 + i * 50)}>
+                  <Animated.View key={opt.number} entering={FadeInDown.delay(80 + i * 60).springify()}>
                     <TouchableOpacity
-                      style={[s.sosOption, { borderColor: opt.color + "44", backgroundColor: opt.color + "12" }]}
-                      onPress={() => dial(opt.number, opt.label)}
                       activeOpacity={0.75}
+                      onPress={() => dial(opt.number, opt.label)}
+                      style={[s.sosOptionCard, { borderColor: opt.color + "55", backgroundColor: opt.color + "18" }]}
                     >
-                      <Text style={{ fontSize: 26 }}>{opt.icon}</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[s.sosOptLabel, { color: opt.color }]}>{opt.label}</Text>
-                        <Text style={[s.sosOptSub, { color: colors.mutedForeground }]}>{opt.sub}</Text>
+                      {/* Icon circle */}
+                      <View style={[s.sosIconCircle, { backgroundColor: opt.color + "25" }]}>
+                        <Text style={{ fontSize: 22 }}>{opt.icon}</Text>
                       </View>
-                      <View style={[s.sosDialBtn, { backgroundColor: opt.color }]}>
-                        <Text style={{ color: "#fff", fontSize: 14, fontFamily: "Inter_700Bold" }}>{opt.number}</Text>
+
+                      {/* Labels — flex: 1 forces it to take remaining space */}
+                      <View style={s.sosOptionTextBlock}>
+                        <Text style={[s.sosOptionLabel, { color: opt.color }]} numberOfLines={1}>
+                          {opt.label}
+                        </Text>
+                        <Text style={s.sosOptionSub} numberOfLines={1}>
+                          {opt.sub}
+                        </Text>
+                      </View>
+
+                      {/* Call button */}
+                      <View style={[s.sosCallChip, { backgroundColor: opt.color }]}>
+                        <Text style={s.sosCallNum}>{opt.number}</Text>
                       </View>
                     </TouchableOpacity>
                   </Animated.View>
                 ))}
               </View>
 
-              <TouchableOpacity style={[s.sosDismiss, { borderColor: colors.border }]} onPress={onClose}>
-                <Text style={[s.sosDismissText, { color: colors.foreground }]}>✕  Main safe hoon</Text>
+              {/* Dismiss */}
+              <TouchableOpacity
+                style={s.sosDismissBtn}
+                onPress={onClose}
+                activeOpacity={0.7}
+              >
+                <Text style={s.sosDismissTxt}>✕  Main safe hoon</Text>
               </TouchableOpacity>
+
             </Pressable>
           </Animated.View>
+
         </Pressable>
       </BlurView>
     </Modal>
@@ -637,21 +683,148 @@ const s = StyleSheet.create({
   shareBtn: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 12, borderWidth: 1, paddingVertical: 8, paddingHorizontal: 14, flex: 1, justifyContent: "center" },
   shareText: { fontFamily: "Inter_500Medium", fontSize: 13 },
 
-  // SOS Modal
-  modalBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
-  sosCard: { width: "100%", borderRadius: 28, borderWidth: 1, borderColor: "rgba(239,68,68,0.25)", padding: 24, alignItems: "center", shadowColor: "#EF4444", shadowOpacity: 0.3, shadowRadius: 32, elevation: 20 },
-  sosPulseWrap: { alignItems: "center", marginBottom: 16 },
-  sosPulseOuter: { width: 100, height: 100, borderRadius: 50, backgroundColor: "rgba(239,68,68,0.10)", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "rgba(239,68,68,0.3)" },
-  sosPulseInner: { width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(239,68,68,0.18)", alignItems: "center", justifyContent: "center" },
-  sosModalTitle: { fontSize: 24, fontWeight: "800", textAlign: "center", fontFamily: "Inter_700Bold", marginBottom: 6 },
-  sosModalSub: { fontSize: 13, textAlign: "center", fontFamily: "Inter_400Regular", marginBottom: 20 },
-  sosOptions: { width: "100%", gap: 10 },
-  sosOption: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 14, borderWidth: 1, padding: 14 },
-  sosOptLabel: { fontSize: 15, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  sosOptSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
-  sosDialBtn: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, alignItems: "center", justifyContent: "center" },
-  sosDismiss: { marginTop: 20, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 14, borderWidth: 1 },
-  sosDismissText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  // SOS Modal — fixed layout (no text overflow/overlap)
+  modalBackdrop: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingHorizontal: 0,
+  },
+  sosSheet: {
+    width: "100%",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    backgroundColor: "#0F0F17",
+    borderWidth: 1,
+    borderColor: "rgba(239,68,68,0.30)",
+    borderBottomWidth: 0,
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 36,
+    alignItems: "center",
+    shadowColor: "#EF4444",
+    shadowOpacity: 0.4,
+    shadowRadius: 40,
+    elevation: 30,
+  },
+  // Pulsing ring + button
+  sosPulseContainer: {
+    width: 100,
+    height: 100,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+  sosPulseRing: {
+    position: "absolute",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2.5,
+    borderColor: "#EF4444",
+    backgroundColor: "transparent",
+  },
+  sosPulseBtn: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: "rgba(239,68,68,0.18)",
+    borderWidth: 2,
+    borderColor: "rgba(239,68,68,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sosPulseInner: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // Title
+  sosTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    fontFamily: "Inter_700Bold",
+    color: "#FFFFFF",
+    textAlign: "center",
+    marginBottom: 5,
+  },
+  sosSub: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: "#8A8A9A",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  // Options list
+  sosOptionsList: {
+    width: "100%",
+    gap: 10,
+    marginBottom: 20,
+  },
+  sosOptionCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
+    borderWidth: 1.5,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  sosIconCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  sosOptionTextBlock: {
+    flex: 1,
+    flexDirection: "column",
+    justifyContent: "center",
+    minWidth: 0,
+  },
+  sosOptionLabel: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  sosOptionSub: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    color: "#8A8A9A",
+  },
+  sosCallChip: {
+    borderRadius: 10,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    minWidth: 52,
+  },
+  sosCallNum: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  // Dismiss button
+  sosDismissBtn: {
+    width: "100%",
+    paddingVertical: 15,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    alignItems: "center",
+  },
+  sosDismissTxt: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: "#FFFFFF",
+  },
 
   // Chat Modal
   chatContainer: { flex: 1, marginTop: 60, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, overflow: "hidden" },
