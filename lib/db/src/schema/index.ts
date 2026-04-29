@@ -73,6 +73,8 @@ export const ridesTable = pgTable("rides", {
   status: text("status").notNull().default("searching"),
   scheduledAt: timestamp("scheduled_at"),
   isScheduled: boolean("is_scheduled").notNull().default(false),
+  paymentMethod: text("payment_method").notNull().default("Cash"),
+  cashCollected: boolean("cash_collected").notNull().default(false),
   commissionAmount: numeric("commission_amount", { precision: 8, scale: 2 }).default("0"),
   driverEarning: numeric("driver_earning", { precision: 8, scale: 2 }).default("0"),
   userRating: integer("user_rating"),
