@@ -3,7 +3,13 @@ import React from "react";
 
 export default function TabLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: "#0A0A0F" },
+        cardStyle: { backgroundColor: "#0A0A0F" },
+      }}
+    >
       <Stack.Screen name="index" options={{ headerShown: false }} />
     </Stack>
   );
