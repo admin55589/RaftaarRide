@@ -88,7 +88,13 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: "#0A0A0F" },
+        cardStyle: { backgroundColor: "#0A0A0F" },
+      }}
+    >
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="auth" />
       <Stack.Screen name="driver-auth" />
@@ -115,7 +121,7 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <StatusBar style="auto" translucent />
+      <StatusBar style="light" translucent backgroundColor="transparent" />
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
