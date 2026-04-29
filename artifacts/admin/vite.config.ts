@@ -53,13 +53,18 @@ export default defineConfig({
   },
   root: path.resolve(import.meta.dirname),
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist"),
+    outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
   },
   server: {
     port: isNaN(port) || port <= 0 ? 3000 : port,
     host: "0.0.0.0",
     allowedHosts: true,
+    headers: {
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],

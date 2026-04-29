@@ -10,6 +10,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import jwt from "jsonwebtoken";
+import { validateAccountDetails, createRazorpayPayout } from "../lib/razorpay-payout";
 import { sendPushNotification } from "../lib/expoPush";
 
 const router: IRouter = Router();
@@ -441,6 +442,10 @@ router.get("/admin/withdrawals", authMiddleware, async (_req: Request, res: Resp
         processedBy: withdrawalRequestsTable.processedBy,
         rejectionReason: withdrawalRequestsTable.rejectionReason,
         transactionRef: withdrawalRequestsTable.transactionRef,
+        razorpayPayoutId: withdrawalRequestsTable.razorpayPayoutId,
+        autoProcessed: withdrawalRequestsTable.autoProcessed,
+        validationError: withdrawalRequestsTable.validationError,
+        processingNote: withdrawalRequestsTable.processingNote,
         createdAt: withdrawalRequestsTable.createdAt,
       })
       .from(withdrawalRequestsTable)
@@ -504,6 +509,62 @@ router.patch("/admin/withdrawals/:id", authMiddleware, async (req: Request, res:
       withdrawal: { ...updated, amount: Number(updated.amount) },
       message: action === "approve" ? "Withdrawal approve — payment process ho rahi hai" : "Withdrawal reject — amount refund ho gaya",
     });
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+/* POST /api/admin/withdrawals/:id/retry — retry failed Razorpay payout */
+router.post("/admin/withdrawals/:id/retry", authMiddleware, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  try {
+    const [wr] = await db
+      .select({
+        id: withdrawalRequestsTable.id,
+        driverId: withdrawalRequestsTable.driverId,
+        amount: withdrawalRequestsTable.amount,
+        method: withdrawalRequestsTable.method,
+        accountDetails: withdrawalRequestsTable.accountDetails,
+        status: withdrawalRequestsTable.status,
+        driverName: driversTable.name,
+      })
+      .from(withdrawalRequestsTable)
+      .leftJoin(driversTable, eq(withdrawalRequestsTable.driverId, driversTable.id))
+      .where(eq(withdrawalRequestsTable.id, id))
+      .limit(1);
+
+    if (!wr) { res.status(404).json({ message: "Withdrawal not found" }); return; }
+    if (wr.status === "approved") { res.status(400).json({ message: "Already approved" }); return; }
+
+    const amount = Number(wr.amount);
+    const validation = validateAccountDetails(wr.method, wr.accountDetails);
+
+    if (!validation.valid || !validation.parsedAccount) {
+      res.status(400).json({ message: `Validation failed: ${validation.reason}` });
+      return;
+    }
+
+    const payoutResult = await createRazorpayPayout({
+      driverId: wr.driverId,
+      driverName: wr.driverName ?? "Driver",
+      amount,
+      withdrawalId: id,
+      parsedAccount: validation.parsedAccount,
+    });
+
+    if (payoutResult.success && payoutResult.payoutId) {
+      await db.update(withdrawalRequestsTable).set({
+        status: "approved",
+        processedAt: new Date(),
+        processedBy: "admin-retry",
+        transactionRef: payoutResult.payoutId,
+        razorpayPayoutId: payoutResult.payoutId,
+        autoProcessed: "approved",
+        processingNote: `Admin retry: Razorpay Payout ${payoutResult.payoutId} | UTR: ${payoutResult.utr ?? "pending"}`,
+      }).where(eq(withdrawalRequestsTable.id, id));
+
+      res.json({ success: true, message: "Payout re-initiated successfully", payoutId: payoutResult.payoutId });
+    } else {
+      res.status(502).json({ success: false, message: payoutResult.error ?? "Razorpay payout failed" });
+    }
   } catch { res.status(500).json({ message: "Server error" }); }
 });
 

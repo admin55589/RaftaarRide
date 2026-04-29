@@ -153,6 +153,10 @@ export const withdrawalRequestsTable = pgTable("withdrawal_requests", {
   processedBy: text("processed_by"),
   rejectionReason: text("rejection_reason"),
   transactionRef: text("transaction_ref"),
+  razorpayPayoutId: text("razorpay_payout_id"),
+  autoProcessed: text("auto_processed"),
+  validationError: text("validation_error"),
+  processingNote: text("processing_note"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 export type WithdrawalRequest = typeof withdrawalRequestsTable.$inferSelect;
