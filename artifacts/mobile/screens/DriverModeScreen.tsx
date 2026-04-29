@@ -372,7 +372,7 @@ export function DriverModeScreen() {
   const { isDark, toggleTheme } = useTheme();
   const [isOnline, setIsOnline] = useState(true);
   const [requests, setRequests] = useState(MOCK_REQUESTS);
-  const ridesCompleted = driver ? driver.totalRides : 7;
+  const ridesCompleted = driver?.totalRides ?? 0;
 
   const [activeRide, setActiveRide] = useState<ActiveRide | null>(null);
   const activeRideRef = useRef<ActiveRide | null>(null);
@@ -793,10 +793,17 @@ export function DriverModeScreen() {
                 {driver.vehicleNumber} • {driver.vehicleType.charAt(0).toUpperCase() + driver.vehicleType.slice(1)}
               </Text>
             </View>
-            <View style={[styles.ratingBadge, { backgroundColor: "rgba(245,166,35,0.15)" }]}>
-              <Text style={{ fontSize: 11 }}>⭐</Text>
-              <Text style={[styles.ratingText, { color: "#F5A623" }]}>{driver.rating}</Text>
-            </View>
+            {driver.rating ? (
+              <View style={[styles.ratingBadge, { backgroundColor: "rgba(245,166,35,0.15)" }]}>
+                <Text style={{ fontSize: 11 }}>⭐</Text>
+                <Text style={[styles.ratingText, { color: "#F5A623" }]}>{driver.rating}</Text>
+              </View>
+            ) : (
+              <View style={[styles.ratingBadge, { backgroundColor: "rgba(138,138,154,0.12)" }]}>
+                <Text style={{ fontSize: 11 }}>⭐</Text>
+                <Text style={[styles.ratingText, { color: "#8A8A9A" }]}>New</Text>
+              </View>
+            )}
             <Pressable
               onPress={() => { setEditName(driver.name); setEditPhoto(driver.photoUrl ?? null); setShowProfileEdit(true); }}
               style={styles.editProfileBtn}
@@ -812,7 +819,7 @@ export function DriverModeScreen() {
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Text style={styles.statIcon}>💰</Text>
-              <EarningsCounter value={driverEarnings || parseFloat(driver?.totalEarnings ?? "0")} />
+              <EarningsCounter value={parseFloat(driver?.totalEarnings ?? "0")} />
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Total Earnings</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
@@ -824,7 +831,9 @@ export function DriverModeScreen() {
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.stat}>
               <Text style={styles.statIcon}>⭐</Text>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>{driver?.rating ?? "4.5"}</Text>
+              <Text style={[styles.statValue, { color: driver?.rating ? colors.foreground : colors.mutedForeground }]}>
+                {driver?.rating ? driver.rating : "—"}
+              </Text>
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Rating</Text>
             </View>
           </View>

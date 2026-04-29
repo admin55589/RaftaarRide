@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { driversTable, ridesTable, usersTable } from "@workspace/db/schema";
-import { eq, or, inArray } from "drizzle-orm";
+import { driversTable, ridesTable, usersTable, walletTransactionsTable } from "@workspace/db/schema";
+import { eq, or, inArray, sum, avg, count, isNotNull, and, sql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { emitRideUpdate } from "../lib/socket";
@@ -81,9 +81,10 @@ router.post("/driver-auth/register", async (req: Request, res: Response) => {
         photoUrl: driver.photoUrl ?? null,
         vehicleType: driver.vehicleType,
         vehicleNumber: driver.vehicleNumber,
-        rating: driver.rating,
-        totalEarnings: driver.totalEarnings,
-        totalRides: driver.totalRides,
+        rating: null,
+        totalEarnings: "0.00",
+        totalRides: 0,
+        walletBalance: 0,
         status: driver.status,
         isOnline: driver.isOnline,
       },
@@ -134,6 +135,23 @@ router.post("/driver-auth/login", async (req: Request, res: Response) => {
       { expiresIn: "30d" }
     );
 
+    // Compute real stats on login too
+    const [loginEarnings] = await db
+      .select({ total: sum(walletTransactionsTable.amount) })
+      .from(walletTransactionsTable)
+      .where(and(
+        eq(walletTransactionsTable.driverId, driver.id),
+        sql`${walletTransactionsTable.type} IN ('earning', 'credit')`
+      ));
+    const [loginRating] = await db
+      .select({ avg: avg(ridesTable.userRating) })
+      .from(ridesTable)
+      .where(and(eq(ridesTable.driverId, driver.id), eq(ridesTable.status, "completed"), isNotNull(ridesTable.userRating)));
+    const [loginRides] = await db
+      .select({ total: count(ridesTable.id) })
+      .from(ridesTable)
+      .where(and(eq(ridesTable.driverId, driver.id), eq(ridesTable.status, "completed")));
+
     res.json({
       token,
       driver: {
@@ -144,9 +162,10 @@ router.post("/driver-auth/login", async (req: Request, res: Response) => {
         photoUrl: driver.photoUrl ?? null,
         vehicleType: driver.vehicleType,
         vehicleNumber: driver.vehicleNumber,
-        rating: driver.rating,
-        totalEarnings: driver.totalEarnings,
-        totalRides: driver.totalRides,
+        rating: loginRating?.avg ? parseFloat(loginRating.avg).toFixed(2) : null,
+        totalEarnings: (parseFloat(loginEarnings?.total ?? "0") || 0).toFixed(2),
+        totalRides: loginRides?.total ?? 0,
+        walletBalance: parseFloat(driver.walletBalance ?? "0"),
         status: driver.status,
         isOnline: driver.isOnline,
       },
@@ -183,6 +202,37 @@ router.get("/driver-auth/me", async (req: Request, res: Response) => {
       return;
     }
 
+    // Compute real stats from actual DB data
+    const [earningsRow] = await db
+      .select({ total: sum(walletTransactionsTable.amount) })
+      .from(walletTransactionsTable)
+      .where(
+        and(
+          eq(walletTransactionsTable.driverId, driver.id),
+          sql`${walletTransactionsTable.type} IN ('earning', 'credit')`
+        )
+      );
+
+    const [ratingRow] = await db
+      .select({ avg: avg(ridesTable.userRating), rideCount: count(ridesTable.id) })
+      .from(ridesTable)
+      .where(
+        and(
+          eq(ridesTable.driverId, driver.id),
+          eq(ridesTable.status, "completed"),
+          isNotNull(ridesTable.userRating)
+        )
+      );
+
+    const [completedRow] = await db
+      .select({ total: count(ridesTable.id) })
+      .from(ridesTable)
+      .where(and(eq(ridesTable.driverId, driver.id), eq(ridesTable.status, "completed")));
+
+    const realEarnings = parseFloat(earningsRow?.total ?? "0") || 0;
+    const realRating = ratingRow?.avg ? parseFloat(ratingRow.avg).toFixed(2) : null;
+    const realRides = completedRow?.total ?? 0;
+
     res.json({
       id: driver.id,
       name: driver.name,
@@ -191,9 +241,10 @@ router.get("/driver-auth/me", async (req: Request, res: Response) => {
       photoUrl: driver.photoUrl ?? null,
       vehicleType: driver.vehicleType,
       vehicleNumber: driver.vehicleNumber,
-      rating: driver.rating,
-      totalEarnings: driver.totalEarnings,
-      totalRides: driver.totalRides,
+      rating: realRating,
+      totalEarnings: realEarnings.toFixed(2),
+      totalRides: realRides,
+      walletBalance: parseFloat(driver.walletBalance ?? "0"),
       status: driver.status,
       isOnline: driver.isOnline,
     });

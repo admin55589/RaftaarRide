@@ -10,9 +10,10 @@ export interface DriverUser {
   photoUrl: string | null;
   vehicleType: string;
   vehicleNumber: string;
-  rating: string;
+  rating: string | null;
   totalEarnings: string;
   totalRides: number;
+  walletBalance?: number;
   status: string;
   isOnline: boolean;
 }
