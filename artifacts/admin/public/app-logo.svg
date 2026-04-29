@@ -1,0 +1,16 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1A1A28;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0A0A0F;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="rGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F5A623;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E09010;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)"/>
+  <rect x="12" y="12" width="488" height="488" rx="100" fill="none" stroke="#F5A623" stroke-width="6" opacity="0.3"/>
+  <text x="256" y="310" font-family="Arial Black, Arial, sans-serif" font-size="270" font-weight="900" text-anchor="middle" fill="url(#rGrad)">R</text>
+  <text x="256" y="400" font-family="Arial, sans-serif" font-size="55" font-weight="800" text-anchor="middle" fill="#F5A623" opacity="0.85" letter-spacing="10">RAFTAAR</text>
+</svg>

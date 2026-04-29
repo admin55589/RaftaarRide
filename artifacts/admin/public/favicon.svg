@@ -1,3 +1,6 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="110" fill="#0A0A0F"/>
+  <rect x="10" y="10" width="492" height="492" rx="102" fill="none" stroke="#F5A623" stroke-width="8" opacity="0.35"/>
+  <text x="256" y="305" font-family="Arial Black, Arial, sans-serif" font-size="265" font-weight="900" text-anchor="middle" fill="#F5A623">R</text>
+  <text x="256" y="395" font-family="Arial, sans-serif" font-size="58" font-weight="700" text-anchor="middle" fill="#F5A623" opacity="0.9" letter-spacing="8">RAFTAAR</text>
 </svg>
