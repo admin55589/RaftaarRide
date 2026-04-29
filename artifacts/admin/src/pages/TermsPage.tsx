@@ -76,7 +76,7 @@ export function TermsPage() {
           <div className="pp-cicon">✉️</div>
           <div>
             <h3>Contact Us</h3>
-            <p>For any questions or support, reach us at <a href="mailto:support@raftaarride.com">support@raftaarride.com</a></p>
+            <p>For any questions or support, reach us at <a href="https://mail.google.com/mail/?view=cm&fs=1&to=admin.raftaarride@gmail.com" target="_blank" rel="noreferrer">admin.raftaarride@gmail.com</a></p>
           </div>
         </div>
       </div>
