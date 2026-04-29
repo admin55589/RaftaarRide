@@ -5,8 +5,8 @@ import { useAuth } from "@/context/AuthContext";
 
 export function LoginPage() {
   const { login } = useAuth();
-  const [email, setEmail] = useState("admin.raftaarride@gmail.com");
-  const [password, setPassword] = useState("Luck@12345RR");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -49,7 +49,7 @@ export function LoginPage() {
         </div>
 
         <div className="bg-card border border-card-border rounded-2xl p-6 shadow-xl">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">Email</label>
               <input
@@ -58,6 +58,7 @@ export function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-lg bg-background border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
                 placeholder="admin@raftaarride.com"
+                autoComplete="off"
                 required
               />
             </div>
@@ -69,6 +70,7 @@ export function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-lg bg-background border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors"
                 placeholder="••••••••"
+                autoComplete="new-password"
                 required
               />
             </div>
