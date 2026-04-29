@@ -92,7 +92,8 @@ export default function LoginScreen() {
         <Pressable
           onPress={toggleLanguage}
           hitSlop={8}
-          style={{ position: "absolute", top: insets.top + 12, right: 16, zIndex: 100, width: 40, height: 40, borderRadius: 20, borderWidth: 1, backgroundColor: "rgba(245,166,35,0.15)", borderColor: "rgba(245,166,35,0.4)", alignItems: "center", justifyContent: "center" }}
+          android_ripple={null}
+          style={({ pressed }) => [{ position: "absolute", top: insets.top + 12, right: 16, zIndex: 100, width: 40, height: 40, borderRadius: 20, borderWidth: 1, backgroundColor: pressed ? "rgba(245,166,35,0.25)" : "rgba(245,166,35,0.15)", borderColor: "rgba(245,166,35,0.4)", alignItems: "center", justifyContent: "center" }]}
         >
           <Text style={{ color: "#F5A623", fontSize: 12, fontWeight: "700" }}>{lang === "hi" ? "हिं" : "EN"}</Text>
         </Pressable>
@@ -117,7 +118,8 @@ export default function LoginScreen() {
 
           <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.tabRow}>
             <Pressable
-              style={[styles.tabBtn, tab === "otp" && styles.tabBtnActive]}
+              style={({ pressed }) => [styles.tabBtn, tab === "otp" && styles.tabBtnActive, pressed && tab !== "otp" && styles.tabBtnPressed]}
+              android_ripple={null}
               onPress={() => { setTab("otp"); setError(""); }}
             >
               <Text style={[styles.tabText, tab === "otp" && styles.tabTextActive]}>
@@ -125,7 +127,8 @@ export default function LoginScreen() {
               </Text>
             </Pressable>
             <Pressable
-              style={[styles.tabBtn, tab === "email" && styles.tabBtnActive]}
+              style={({ pressed }) => [styles.tabBtn, tab === "email" && styles.tabBtnActive, pressed && tab !== "email" && styles.tabBtnPressed]}
+              android_ripple={null}
               onPress={() => { setTab("email"); setError(""); }}
             >
               <Text style={[styles.tabText, tab === "email" && styles.tabTextActive]}>
@@ -201,6 +204,7 @@ export default function LoginScreen() {
             <Pressable
               style={[styles.primaryBtn, loading && styles.primaryBtnDisabled]}
               onPress={tab === "otp" ? handleSendOtp : handleEmailLogin}
+              android_ripple={null}
               disabled={loading}
             >
               <LinearGradient colors={["#F5A623", "#E09010"]} style={styles.primaryBtnGrad}>
@@ -220,7 +224,7 @@ export default function LoginScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <Pressable style={styles.secondaryBtn} onPress={() => router.push("/auth/signup")}>
+            <Pressable style={({ pressed }) => [styles.secondaryBtn, pressed && styles.secondaryBtnPressed]} android_ripple={null} onPress={() => router.push("/auth/signup")}>
               <Text style={styles.secondaryBtnText}>
                 Naya account banao →
               </Text>
@@ -232,7 +236,7 @@ export default function LoginScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <Pressable style={styles.driverBtn} onPress={() => router.push("/driver-auth/login")}>
+            <Pressable style={({ pressed }) => [styles.driverBtn, pressed && styles.driverBtnPressed]} android_ripple={null} onPress={() => router.push("/driver-auth/login")}>
               <Text style={styles.driverBtnText}>🚗  Driver Login / Register</Text>
             </Pressable>
           </Animated.View>
@@ -241,7 +245,7 @@ export default function LoginScreen() {
             <Text style={styles.footerText}>
               Login karke aap humare{" "}
             </Text>
-            <Pressable onPress={() => router.push("/terms")}>
+            <Pressable android_ripple={null} onPress={() => router.push("/terms")}>
               <Text style={styles.footerLink}>Terms & Privacy Policy</Text>
             </Pressable>
             <Text style={styles.footerText}>{" "}se agree karte hain</Text>
@@ -276,6 +280,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   tabBtnActive: { backgroundColor: "#F5A623" },
+  tabBtnPressed: { backgroundColor: "rgba(245,166,35,0.18)" },
   tabText: { color: "#8A8A9A", fontWeight: "600", fontSize: 14 },
   tabTextActive: { color: "#0A0A0F" },
   form: {},
@@ -348,7 +353,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 14,
     alignItems: "center",
+    backgroundColor: "transparent",
   },
+  secondaryBtnPressed: { backgroundColor: "rgba(245,166,35,0.12)" },
   secondaryBtnText: { color: "#F5A623", fontWeight: "700", fontSize: 15 },
   footer: { marginTop: 40, alignItems: "center", flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
   footerText: { color: "#8A8A9A", fontSize: 12, lineHeight: 18 },
@@ -361,5 +368,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(34,197,94,0.07)",
   },
+  driverBtnPressed: { backgroundColor: "rgba(34,197,94,0.18)" },
   driverBtnText: { color: "#22c55e", fontWeight: "700", fontSize: 15 },
 });
