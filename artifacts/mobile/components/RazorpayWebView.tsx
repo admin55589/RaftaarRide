@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useColors } from "@/hooks/useColors";
 import type { RazorpayOrder } from "@/lib/paymentApi";
 
 interface RazorpayWebViewProps {
@@ -98,6 +97,12 @@ function buildCheckoutHtml(order: RazorpayOrder, user: RazorpayWebViewProps["use
   `.trim();
 }
 
+const DARK_BG = "#0A0A0F";
+const DARK_BORDER = "#2A2A38";
+const DARK_CARD = "#16161E";
+const DARK_MUTED = "#8A8A9A";
+const ACCENT = "#F5A623";
+
 export function RazorpayWebView({
   visible,
   order,
@@ -105,7 +110,6 @@ export function RazorpayWebView({
   onSuccess,
   onDismiss,
 }: RazorpayWebViewProps) {
-  const colors = useColors();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [canGoBack, setCanGoBack] = useState(false);
@@ -134,7 +138,8 @@ export function RazorpayWebView({
     }
   };
 
-  const logoUrl = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/assets/logo.png`;
+  const domain = process.env.EXPO_PUBLIC_DOMAIN || "68e41a5f-c1bd-4337-9c0e-5f9c6dd535e1-00-3rxx9zjx78ze2.janeway.replit.dev";
+  const logoUrl = `https://${domain}/api/assets/logo.png`;
   const html = buildCheckoutHtml(order, userInfo, logoUrl);
 
   return (
@@ -144,35 +149,39 @@ export function RazorpayWebView({
       transparent={false}
       onRequestClose={onDismiss}
     >
-      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top }]}>
-        <View style={[styles.header, { borderColor: colors.border }]}>
+      <View style={[styles.container, { paddingTop: Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top }]}>
+        <View style={styles.header}>
           {/* Back button — fixed width 44 */}
           <TouchableOpacity
             onPress={handleBack}
-            style={[styles.sideBtn, { backgroundColor: canGoBack ? colors.secondary : "transparent", borderColor: canGoBack ? colors.border : "transparent" }]}
+            style={[styles.sideBtn, { backgroundColor: canGoBack ? DARK_CARD : "transparent", borderColor: canGoBack ? DARK_BORDER : "transparent" }]}
             activeOpacity={0.7}
           >
-            <Text style={{ color: canGoBack ? colors.foreground : "transparent", fontSize: 20, lineHeight: 24 }}>←</Text>
+            <Text style={{ color: canGoBack ? "#FFFFFF" : "transparent", fontSize: 20, lineHeight: 24 }}>←</Text>
           </TouchableOpacity>
 
           {/* Title — absolutely centered */}
           <View style={styles.titleWrap} pointerEvents="none">
             <View style={styles.titleInner}>
               <Text style={styles.titleBolt}>⚡</Text>
-              <Text style={[styles.titleText, { color: colors.foreground }]}>RaftaarRide Payment</Text>
+              <Text style={styles.titleText}>RaftaarRide Payment</Text>
             </View>
           </View>
 
           {/* Close button — same fixed width 44 */}
-          <Pressable onPress={onDismiss} style={[styles.sideBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-            <Text style={{ color: colors.mutedForeground, fontSize: 16, lineHeight: 20 }}>✕</Text>
+          <Pressable
+            android_ripple={null}
+            onPress={onDismiss}
+            style={({ pressed }) => [styles.sideBtn, { backgroundColor: pressed ? "#1F1F2E" : DARK_CARD, borderColor: DARK_BORDER }]}
+          >
+            <Text style={{ color: DARK_MUTED, fontSize: 16, lineHeight: 20 }}>✕</Text>
           </Pressable>
         </View>
 
         {loading && (
           <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
+            <ActivityIndicator size="large" color={ACCENT} />
+            <Text style={styles.loadingText}>
               Razorpay load ho raha hai...
             </Text>
           </View>
@@ -195,7 +204,7 @@ export function RazorpayWebView({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: DARK_BG },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -203,6 +212,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
+    borderBottomColor: DARK_BORDER,
+    backgroundColor: DARK_BG,
   },
   sideBtn: {
     width: 44,
@@ -230,17 +241,20 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     fontSize: 16,
     letterSpacing: 0.2,
+    color: "#FFFFFF",
   },
-  webview: { flex: 1, backgroundColor: "transparent" },
+  webview: { flex: 1, backgroundColor: DARK_BG },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
     gap: 16,
     zIndex: 10,
+    backgroundColor: DARK_BG,
   },
   loadingText: {
     fontFamily: "Inter_400Regular",
     fontSize: 14,
+    color: DARK_MUTED,
   },
 });
