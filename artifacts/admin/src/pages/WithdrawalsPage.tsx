@@ -122,6 +122,8 @@ export function WithdrawalsPage() {
     prevPendingCount.current = pendingNow;
   }, [dataUpdatedAt]);
 
+  const [creditConfirm, setCreditConfirm] = useState(false);
+
   const creditMutation = useMutation({
     mutationFn: async ({ driverId, amount, note }: { driverId: number; amount: number; note: string }) => {
       const res = await fetch(`${API_BASE}/api/admin/drivers/${driverId}/wallet/credit`, {
@@ -129,15 +131,19 @@ export function WithdrawalsPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ amount, note }),
       });
-      return res.json();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? `Server error (${res.status})`);
+      if (!data.success) throw new Error(data.message ?? "Credit failed");
+      return data;
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["admin-drivers-wallet"] });
       setShowCreditModal(false);
+      setCreditConfirm(false);
       setCreditDriverId(""); setCreditAmount(""); setCreditNote("");
-      showToast(data.message ?? "Wallet credit ho gaya!");
+      showToast(`✅ ${data.message ?? "Wallet credit ho gaya!"}`, "success");
     },
-    onError: () => showToast("Credit failed", "error"),
+    onError: (err: Error) => showToast(`❌ ${err.message}`, "error"),
   });
 
   const processMutation = useMutation({
@@ -535,7 +541,7 @@ export function WithdrawalsPage() {
                 <h2 className="font-bold text-foreground flex items-center gap-2"><PlusCircle className="w-4 h-4 text-blue-500" /> Manual Wallet Credit</h2>
                 <p className="text-muted-foreground text-xs">Driver ke wallet mein amount add karo</p>
               </div>
-              <button className="text-muted-foreground hover:text-foreground text-lg" onClick={() => setShowCreditModal(false)}>✕</button>
+              <button className="text-muted-foreground hover:text-foreground text-lg" onClick={() => { setShowCreditModal(false); setCreditConfirm(false); setCreditDriverId(""); setCreditAmount(""); setCreditNote(""); }}>✕</button>
             </div>
 
             <div className="p-5 space-y-4">
@@ -578,23 +584,47 @@ export function WithdrawalsPage() {
               </div>
 
               {creditDriverId && creditAmount && Number(creditAmount) > 0 && (
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
-                  <p className="text-blue-400 text-sm font-medium">
-                    ₹{Number(creditAmount).toFixed(2)} credit hoga {drivers.find((d) => d.id === Number(creditDriverId))?.name} ke wallet mein
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 space-y-2">
+                  <p className="text-blue-400 text-sm font-semibold">
+                    💰 ₹{Number(creditAmount).toFixed(2)} credit hoga:
                   </p>
+                  <p className="text-foreground text-sm">
+                    👤 Driver: <strong>{drivers.find((d) => d.id === Number(creditDriverId))?.name}</strong>
+                  </p>
+                  <p className="text-foreground text-sm">
+                    📱 Phone: <strong>{drivers.find((d) => d.id === Number(creditDriverId))?.phone}</strong>
+                  </p>
+                  <p className="text-foreground text-sm">
+                    💼 Current Balance: <strong>₹{drivers.find((d) => d.id === Number(creditDriverId))?.walletBalance.toFixed(2)}</strong>
+                  </p>
+                  <p className="text-green-400 text-sm font-semibold">
+                    ✅ New Balance: ₹{(Number(drivers.find((d) => d.id === Number(creditDriverId))?.walletBalance ?? 0) + Number(creditAmount)).toFixed(2)}
+                  </p>
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="creditConfirmChk"
+                      checked={creditConfirm}
+                      onChange={(e) => setCreditConfirm(e.target.checked)}
+                      className="w-4 h-4 accent-blue-500"
+                    />
+                    <label htmlFor="creditConfirmChk" className="text-xs text-muted-foreground cursor-pointer">
+                      Main confirm karta hoon — yeh real wallet credit hai
+                    </label>
+                  </div>
                 </div>
               )}
 
               <button
                 onClick={() => {
-                  if (!creditDriverId || !creditAmount || Number(creditAmount) <= 0) return;
+                  if (!creditDriverId || !creditAmount || Number(creditAmount) <= 0 || !creditConfirm) return;
                   creditMutation.mutate({ driverId: Number(creditDriverId), amount: Number(creditAmount), note: creditNote });
                 }}
-                disabled={!creditDriverId || !creditAmount || Number(creditAmount) <= 0 || creditMutation.isPending}
+                disabled={!creditDriverId || !creditAmount || Number(creditAmount) <= 0 || !creditConfirm || creditMutation.isPending}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 transition-colors disabled:opacity-50"
               >
                 <PlusCircle className="w-4 h-4" />
-                {creditMutation.isPending ? "Processing..." : "Credit Wallet"}
+                {creditMutation.isPending ? "⏳ Credit Ho Raha Hai..." : "💰 Credit Wallet (Real)"}
               </button>
             </div>
           </div>
