@@ -39,6 +39,7 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { MapView } from "@/components/MapView";
 import { useVoiceAI } from "@/hooks/useVoiceAI";
 import { connectSocket, joinRideRoom, getSocket, sendChatMessage } from "@/lib/socket";
+import * as Location from "expo-location";
 
 interface ChatMsg {
   id: string;
@@ -314,6 +315,183 @@ function SOSModal({ visible, onClose }: { visible: boolean; onClose: () => void 
   );
 }
 
+// ─── Call Modal ───────────────────────────────────────────────────────────────
+function CallModal({
+  visible,
+  onClose,
+  driver,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  driver: { name: string; phone?: string; vehicle: string; vehicleNumber: string; photo: string; rating: number };
+}) {
+  const { isDark } = useTheme();
+  const colors = useColors();
+  const ringScale1 = useSharedValue(1);
+  const ringOpacity1 = useSharedValue(0.5);
+  const ringScale2 = useSharedValue(1);
+  const ringOpacity2 = useSharedValue(0.4);
+
+  useEffect(() => {
+    if (visible) {
+      ringScale1.value = withRepeat(withSequence(withTiming(1.7, { duration: 1400 }), withTiming(1, { duration: 0 })), -1, false);
+      ringOpacity1.value = withRepeat(withSequence(withTiming(0, { duration: 1400 }), withTiming(0.5, { duration: 0 })), -1, false);
+      ringScale2.value = withRepeat(withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration: 0 }), withTiming(1.7, { duration: 1400, easing: Easing.out(Easing.quad) }), withTiming(1, { duration: 0 })), -1, false);
+      ringOpacity2.value = withRepeat(withSequence(withTiming(0, { duration: 0 }), withTiming(0.4, { duration: 0 }), withTiming(0, { duration: 1400 }), withTiming(0, { duration: 0 })), -1, false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      ringScale1.value = 1; ringOpacity1.value = 0.5;
+      ringScale2.value = 1; ringOpacity2.value = 0.4;
+    }
+  }, [visible]);
+
+  const ring1Style = useAnimatedStyle(() => ({ transform: [{ scale: ringScale1.value }], opacity: ringOpacity1.value }));
+  const ring2Style = useAnimatedStyle(() => ({ transform: [{ scale: ringScale2.value }], opacity: ringOpacity2.value }));
+
+  const doCall = async () => {
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (!driver.phone) {
+      Alert.alert("📞 " + driver.name, "Is ride ka driver number abhi available nahi hai.\n\nPlease chat se contact karein.", [{ text: "OK" }]);
+      return;
+    }
+    const url = `tel:${driver.phone}`;
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert("Call", `Please dial ${driver.phone} manually`);
+    }
+    onClose();
+  };
+
+  const CALL_COLOR = "#22C55E";
+
+  return (
+    <Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
+      <BlurView intensity={isDark ? 85 : 65} tint="dark" style={StyleSheet.absoluteFill}>
+        <Pressable style={cm.backdrop} onPress={onClose}>
+          <Animated.View entering={FadeInUp.springify().damping(14).stiffness(120)} style={cm.sheet}>
+            <Pressable style={{ width: "100%", alignItems: "center" }}>
+
+              {/* Pulsing avatar rings */}
+              <View style={cm.avatarWrap}>
+                <Animated.View style={[cm.ring, { borderColor: CALL_COLOR }, ring1Style]} />
+                <Animated.View style={[cm.ring, { borderColor: CALL_COLOR }, ring2Style]} />
+                <View style={[cm.avatar, { backgroundColor: CALL_COLOR + "25", borderColor: CALL_COLOR + "60" }]}>
+                  <Text style={cm.avatarText}>{driver.photo}</Text>
+                </View>
+              </View>
+
+              {/* Calling label */}
+              <Text style={[cm.callingLabel, { color: colors.mutedForeground }]}>Connecting call...</Text>
+              <Text style={[cm.driverName, { color: "#FFFFFF" }]}>{driver.name}</Text>
+              <Text style={[cm.driverSub, { color: colors.mutedForeground }]}>{driver.vehicle} • {driver.vehicleNumber}</Text>
+              <View style={cm.ratingRow}>
+                <Text style={{ fontSize: 12 }}>⭐</Text>
+                <Text style={[cm.ratingTxt, { color: "#F5A623" }]}>{driver.rating.toFixed(1)}</Text>
+              </View>
+
+              {/* Action Buttons */}
+              <View style={cm.actionRow}>
+                {/* Dismiss */}
+                <TouchableOpacity onPress={onClose} style={cm.endBtn} activeOpacity={0.8}>
+                  <Text style={{ fontSize: 22 }}>✕</Text>
+                  <Text style={cm.endBtnLabel}>Cancel</Text>
+                </TouchableOpacity>
+
+                {/* Call Now — big green button */}
+                <TouchableOpacity onPress={doCall} style={[cm.callBtn, { backgroundColor: CALL_COLOR }]} activeOpacity={0.85}>
+                  <Text style={{ fontSize: 28 }}>📞</Text>
+                </TouchableOpacity>
+
+                {/* Chat (placeholder) */}
+                <TouchableOpacity onPress={onClose} style={[cm.endBtn, { backgroundColor: "rgba(59,130,246,0.15)", borderColor: "rgba(59,130,246,0.35)" }]} activeOpacity={0.8}>
+                  <Text style={{ fontSize: 22 }}>💬</Text>
+                  <Text style={[cm.endBtnLabel, { color: "#93C5FD" }]}>Chat</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={[cm.phoneLine, { color: colors.mutedForeground }]}>
+                {driver.phone ? `📱 ${driver.phone}` : "Number fetching..."}
+              </Text>
+
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </BlurView>
+    </Modal>
+  );
+}
+
+const cm = StyleSheet.create({
+  backdrop: { flex: 1, justifyContent: "flex-end" },
+  sheet: {
+    width: "100%",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    backgroundColor: "#0F0F17",
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.28)",
+    borderBottomWidth: 0,
+    paddingTop: 36,
+    paddingBottom: 40,
+    paddingHorizontal: 28,
+    alignItems: "center",
+    shadowColor: "#22C55E",
+    shadowOpacity: 0.35,
+    shadowRadius: 40,
+    elevation: 30,
+  },
+  avatarWrap: { width: 110, height: 110, alignItems: "center", justifyContent: "center", marginBottom: 20 },
+  ring: {
+    position: "absolute",
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 2,
+    backgroundColor: "transparent",
+  },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: { fontSize: 28, fontWeight: "800", color: "#22C55E", fontFamily: "Inter_700Bold" },
+  callingLabel: { fontSize: 12, fontFamily: "Inter_400Regular", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 8 },
+  driverName: { fontSize: 24, fontFamily: "Inter_700Bold", fontWeight: "800", marginBottom: 4, textAlign: "center" },
+  driverSub: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 6, textAlign: "center" },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 36 },
+  ratingTxt: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  actionRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 28, marginBottom: 20 },
+  callBtn: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#22C55E",
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  endBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    gap: 2,
+  },
+  endBtnLabel: { fontSize: 10, color: "#FFFFFF", fontFamily: "Inter_500Medium", marginTop: 2 },
+  phoneLine: { fontSize: 12, fontFamily: "Inter_400Regular", letterSpacing: 0.5 },
+});
+
 // ─── Chat Modal ───────────────────────────────────────────────────────────────
 function ChatModal({
   visible,
@@ -516,6 +694,7 @@ export function DriverAssignedScreen() {
 
   const [showSOS, setShowSOS] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showCall, setShowCall] = useState(false);
 
   const driver = assignedDriver ?? {
     name: "Raj Kumar",
@@ -536,12 +715,26 @@ export function DriverAssignedScreen() {
 
   const handleCall = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("📞 Calling Driver", `${driver.name} ko call kar rahe hain...\n\n(Real number integration ke liye backend update needed)`);
+    setShowCall(true);
   };
 
   const handleShareLocation = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const vehicleEmoji = driver.vehicleType === "bike" ? "🏍️" : driver.vehicleType === "auto" ? "🛺" : "🚗";
+
+    let locationLine = `📍 Pickup: ${pickup || "Current location"}`;
+    let mapsLink = "";
+
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === "granted") {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const { latitude, longitude } = loc.coords;
+        mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
+        locationLine = `📍 Live Location: ${mapsLink}`;
+      }
+    } catch { }
+
     const message = [
       `${vehicleEmoji} Main RaftaarRide mein hoon!`,
       ``,
@@ -550,11 +743,13 @@ export function DriverAssignedScreen() {
       `🔢 Number: ${driver.vehicleNumber}`,
       `⏱️ ETA: ${driver.eta} min`,
       ``,
-      `📍 Pickup: ${pickup || "Current location"}`,
+      locationLine,
       `🏁 Destination: ${destination || "Unknown"}`,
+      ...(mapsLink ? [``, `🗺️ Google Maps: ${mapsLink}`] : []),
       ``,
       `RaftaarRide se book kiya gaya — safe & fast! ⚡`,
     ].join("\n");
+
     try { await Share.share({ message, title: "Meri Ride Track Karo 🚗" }); } catch { }
   };
 
@@ -643,6 +838,7 @@ export function DriverAssignedScreen() {
       </Animated.View>
 
       <SOSModal visible={showSOS} onClose={() => setShowSOS(false)} />
+      <CallModal visible={showCall} onClose={() => setShowCall(false)} driver={driver} />
       <ChatModal
         visible={showChat}
         onClose={() => setShowChat(false)}
