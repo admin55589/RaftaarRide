@@ -1,0 +1,182 @@
+Create two separate public web pages for my app RaftaarRide:
+
+Terms of Service
+
+Privacy Policy
+
+Important requirements:
+
+Do NOT use Replit-hosted private links
+
+I need open/public URLs that can work on Vercel + custom domain
+
+These pages must be production-ready for Play Store, Firebase, Google verification, and API policy verification
+
+Design should look premium, dark theme, mobile-friendly, professional, and similar to Rapido/Uber style
+
+Card-based UI with rounded corners, gold accent numbering, black background, smooth spacing
+
+Fully responsive for mobile devices
+
+SEO-friendly basic HTML structure
+
+Clean URL support preferred like:
+/terms
+/privacy
+
+Use this exact content:
+
+TERMS OF SERVICE
+
+Title: Terms & Conditions
+Effective Date: 20 April 2025
+
+Welcome to RaftaarRide. By using our mobile application, you agree to the following terms.
+
+Service Overview
+RaftaarRide is a platform that connects riders (customers) with independent drivers for transportation services such as bike, auto, and cab rides.
+
+User Eligibility
+
+You must be at least 18 years old.
+
+You must provide accurate personal information.
+
+You are responsible for maintaining account security.
+
+Booking & Payments
+
+Ride fares are calculated based on distance, time, and demand.
+
+Payments can be made via cash or online modes.
+
+Cancellation charges may apply.
+
+Driver Responsibility
+Drivers are independent partners, not employees. RaftaarRide is not responsible for driver behavior but will take strict action on complaints.
+
+User Conduct
+You agree NOT to:
+
+Misuse the app
+
+Provide false bookings
+
+Harass drivers or customers
+
+Cancellations & Refunds
+
+Cancellation charges may apply after booking confirmation.
+
+Refunds (if applicable) will be processed within 5–7 working days.
+
+Limitation of Liability
+RaftaarRide is a technology platform and is not liable for:
+
+Delays in rides
+
+Accidents or damages
+
+Driver misconduct (though complaints are handled seriously)
+
+Account Suspension
+We reserve the right to suspend or terminate accounts for:
+
+Fraudulent activity
+
+Misconduct
+
+Violation of terms
+
+Changes to Terms
+RaftaarRide may update these terms anytime. Continued use means acceptance of changes.
+
+Contact Us
+For any questions or support, contact us.
+
+PRIVACY POLICY
+
+Title: Privacy Policy
+Effective Date: 20 April 2025
+
+Your privacy is important to us. This policy explains how we collect, use, and protect your data.
+
+Information We Collect
+We may collect:
+
+Name, phone number, email
+
+Location data (GPS for rides)
+
+Payment details
+
+Device information
+
+How We Use Data
+
+To provide ride services
+
+To improve app performance
+
+For safety and fraud prevention
+
+Customer support
+
+Location Data
+We collect real-time location to:
+
+Match riders with drivers
+
+Track rides
+
+Ensure safety
+
+Sharing of Information
+We may share data with:
+
+Drivers (for ride completion)
+
+Payment gateways
+
+Legal authorities if required
+
+Data Security
+We use industry-standard security measures to protect your data.
+
+Cookies & Tracking
+We may use cookies and analytics tools to improve user experience.
+
+User Rights
+You can:
+
+Access your data
+
+Request correction
+
+Request account deletion
+
+Data Retention
+We keep your data as long as necessary for service and legal compliance.
+
+Children’s Privacy
+Our app is not intended for users under 18 years.
+
+Changes to Policy
+We may update this Privacy Policy periodically.
+
+Contact Us
+For any questions or support, contact us.
+
+Final output required:
+
+Complete production-ready code
+
+Public deployable routes
+
+Vercel-ready structure
+
+Custom domain compatible
+
+Final live URLs for:
+/terms
+/privacy
