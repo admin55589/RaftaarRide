@@ -176,6 +176,10 @@ router.get("/admin/rides", authMiddleware, async (req: Request, res: Response) =
       rideMode: ridesTable.rideMode,
       price: ridesTable.price,
       status: ridesTable.status,
+      paymentMethod: ridesTable.paymentMethod,
+      commissionAmount: ridesTable.commissionAmount,
+      driverEarning: ridesTable.driverEarning,
+      cashCollected: ridesTable.cashCollected,
       createdAt: ridesTable.createdAt,
     })
     .from(ridesTable)
@@ -197,6 +201,10 @@ router.get("/admin/rides", authMiddleware, async (req: Request, res: Response) =
       rideMode: r.rideMode,
       price: Number(r.price),
       status: r.status,
+      paymentMethod: r.paymentMethod ?? "Cash",
+      commissionAmount: Number(r.commissionAmount ?? 0),
+      driverEarning: Number(r.driverEarning ?? 0),
+      cashCollected: r.cashCollected ?? false,
       createdAt: r.createdAt.toISOString(),
     }))
   );
