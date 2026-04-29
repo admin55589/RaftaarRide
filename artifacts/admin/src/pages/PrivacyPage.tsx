@@ -20,7 +20,7 @@ export function PrivacyPage() {
         .pp-card:hover{border-color:rgba(245,166,35,.2)}
         .pp-card-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px}
         .pp-num{min-width:36px;height:36px;background:linear-gradient(135deg,#F5A623,#E09010);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#0A0A0F;flex-shrink:0;margin-top:2px}
-        .pp-title{font-size:17px;font-weight:700;color:#fff;line-height:1.3}
+        .pp-title{font-size:17px;font-weight:700;color:#F5A623;line-height:1.3}
         .pp-body{font-size:15px;line-height:1.8;color:#C8C8D8}
         .pp-list{list-style:none;padding:0;margin-top:8px;display:flex;flex-direction:column;gap:8px}
         .pp-list li{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);border-radius:10px;font-size:14px;line-height:1.6}
@@ -77,7 +77,7 @@ export function PrivacyPage() {
           <div className="pp-cicon">✉️</div>
           <div>
             <h3>Contact Us</h3>
-            <p>For any questions or support, reach us at <a href="mailto:support@raftaarride.com">support@raftaarride.com</a></p>
+            <p>For any questions or support, reach us at <a href="https://mail.google.com/mail/?view=cm&fs=1&to=admin.raftaarride@gmail.com" target="_blank" rel="noreferrer">admin.raftaarride@gmail.com</a></p>
           </div>
         </div>
       </div>
