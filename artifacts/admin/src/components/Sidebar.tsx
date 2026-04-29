@@ -7,10 +7,12 @@ import {
   LogOut,
   FileCheck,
   Wallet,
+  Camera,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
+import { useRef, useState, useEffect } from "react";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -21,6 +23,26 @@ interface SidebarProps {
 export function Sidebar({ isLive = false }: SidebarProps) {
   const [location] = useLocation();
   const { logout, token } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [hovering, setHovering] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("admin_profile_photo");
+    if (saved) setProfilePhoto(saved);
+  }, []);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = ev.target?.result as string;
+      setProfilePhoto(base64);
+      localStorage.setItem("admin_profile_photo", base64);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const { data: kycPending = 0 } = useQuery<number>({
     queryKey: ["kyc-pending-count"],
@@ -63,7 +85,7 @@ export function Sidebar({ isLive = false }: SidebarProps) {
     <aside className="w-64 shrink-0 h-screen flex flex-col border-r border-sidebar-border bg-sidebar sticky top-0">
       <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
         <img
-          src="/admin/app-logo.jpg"
+          src={`${import.meta.env.BASE_URL}app-logo.jpg`}
           alt="RaftaarRide"
           className="w-8 h-8 rounded-lg object-cover"
         />
@@ -112,12 +134,40 @@ export function Sidebar({ isLive = false }: SidebarProps) {
 
       <div className="px-3 pb-4 border-t border-sidebar-border pt-4">
         <div className="flex items-center gap-3 px-3 py-2 mb-2">
-          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
-            AD
+          <div
+            className="relative w-9 h-9 rounded-full cursor-pointer flex-shrink-0"
+            onClick={() => fileInputRef.current?.click()}
+            onMouseEnter={() => setHovering(true)}
+            onMouseLeave={() => setHovering(false)}
+            title="Click to change photo"
+          >
+            {profilePhoto ? (
+              <img
+                src={profilePhoto}
+                alt="Admin"
+                className="w-9 h-9 rounded-full object-cover border-2 border-primary/30"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold border-2 border-primary/30">
+                AD
+              </div>
+            )}
+            {hovering && (
+              <div className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center">
+                <Camera className="w-4 h-4 text-white" />
+              </div>
+            )}
           </div>
-          <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePhotoChange}
+          />
+          <div className="min-w-0">
             <div className="text-xs font-medium text-foreground">Admin</div>
-            <div className="text-xs text-muted-foreground">admin@raftaarride.com</div>
+            <div className="text-xs text-muted-foreground truncate">admin.raftaarride@gmail.com</div>
           </div>
         </div>
         <button
