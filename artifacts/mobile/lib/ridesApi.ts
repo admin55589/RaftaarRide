@@ -42,6 +42,8 @@ export interface RideRecord {
   createdAt: string;
 }
 
+export type PaymentMethod = "Cash" | "UPI" | "Card" | "RaftaarWallet";
+
 export interface CreateRideParams {
   pickup: GeoPoint;
   drop: GeoPoint;
@@ -49,6 +51,7 @@ export interface CreateRideParams {
   rideMode: string;
   price: number;
   distanceKm?: number;
+  paymentMethod?: PaymentMethod;
 }
 
 export type RideStatus = "searching" | "accepted" | "arrived" | "onRide" | "completed" | "cancelled";
@@ -83,10 +86,10 @@ export const ridesApi = {
     });
   },
 
-  async updateStatus(token: string, rideId: number, status: RideStatus, driverRating?: number): Promise<RideRecord> {
+  async updateStatus(token: string, rideId: number, status: RideStatus, driverRating?: number, paymentMethod?: PaymentMethod): Promise<RideRecord> {
     const data = await authFetch<{ success: boolean; ride: RideRecord }>(`/rides/${rideId}/status`, token, {
       method: "PATCH",
-      body: JSON.stringify({ status, driverRating }),
+      body: JSON.stringify({ status, driverRating, paymentMethod }),
     });
     return data.ride;
   },
