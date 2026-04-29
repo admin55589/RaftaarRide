@@ -8,6 +8,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, desc } from "drizzle-orm";
 import jwt from "jsonwebtoken";
+import { validateAccountDetails, createRazorpayPayout } from "../lib/razorpay-payout";
 
 const router: IRouter = Router();
 const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
@@ -148,11 +149,12 @@ router.post("/driver/wallet/withdraw", driverAuth, async (req: Request, res: Res
   }
 
   try {
-    const [driver] = await db.select({ walletBalance: driversTable.walletBalance })
+    const [driver] = await db.select({ walletBalance: driversTable.walletBalance, name: driversTable.name })
       .from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
 
     if (!driver) { res.status(404).json({ success: false, error: "Driver not found" }); return; }
 
+    const driverName = driver.name ?? "Driver";
     const balance = Number(driver.walletBalance);
     if (balance < amount) {
       res.status(400).json({ success: false, error: `Insufficient balance — aapke paas ₹${balance.toFixed(2)} hain` });
@@ -164,12 +166,16 @@ router.post("/driver/wallet/withdraw", driverAuth, async (req: Request, res: Res
       .set({ walletBalance: String(newBalance) })
       .where(eq(driversTable.id, driverId));
 
+    // ── Auto-validate account details ─────────────────────────────────────
+    const validation = validateAccountDetails(method, accountDetails);
+
     const [withdrawal] = await db.insert(withdrawalRequestsTable).values({
       driverId,
       amount: String(amount),
       method,
       accountDetails,
       status: "pending",
+      validationError: validation.valid ? null : validation.reason,
     }).returning();
 
     await db.insert(walletTransactionsTable).values({
@@ -179,14 +185,99 @@ router.post("/driver/wallet/withdraw", driverAuth, async (req: Request, res: Res
       description: `Withdrawal request via ${method.toUpperCase()} — ₹${amount}`,
     });
 
+    // ── Auto-process asynchronously (don't block the response) ────────────
+    void autoProcessWithdrawal(withdrawal.id, driverId, driverName ?? "Driver", amount, method, accountDetails, validation).catch(console.error);
+
     res.json({
       success: true,
       withdrawal,
       newBalance,
-      message: `₹${amount} withdrawal request submit ho gayi — 24-48 ghante mein process hogi`,
+      validationOk: validation.valid,
+      message: validation.valid
+        ? `₹${amount} withdrawal request submit ho gayi — automatic processing shuru ho rahi hai!`
+        : `₹${amount} withdrawal request submit ho gayi — lekin account details mein error hai: ${validation.reason}`,
     });
   } catch { res.status(500).json({ success: false, error: "Server error" }); }
 });
+
+// ─── Auto-process a withdrawal request ──────────────────────────────────────
+async function autoProcessWithdrawal(
+  withdrawalId: number,
+  driverId: number,
+  driverName: string,
+  amount: number,
+  method: string,
+  accountDetails: string,
+  validation: ReturnType<typeof validateAccountDetails>
+) {
+  try {
+    if (!validation.valid || !validation.parsedAccount) {
+      // Auto-reject: invalid details → refund driver wallet
+      await db.update(withdrawalRequestsTable).set({
+        status: "rejected",
+        processedAt: new Date(),
+        processedBy: "auto-system",
+        rejectionReason: `Account details validation failed: ${validation.reason}`,
+        autoProcessed: "rejected",
+        processingNote: "Automatic rejection — account details format galat tha",
+      }).where(eq(withdrawalRequestsTable.id, withdrawalId));
+
+      // Refund to wallet
+      const [drv] = await db.select({ walletBalance: driversTable.walletBalance })
+        .from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
+      if (drv) {
+        await db.update(driversTable)
+          .set({ walletBalance: String(Number(drv.walletBalance) + amount) })
+          .where(eq(driversTable.id, driverId));
+        await db.insert(walletTransactionsTable).values({
+          driverId,
+          type: "credit",
+          amount: String(amount),
+          description: `Auto-refund: withdrawal rejected (invalid details) — ₹${amount}`,
+        });
+      }
+      return;
+    }
+
+    // Try Razorpay Payout
+    const payoutResult = await createRazorpayPayout({
+      driverId,
+      driverName,
+      amount,
+      withdrawalId,
+      parsedAccount: validation.parsedAccount,
+    });
+
+    if (payoutResult.success && payoutResult.payoutId) {
+      // Auto-approve with Razorpay payout ID
+      await db.update(withdrawalRequestsTable).set({
+        status: "approved",
+        processedAt: new Date(),
+        processedBy: "auto-system",
+        transactionRef: payoutResult.payoutId,
+        razorpayPayoutId: payoutResult.payoutId,
+        autoProcessed: "approved",
+        processingNote: `Razorpay Payout: ${payoutResult.payoutId} | UTR: ${payoutResult.utr ?? "pending"} | Status: ${payoutResult.status}`,
+      }).where(eq(withdrawalRequestsTable.id, withdrawalId));
+    } else if (!payoutResult.razorpayEnabled) {
+      // RazorpayX not configured — keep pending for admin manual review
+      await db.update(withdrawalRequestsTable).set({
+        autoProcessed: "pending_manual",
+        validationError: null,
+        processingNote: `Validation passed ✅ | Razorpay payout not configured — manual transfer required`,
+      }).where(eq(withdrawalRequestsTable.id, withdrawalId));
+    } else {
+      // Razorpay error — keep pending for admin retry
+      await db.update(withdrawalRequestsTable).set({
+        autoProcessed: "payout_failed",
+        validationError: payoutResult.error,
+        processingNote: `Validation passed ✅ | Payout failed: ${payoutResult.error}`,
+      }).where(eq(withdrawalRequestsTable.id, withdrawalId));
+    }
+  } catch (err: any) {
+    console.error("[autoProcessWithdrawal] Error:", err?.message);
+  }
+}
 
 router.patch("/driver/language", driverAuth, async (req: Request, res: Response) => {
   const driverId = (req as any).driverId;
