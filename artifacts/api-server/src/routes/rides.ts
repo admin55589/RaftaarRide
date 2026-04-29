@@ -88,6 +88,9 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       typeof pickup === "object" ? pickup.lng : undefined
     );
 
+    const { paymentMethod: pmRaw } = req.body as { paymentMethod?: string };
+    const finalPaymentMethod = (pmRaw && ["Cash","UPI","Card","RaftaarWallet"].includes(pmRaw)) ? pmRaw : "Cash";
+
     const [ride] = await db.insert(ridesTable).values({
       userId,
       pickup: pickupAddress, pickupLat, pickupLng,
@@ -98,6 +101,7 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       distanceKm: distanceKm ? String(distanceKm) : undefined,
       status: matchedDriver ? "accepted" : "searching",
       driverId: matchedDriver?.id ?? undefined,
+      paymentMethod: finalPaymentMethod,
     }).returning();
 
     if (matchedDriver) {
@@ -250,14 +254,18 @@ const VALID_STATUSES = ["searching", "accepted", "arrived", "onRide", "completed
 
 router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) => {
   const rideId = Number(req.params.id);
-  const { status, driverRating } = req.body as { status: string; driverRating?: number };
+  const { status, driverRating, paymentMethod: pmUpdate } = req.body as { status: string; driverRating?: number; paymentMethod?: string };
 
   if (!VALID_STATUSES.includes(status)) {
     res.status(400).json({ success: false, error: `status must be one of: ${VALID_STATUSES.join(", ")}` }); return;
   }
 
   try {
-    const [updated] = await db.update(ridesTable).set({ status }).where(eq(ridesTable.id, rideId)).returning();
+    const updateData: Record<string, any> = { status };
+    if (pmUpdate && ["Cash","UPI","Card","RaftaarWallet"].includes(pmUpdate)) {
+      updateData.paymentMethod = pmUpdate;
+    }
+    const [updated] = await db.update(ridesTable).set(updateData).where(eq(ridesTable.id, rideId)).returning();
     if (!updated) { res.status(404).json({ success: false, error: "Ride not found" }); return; }
 
     /* Generate 4-digit completion PIN when driver accepts */
@@ -290,10 +298,25 @@ router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) 
         const price = parseFloat(String(updated.price));
         const commission = parseFloat((price * 0.067).toFixed(2));
         const earning = parseFloat((price * 0.933).toFixed(2));
-        const newWalletBalance = parseFloat(String(driver.walletBalance ?? "0")) + earning;
+        const isCash = updated.paymentMethod === "Cash";
+
+        /*
+         * CASH: Driver physically collected full fare from user.
+         * Platform needs its commission (6.7%) back → DEBIT from walletBalance.
+         * Driver ke haath mein pehle se ₹price hai; sirf commission kaata jaata hai.
+         *
+         * ONLINE (UPI/Card/Wallet): Platform collected fare.
+         * Driver ko 93.3% credit karo walletBalance mein.
+         */
+        const currentBalance = parseFloat(String(driver.walletBalance ?? "0"));
+        const newWalletBalance = isCash
+          ? currentBalance - commission          // debit: commission platform ko milta hai
+          : currentBalance + earning;            // credit: driver ko 93.3% milta hai
+
+        const totalEarningsNew = parseFloat(String(driver.totalEarnings ?? "0")) + earning;
 
         await db.update(driversTable).set({
-          totalEarnings: String((parseFloat(String(driver.totalEarnings ?? "0")) + earning).toFixed(2)),
+          totalEarnings: String(totalEarningsNew.toFixed(2)),
           walletBalance: String(newWalletBalance.toFixed(2)),
           totalRides: (driver.totalRides ?? 0) + 1,
           isOnline: false,
@@ -306,9 +329,11 @@ router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) 
 
         await db.insert(walletTransactionsTable).values({
           driverId: updated.driverId,
-          type: "earning",
-          amount: String(earning),
-          description: `Ride #${rideId} earning — ₹${earning.toFixed(2)} (6.7% commission deducted)`,
+          type: isCash ? "commission_debit" : "earning",
+          amount: String(isCash ? -commission : earning),
+          description: isCash
+            ? `Ride #${rideId} — Cash collection: user ne ₹${price.toFixed(2)} diye. Platform commission ₹${commission.toFixed(2)} kaat liya.`
+            : `Ride #${rideId} earning — ₹${earning.toFixed(2)} credit (6.7% commission deducted)`,
         });
       }
     }
@@ -347,13 +372,16 @@ router.post("/rides/:id/verify-pin", async (req: Request, res: Response) => {
     /* Mark ride as completed */
     const [updated] = await db.update(ridesTable).set({ status: "completed" }).where(eq(ridesTable.id, rideId)).returning();
 
-    /* Calculate earnings */
+    /* Calculate earnings — same Cash vs Online logic */
     const [driver] = await db.select().from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
     if (driver) {
       const price = parseFloat(String(updated.price));
       const commission = parseFloat((price * 0.067).toFixed(2));
       const earning = parseFloat((price * 0.933).toFixed(2));
-      const newWalletBalance = parseFloat(String(driver.walletBalance ?? "0")) + earning;
+      const isCash = updated.paymentMethod === "Cash";
+
+      const currentBalance = parseFloat(String(driver.walletBalance ?? "0"));
+      const newWalletBalance = isCash ? currentBalance - commission : currentBalance + earning;
 
       await db.update(driversTable).set({
         totalEarnings: String((parseFloat(String(driver.totalEarnings ?? "0")) + earning).toFixed(2)),
@@ -362,14 +390,16 @@ router.post("/rides/:id/verify-pin", async (req: Request, res: Response) => {
         isOnline: false,
       }).where(eq(driversTable.id, driverId));
 
-      await db.update(ridesTable).set({ commissionAmount: String(commission), driverEarning: String(earning) })
+      await db.update(ridesTable).set({ commissionAmount: String(commission), driverEarning: String(earning), cashCollected: isCash })
         .where(eq(ridesTable.id, rideId));
 
       await db.insert(walletTransactionsTable).values({
         driverId,
-        type: "earning",
-        amount: String(earning),
-        description: `Ride #${rideId} earning — ₹${earning.toFixed(2)} (6.7% commission deducted)`,
+        type: isCash ? "commission_debit" : "earning",
+        amount: String(isCash ? -commission : earning),
+        description: isCash
+          ? `Ride #${rideId} — Cash ride: user ne ₹${price.toFixed(2)} diye. Commission ₹${commission.toFixed(2)} deducted.`
+          : `Ride #${rideId} earning — ₹${earning.toFixed(2)} credit (6.7% commission deducted)`,
       });
     }
 
