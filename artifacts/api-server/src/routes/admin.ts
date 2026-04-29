@@ -6,6 +6,7 @@ import {
   ridesTable,
   driverKycTable,
   withdrawalRequestsTable,
+  walletTransactionsTable,
 } from "@workspace/db/schema";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import jwt from "jsonwebtoken";
@@ -152,6 +153,7 @@ router.get("/admin/drivers", authMiddleware, async (_req: Request, res: Response
       rating: Number(d.rating),
       status: d.status,
       totalEarnings: Number(d.totalEarnings),
+      walletBalance: Number(d.walletBalance ?? 0),
       totalRides: d.totalRides,
       createdAt: d.createdAt.toISOString(),
     }))
@@ -493,6 +495,43 @@ router.patch("/admin/withdrawals/:id", authMiddleware, async (req: Request, res:
       success: true,
       withdrawal: { ...updated, amount: Number(updated.amount) },
       message: action === "approve" ? "Withdrawal approve — payment process ho rahi hai" : "Withdrawal reject — amount refund ho gaya",
+    });
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+/* POST /api/admin/drivers/:id/wallet/credit — manually credit driver wallet */
+router.post("/admin/drivers/:id/wallet/credit", authMiddleware, async (req: Request, res: Response) => {
+  const driverId = Number(req.params.id);
+  const { amount, note } = req.body as { amount: number; note?: string };
+
+  if (!amount || amount <= 0 || amount > 50000) {
+    res.status(400).json({ message: "Amount 1 se 50000 ke beech hona chahiye" });
+    return;
+  }
+
+  try {
+    const [driver] = await db.select({ walletBalance: driversTable.walletBalance, name: driversTable.name })
+      .from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
+    if (!driver) { res.status(404).json({ message: "Driver nahi mila" }); return; }
+
+    const newBalance = Number(driver.walletBalance ?? 0) + amount;
+    await db.update(driversTable)
+      .set({ walletBalance: String(newBalance.toFixed(2)) })
+      .where(eq(driversTable.id, driverId));
+
+    await db.insert(walletTransactionsTable).values({
+      driverId,
+      type: "credit",
+      amount: String(amount),
+      description: note?.trim() || `Admin se manual credit — ₹${amount}`,
+    });
+
+    res.json({
+      success: true,
+      driverName: driver.name,
+      creditedAmount: amount,
+      newBalance,
+      message: `₹${amount} ${driver.name} ke wallet mein credit ho gaya`,
     });
   } catch { res.status(500).json({ message: "Server error" }); }
 });
