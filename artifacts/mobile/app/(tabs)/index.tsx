@@ -7,6 +7,15 @@ import { useApp } from "@/context/AppContext";
 import { useDriverAuth } from "@/context/DriverAuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 
+function getVehicleIcon(vehicleType?: string): string {
+  switch ((vehicleType ?? "").toLowerCase()) {
+    case "bike": return "🏍️";
+    case "auto": return "🛺";
+    case "car":  return "🚗";
+    default:     return "🚗";
+  }
+}
+
 import { HomeScreen } from "@/screens/HomeScreen";
 import { BookingScreen } from "@/screens/BookingScreen";
 import { SearchingScreen } from "@/screens/SearchingScreen";
@@ -92,11 +101,6 @@ const USER_TABS = [
   { key: "schedule", icon: null, label_hi: "शेड्यूल", label_en: "Schedule", custom: true  },
 ];
 
-const DRIVER_TABS = [
-  { key: "home",     icon: "🚗", label_hi: "राइड्स",  label_en: "Rides",    custom: false },
-  { key: "kyc",      icon: "📋", label_hi: "KYC",      label_en: "KYC",      custom: false },
-  { key: "earnings", icon: "💵", label_hi: "कमाई",    label_en: "Earnings", custom: false },
-];
 
 const RIDE_SCREENS = ["booking", "searching", "driver_assigned", "live_tracking", "payment"];
 
@@ -104,10 +108,17 @@ export default function MainScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { screen } = useApp();
-  const { isDriverLoggedIn } = useDriverAuth();
+  const { isDriverLoggedIn, driver } = useDriverAuth();
   const { lang } = useLanguage();
 
   const [activeTab, setActiveTab] = useState("home");
+
+  const driverVehicleIcon = getVehicleIcon(driver?.vehicleType);
+  const DRIVER_TABS = [
+    { key: "home",     icon: driverVehicleIcon, label_hi: "राइड्स",  label_en: "Rides",    custom: false },
+    { key: "kyc",      icon: "📋",              label_hi: "KYC",      label_en: "KYC",      custom: false },
+    { key: "earnings", icon: "💵",              label_hi: "कमाई",    label_en: "Earnings", custom: false },
+  ];
 
   const isInRideFlow = RIDE_SCREENS.includes(screen);
 

@@ -1,10 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   FlatList,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -244,6 +246,7 @@ function DriverChatModal({
   onClose,
   activeRide,
   driverName,
+  vehicleType,
   messages,
   onSend,
 }: {
@@ -251,6 +254,7 @@ function DriverChatModal({
   onClose: () => void;
   activeRide: ActiveRide;
   driverName: string;
+  vehicleType?: string;
   messages: ChatMsg[];
   onSend: (text: string) => void;
 }) {
@@ -327,7 +331,7 @@ function DriverChatModal({
                     </View>
                     {isDriver && (
                       <View style={[chatStyles.msgAvatar, { backgroundColor: "rgba(245,166,35,0.2)" }]}>
-                        <Text style={{ fontSize: 12 }}>🚗</Text>
+                        <Text style={{ fontSize: 12 }}>{getVehicleIcon(vehicleType)}</Text>
                       </View>
                     )}
                   </Animated.View>
@@ -413,7 +417,7 @@ export function DriverModeScreen() {
   const [locUpdating, setLocUpdating] = useState(false);
   const [lastLocTime, setLastLocTime] = useState<Date | null>(null);
 
-  const handleLocationUpdate = async (silent = false) => {
+  const handleLocationUpdate = useCallback(async (silent = false) => {
     if (locUpdating) return;
     setLocUpdating(true);
     try {
@@ -424,7 +428,16 @@ export function DriverModeScreen() {
         granted = req === "granted";
       }
       if (!granted) {
-        if (!silent) showNotification({ title: "Location Permission", body: "GPS permission do taaki rides mile", type: "error", icon: "📍" });
+        if (!silent) {
+          Alert.alert(
+            "📍 Location Permission Chahiye",
+            "Rides receive karne ke liye GPS permission enable karein.\n\nSettings mein jaake 'Location' ko 'Allow' karein.",
+            [
+              { text: "Settings Kholein", onPress: () => Linking.openSettings() },
+              { text: "Bad Mein", style: "cancel" },
+            ]
+          );
+        }
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -436,7 +449,6 @@ export function DriverModeScreen() {
           body: JSON.stringify({ lat: latitude, lng: longitude }),
         });
       }
-      /* Emit real-time socket location if there's an active ride */
       if (driver?.id && activeRideRef.current?.rideId) {
         emitDriverLocation(driver.id, activeRideRef.current.rideId, latitude, longitude);
       }
@@ -447,7 +459,18 @@ export function DriverModeScreen() {
     } finally {
       setLocUpdating(false);
     }
-  };
+  }, [locUpdating, driverToken, driver?.id, showNotification]);
+
+  /* Re-check location when app comes back to foreground (e.g. after granting permission in Settings) */
+  useEffect(() => {
+    if (!isOnline) return;
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        handleLocationUpdate(true);
+      }
+    });
+    return () => sub.remove();
+  }, [isOnline, handleLocationUpdate]);
 
   /* Auto-update location: 10s during active ride, 90s otherwise */
   useEffect(() => {
@@ -944,6 +967,7 @@ export function DriverModeScreen() {
           onClose={() => setShowChat(false)}
           activeRide={activeRide}
           driverName={driver?.name ?? "Driver"}
+          vehicleType={driver?.vehicleType}
           messages={chatMessages}
           onSend={handleSendDriverMessage}
         />
