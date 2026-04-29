@@ -48,14 +48,92 @@ interface ChatMsg {
   timestamp: number;
 }
 
-const DRIVER_AUTO_REPLIES = [
-  "Haan bhai, 5 minute mein aa raha hoon! 🚗",
-  "Ji sir, main aa raha hoon bilkul.",
-  "Theek hai, rukiye — traffic mein hoon thoda sa.",
-  "Blue gate ke paas aa jao, main wahan khada hoon.",
-  "Mera number dikha raha hai, call kar lo!",
-  "Ok bhai, samajh gaya. Pahunch raha hoon. 👍",
-];
+function getSmartDriverReply(userMsg: string, driverName: string, eta: number): string {
+  const msg = userMsg.toLowerCase().trim();
+
+  // Location / kahan ho
+  if (/kahan|where|location|ho tum|kaha hai|abhi kahan|current location|kha ho/.test(msg)) {
+    const opts = [
+      `Main abhi ${eta + 1} km door hoon, ${eta} minute mein pahunch jaata hoon! 📍`,
+      `Signal pe hoon, ${eta - 1} minute mein aa jaunga.`,
+      `Aapki gali ke paas hi hoon, bas ek turn baaki hai. 🚗`,
+      `Google Maps pe dekh raha hoon aapki location — pahunch raha hoon!`,
+    ];
+    return opts[Math.floor(Math.random() * opts.length)];
+  }
+
+  // ETA / time / kitni der
+  if (/kitni der|kab|time|minute|minut|der ho|late|jaldi|kb|aao ge|aoge|pahunchoge/.test(msg)) {
+    const opts = [
+      `Bas ${eta} minute mein pahunch jaata hoon sir! 🕐`,
+      `${eta - 1} se ${eta} minute mein aa jaunga, bilkul pakka.`,
+      `Thoda traffic tha, par ab ${eta} minute mein aa jaunga.`,
+    ];
+    return opts[Math.floor(Math.random() * opts.length)];
+  }
+
+  // Vehicle / car / gaadi / kaunsi
+  if (/gaadi|car|kaunsi|vehicle|number|bike|auto|colour|color|kaisi|rang|dikhna|recognize|pehchaan/.test(msg)) {
+    const opts = [
+      `Meri gaadi ka number app mein dekh lo. Main blue gate ke paas khadaa hounga. 🚘`,
+      `${driverName} naam se app mein vehicle number show ho raha hai. Aap ready ho jaiye!`,
+      `Main ${driverName} hoon — vehicle number app mein dikh raha hai aapko. 👋`,
+    ];
+    return opts[Math.floor(Math.random() * opts.length)];
+  }
+
+  // Call / phone
+  if (/call|phone|contact|number|baat|ring/.test(msg)) {
+    return `App mein mera number dikh raha hai, call kar sakte ho. Main receive karunga! 📞`;
+  }
+
+  // Traffic / jam
+  if (/traffic|jam|jaam|road|congestion/.test(msg)) {
+    const opts = [
+      `Haan thoda traffic hai, par ${eta + 2} minute mein pahunch jaata hoon.`,
+      `Traffic se nikal raha hoon, ${eta} minute mein aa jaaunga. Sorry for delay! 🙏`,
+    ];
+    return opts[Math.floor(Math.random() * opts.length)];
+  }
+
+  // Cancel / cancel karna
+  if (/cancel|rok|mat aao|nahi chahiye/.test(msg)) {
+    return `Sir please wait karein, main bilkul paas hoon. Cancel mat karein! 🙏`;
+  }
+
+  // OK / acknowledgement
+  if (/^ok$|^okay$|^theek$|^acha$|^accha$|^fine$|^sure$|^haan$|^han$|^ji$/.test(msg)) {
+    const opts = [
+      `Ok sir! Main pahunch raha hoon. 👍`,
+      `Ji bilkul! 🙏`,
+      `Theek hai, milte hain! 😊`,
+    ];
+    return opts[Math.floor(Math.random() * opts.length)];
+  }
+
+  // Greeting
+  if (/hello|hi|hii|namaste|namaskar|hey|bhai|sir/.test(msg)) {
+    const opts = [
+      `Namaste sir! Main ${driverName} — aapki ride le raha hoon. ${eta} minute mein pahunch jaata hoon! 🙏`,
+      `Hello! Haan bata dijiye, main sun raha hoon. 😊`,
+    ];
+    return opts[Math.floor(Math.random() * opts.length)];
+  }
+
+  // Thanks
+  if (/thanks|shukriya|dhanyawaad|thank you|ty/.test(msg)) {
+    return `Aapka swagat hai! Safe ride guaranteed. 😊⚡`;
+  }
+
+  // Default — generic context-aware
+  const defaults = [
+    `Samajh gaya sir. Main ${eta} minute mein pahunch raha hoon! 🚗`,
+    `Ji zaroor. Koi baat nahi, main aa raha hoon.`,
+    `Ok sir, noted. Pahunch raha hoon! 👍`,
+    `Haan, main sun raha hoon. ${eta} minute mein milte hain.`,
+  ];
+  return defaults[Math.floor(Math.random() * defaults.length)];
+}
 
 function StarRating({ rating }: { rating: number }) {
   const colors = useColors();
@@ -197,12 +275,14 @@ function ChatModal({
   driverName,
   rideId,
   userName,
+  eta,
 }: {
   visible: boolean;
   onClose: () => void;
   driverName: string;
   rideId: number | null;
   userName: string;
+  eta: number;
 }) {
   const colors = useColors();
   const { isDark } = useTheme();
@@ -255,9 +335,9 @@ function ChatModal({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     setIsDriverTyping(true);
-    const delay = 1500 + Math.random() * 1500;
+    const delay = 1200 + Math.random() * 1000;
     setTimeout(() => {
-      const reply = DRIVER_AUTO_REPLIES[Math.floor(Math.random() * DRIVER_AUTO_REPLIES.length)];
+      const reply = getSmartDriverReply(text, driverName, eta);
       const driverMsg: ChatMsg = {
         id: `${Date.now()}-driver`,
         role: "driver",
@@ -523,6 +603,7 @@ export function DriverAssignedScreen() {
         driverName={driver.name}
         rideId={currentRideId}
         userName={userName}
+        eta={driver.eta}
       />
     </View>
   );
