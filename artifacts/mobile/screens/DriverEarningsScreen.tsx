@@ -318,6 +318,56 @@ export function DriverEarningsScreen() {
           </Animated.View>
         )}
 
+        {/* Recent Wallet Transactions */}
+        {transactions.length > 0 && (
+          <View style={{ marginBottom: 8 }}>
+            <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
+              <Text style={styles.sectionTitle}>💳 Recent Transactions</Text>
+            </View>
+            {transactions.slice(0, 10).map((txn, i) => {
+              const isDebit = txn.type === "commission_debit" || txn.type === "withdrawal";
+              const isCashCommission = txn.type === "commission_debit";
+              const amt = parseFloat(String(txn.amount));
+              return (
+                <Animated.View key={txn.id} entering={FadeInDown.delay(i * 40)}>
+                  <GlassCard style={[styles.wCard, { marginBottom: 8 }]}>
+                    <View style={styles.wRow}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                        <Text style={{ fontSize: 20 }}>
+                          {isCashCommission ? "💵" : txn.type === "withdrawal" ? "📤" : txn.type === "credit" ? "🎁" : "💰"}
+                        </Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.wMethod, { fontSize: 12, flexShrink: 1 }]} numberOfLines={2}>
+                            {isCashCommission
+                              ? "Cash Ride Commission"
+                              : txn.type === "withdrawal" ? "Withdrawal"
+                              : txn.type === "credit" ? "Admin Credit"
+                              : "Ride Earning"}
+                          </Text>
+                          <Text style={[styles.wDate, { marginTop: 2 }]} numberOfLines={1}>{formatDate(txn.createdAt)}</Text>
+                        </View>
+                      </View>
+                      <View style={{ alignItems: "flex-end" }}>
+                        <Text style={[styles.wAmt, {
+                          color: isDebit ? "#F87171" : "#4ADE80",
+                          fontSize: 15,
+                        }]}>
+                          {isDebit ? "-" : "+"}₹{Math.abs(amt).toFixed(2)}
+                        </Text>
+                        {isCashCommission && (
+                          <View style={{ backgroundColor: "rgba(245,166,35,0.15)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginTop: 2 }}>
+                            <Text style={{ color: "#F5A623", fontSize: 10, fontFamily: "Inter_600SemiBold" }}>6.7% Cash</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </GlassCard>
+                </Animated.View>
+              );
+            })}
+          </View>
+        )}
+
         <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
           <Text style={styles.sectionTitle}>{t("withdrawal_history")}</Text>
         </View>

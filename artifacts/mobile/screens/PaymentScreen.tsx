@@ -149,7 +149,7 @@ export function PaymentScreen() {
       duration, distance: `${distanceKm} km`, date: new Date().toISOString(), driver, status: "completed",
     });
     if (token && currentRideId) {
-      ridesApi.updateStatus(token, currentRideId, "completed")
+      ridesApi.updateStatus(token, currentRideId, "completed", undefined, method as any)
         .then(() => { if (token) refreshHistoryFromServer(token); })
         .catch(() => {});
       setCurrentRideId(null);
@@ -192,7 +192,8 @@ export function PaymentScreen() {
     if (selectedMethod === "Cash") {
       setIsProcessing(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      setTimeout(() => { completeRide(price, "Cash"); setIsProcessing(false); }, 1000);
+      // Cash confirmation: slight delay to simulate confirmation, then record
+      setTimeout(() => { completeRide(price, "Cash"); setIsProcessing(false); }, 1200);
       return;
     }
 
@@ -252,19 +253,35 @@ export function PaymentScreen() {
               Hope you had a great ride 🎉
             </Animated.Text>
 
+            {selectedMethod === "Cash" && (
+              <Animated.View entering={FadeInDown.delay(450).springify()} style={{ width: "100%", backgroundColor: "rgba(34,197,94,0.08)", borderRadius: 16, borderWidth: 1, borderColor: "rgba(34,197,94,0.25)", padding: 14 }}>
+                <Text style={{ color: "#4ADE80", fontFamily: "Inter_700Bold", fontSize: 14, marginBottom: 4 }}>
+                  💵 Cash Payment Confirmed
+                </Text>
+                <Text style={{ color: "#86EFAC", fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18 }}>
+                  Aapne ₹{price} driver ko seedha diye hain. Yeh digital receipt aapke payment ka proof hai.{"\n"}
+                  Platform commission (6.7% = ₹{(price * 0.067).toFixed(2)}) driver ki earning se kategi.
+                </Text>
+                <Text style={{ color: "#4ADE80", fontFamily: "Inter_600SemiBold", fontSize: 11, marginTop: 6 }}>
+                  Proof ID: RR-{completedRideId ?? Date.now().toString().slice(-8)} · {new Date().toLocaleString("en-IN")}
+                </Text>
+              </Animated.View>
+            )}
+
             <Animated.View entering={FadeInDown.delay(500).springify()} style={[s.receiptCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {[
                 { icon: "🏷️", label: "Amount Paid",    value: `₹${price}` },
                 { icon: "🕐", label: "Duration",        value: `${duration} min` },
                 { icon: "📍", label: "Distance",        value: `${distanceKm} km` },
-                { icon: "💳", label: "Payment Method",  value: selectedMethod === "RaftaarWallet" ? "RaftaarRide Wallet 👛" : selectedMethod },
+                { icon: "💳", label: "Payment",         value: selectedMethod === "RaftaarWallet" ? "RaftaarRide Wallet 👛" : selectedMethod === "Cash" ? "💵 Cash (Driver ko diya)" : selectedMethod },
+                ...(selectedMethod === "Cash" ? [{ icon: "🏦", label: "Platform Commission", value: `₹${(price * 0.067).toFixed(2)} (6.7%)` }] : []),
               ].map(({ icon, label, value }) => (
                 <View key={label} style={[s.receiptRow, { borderColor: colors.border }]}>
                   <View style={s.receiptLabelRow}>
                     <Text style={s.receiptIcon}>{icon}</Text>
                     <Text style={[s.receiptLabel, { color: colors.mutedForeground }]}>{label}</Text>
                   </View>
-                  <Text style={[s.receiptValue, { color: colors.foreground }]}>{value}</Text>
+                  <Text style={[s.receiptValue, { color: label === "Platform Commission" ? "#F87171" : colors.foreground }]}>{value}</Text>
                 </View>
               ))}
             </Animated.View>
