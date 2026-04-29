@@ -6,6 +6,9 @@ import {
   Pressable,
   StyleSheet,
   Platform,
+  Linking,
+  Alert,
+  TouchableOpacity,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -64,7 +67,8 @@ const TERMS_SECTIONS = [
   {
     num: "10",
     title: "Contact Us",
-    body: `Email: ${CONTACT_EMAIL}`,
+    body: "Koi bhi sawaal ya madad ke liye hum se sampark karein:",
+    email: CONTACT_EMAIL,
   },
 ];
 
@@ -122,11 +126,37 @@ const PRIVACY_SECTIONS = [
   {
     num: "11",
     title: "Contact Us",
-    body: `Email: ${CONTACT_EMAIL}`,
+    body: "Koi bhi sawaal ya madad ke liye hum se sampark karein:",
+    email: CONTACT_EMAIL,
   },
 ];
 
-function Section({ num, title, body, colors }: { num: string; title: string; body: string; colors: ReturnType<typeof useColors> }) {
+function openMail(email: string) {
+  const url = `mailto:${email}`;
+  Linking.canOpenURL(url)
+    .then((supported) => {
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        Alert.alert("Email", `Please send mail to:\n${email}`);
+      }
+    })
+    .catch(() => Alert.alert("Email", `Please send mail to:\n${email}`));
+}
+
+function Section({
+  num,
+  title,
+  body,
+  email,
+  colors,
+}: {
+  num: string;
+  title: string;
+  body: string;
+  email?: string;
+  colors: ReturnType<typeof useColors>;
+}) {
   return (
     <Animated.View entering={FadeInDown.delay(parseInt(num) * 40).springify()} style={[styles.section, { borderColor: colors.border }]}>
       <View style={styles.sectionHeader}>
@@ -136,6 +166,16 @@ function Section({ num, title, body, colors }: { num: string; title: string; bod
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{title}</Text>
       </View>
       <Text style={[styles.sectionBody, { color: colors.mutedForeground }]}>{body}</Text>
+      {email && (
+        <TouchableOpacity
+          onPress={() => openMail(email)}
+          activeOpacity={0.7}
+          style={styles.emailChip}
+        >
+          <Text style={styles.emailChipIcon}>✉️</Text>
+          <Text style={[styles.emailChipText, { color: colors.primary }]}>{email}</Text>
+        </TouchableOpacity>
+      )}
     </Animated.View>
   );
 }
@@ -208,7 +248,10 @@ export default function TermsScreen() {
           <Text style={{ fontSize: 24, marginBottom: 6 }}>🏍️</Text>
           <Text style={[styles.footerBrand, { color: colors.foreground }]}>RaftaarRide</Text>
           <Text style={[styles.footerTagline, { color: colors.mutedForeground }]}>Raftaar se, Surakshit se</Text>
-          <Text style={[styles.footerEmail, { color: colors.primary }]}>{CONTACT_EMAIL}</Text>
+          <TouchableOpacity onPress={() => openMail(CONTACT_EMAIL)} activeOpacity={0.7} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Text style={{ fontSize: 13 }}>✉️</Text>
+            <Text style={[styles.footerEmail, { color: colors.primary, textDecorationLine: "underline" }]}>{CONTACT_EMAIL}</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>
@@ -281,4 +324,23 @@ const styles = StyleSheet.create({
   footerBrand: { fontSize: 16, fontFamily: "Inter_700Bold" },
   footerTagline: { fontSize: 12, fontFamily: "Inter_400Regular" },
   footerEmail: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginTop: 4 },
+  emailChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginTop: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "rgba(245,166,35,0.35)",
+    backgroundColor: "rgba(245,166,35,0.08)",
+    alignSelf: "flex-start",
+  },
+  emailChipIcon: { fontSize: 15 },
+  emailChipText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    textDecorationLine: "underline",
+  },
 });
