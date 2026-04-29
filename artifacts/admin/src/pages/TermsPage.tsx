@@ -64,9 +64,9 @@ export function TermsPage() {
           { n: "09", title: "Changes to Terms", body: <p>RaftaarRide may update these terms anytime. Continued use means acceptance of changes.</p> },
         ].map(({ n, title, body }) => (
           <div key={n} className="pp-card">
-            <div className="pp-card-head">
-              <div className="pp-num">{n}</div>
-              <div className="pp-title">{title}</div>
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "14px", marginBottom: "14px" }}>
+              <div style={{ minWidth: "36px", width: "36px", height: "36px", background: "linear-gradient(135deg,#F5A623,#E09010)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", fontWeight: 900, color: "#0A0A0F", flexShrink: 0 }}>{n}</div>
+              <div style={{ fontSize: "17px", fontWeight: 700, color: "#F5A623", lineHeight: 1.3, flex: 1 }}>{title}</div>
             </div>
             <div className="pp-body">{body}</div>
           </div>
