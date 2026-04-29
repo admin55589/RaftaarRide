@@ -1,6 +1,8 @@
 {
-  "framework": "vite",
-  "buildCommand": "vite build",
-  "outputDirectory": "dist",
-  "installCommand": "pnpm install"
+  "buildCommand": "pnpm --filter @workspace/admin run build",
+  "outputDirectory": "artifacts/admin/dist/public",
+  "installCommand": "pnpm install",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
