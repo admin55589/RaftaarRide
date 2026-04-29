@@ -1,4 +1,7 @@
 {
+  "installCommand": "cd ../.. && pnpm install",
+  "buildCommand": "cd ../.. && pnpm --filter @workspace/admin run build",
+  "outputDirectory": "dist/public",
   "cleanUrls": true,
   "rewrites": [
     { "source": "/terms", "destination": "/terms.html" },
