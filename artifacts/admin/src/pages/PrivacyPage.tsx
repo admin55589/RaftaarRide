@@ -18,9 +18,9 @@ export function PrivacyPage() {
         .pp-container{max-width:780px;margin:0 auto;padding:40px 20px 80px}
         .pp-card{background:#111118;border:1px solid #1E1E2E;border-radius:18px;padding:24px;margin-bottom:16px;transition:border-color .2s}
         .pp-card:hover{border-color:rgba(245,166,35,.2)}
-        .pp-card-head{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+        .pp-card-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px}
         .pp-num{min-width:36px;width:36px;height:36px;background:linear-gradient(135deg,#F5A623,#E09010);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#0A0A0F;flex-shrink:0;margin:0;padding:0}
-        .pp-title{font-size:17px;font-weight:700;color:#F5A623;line-height:1.2;margin:0;padding:0;align-self:center;display:flex;align-items:center}
+        .pp-title{font-size:17px;font-weight:700;color:#F5A623;line-height:36px;margin:0;padding:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .pp-body{font-size:15px;line-height:1.8;color:#C8C8D8}
         .pp-list{list-style:none;padding:0;margin-top:8px;display:flex;flex-direction:column;gap:8px}
         .pp-list li{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);border-radius:10px;font-size:14px;line-height:1.6}
