@@ -200,6 +200,7 @@ export function SearchingScreen() {
       setAssignedDriver({
         ...mockDriver,
         name: driverName,
+        phone: driver?.phone ?? undefined,
         vehicleNumber: driver?.vehicleNumber ?? mockDriver.vehicleNumber,
         rating: driver ? (typeof driver.rating === "number" ? driver.rating : parseFloat(String(driver.rating)) || mockDriver.rating) : mockDriver.rating,
         eta,

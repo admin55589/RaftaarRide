@@ -24,6 +24,7 @@ export interface SavedPlace {
 export interface Driver {
   id: string;
   name: string;
+  phone?: string;
   rating: number;
   vehicle: string;
   vehicleNumber: string;
@@ -66,6 +67,7 @@ function serverRideToLocal(record: RideRecord & { driver?: any }): Ride {
     ? {
         id: String(d.id),
         name: d.name ?? defaults.name,
+        phone: d.phone ?? undefined,
         rating: d.rating != null
           ? (typeof d.rating === "number" ? d.rating : parseFloat(String(d.rating)) || defaults.rating)
           : defaults.rating,
