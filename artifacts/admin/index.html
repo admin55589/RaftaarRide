@@ -14,35 +14,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   </head>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    html,body{background:#0A0A0F;height:100%}
-    #root{height:100%}
-    #splash{position:fixed;inset:0;background:#0A0A0F;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;z-index:9999}
-    #splash-logo{width:88px;height:88px;background:linear-gradient(135deg,#1A1A28,#0A0A0F);border:2px solid rgba(245,166,35,0.35);border-radius:24px;display:flex;flex-direction:column;align-items:center;justify-content:center}
-    #splash-r{font-family:Arial Black,Arial,sans-serif;font-size:52px;font-weight:900;color:#F5A623;line-height:1}
-    #splash-title{font-family:Arial,sans-serif;font-size:22px;font-weight:800;color:#fff;letter-spacing:0.5px}
-    #splash-title span{color:#F5A623}
-    #splash-sub{font-size:13px;color:#8A8A9A;letter-spacing:1px;text-transform:uppercase}
-    #splash-dot{width:6px;height:6px;border-radius:50%;background:#F5A623;animation:pulse 1s infinite}
-    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.7)}}
-  </style>
   <body>
-    <div id="splash">
-      <div id="splash-logo">
-        <div id="splash-r">R</div>
-      </div>
-      <div id="splash-title">Raftaar<span>Ride</span></div>
-      <div id="splash-sub">Admin Panel</div>
-      <div id="splash-dot"></div>
-    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      document.addEventListener('DOMContentLoaded',function(){
-        var s=document.getElementById('splash');
-        if(s){setTimeout(function(){s.style.opacity='0';s.style.transition='opacity 0.4s';setTimeout(function(){s.remove()},400)},600)}
-      });
-    </script>
   </body>
 </html>
