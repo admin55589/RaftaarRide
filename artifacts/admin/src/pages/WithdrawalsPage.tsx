@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle, XCircle, Search, Wallet } from "lucide-react";
+import { CheckCircle, XCircle, Search, Wallet, PlusCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { formatDate } from "@/components/shared";
 import { cn } from "@/lib/utils";
@@ -45,6 +45,42 @@ export function WithdrawalsPage() {
   const [txnRef, setTxnRef] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [toast, setToast] = useState("");
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [creditDriverId, setCreditDriverId] = useState("");
+  const [creditAmount, setCreditAmount] = useState("");
+  const [creditNote, setCreditNote] = useState("");
+
+  const { data: drivers = [] } = useQuery<Array<{ id: number; name: string; phone: string; walletBalance: number }>>({
+    queryKey: ["admin-drivers-wallet"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/admin/drivers`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return [];
+      const list = await res.json();
+      return Array.isArray(list) ? list.map((d: any) => ({ id: d.id, name: d.name, phone: d.phone, walletBalance: Number(d.walletBalance ?? 0) })) : [];
+    },
+    enabled: !!token,
+    refetchInterval: 60000,
+  });
+
+  const creditMutation = useMutation({
+    mutationFn: async ({ driverId, amount, note }: { driverId: number; amount: number; note: string }) => {
+      const res = await fetch(`${API_BASE}/api/admin/drivers/${driverId}/wallet/credit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount, note }),
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["admin-drivers-wallet"] });
+      setShowCreditModal(false);
+      setCreditDriverId("");
+      setCreditAmount("");
+      setCreditNote("");
+      setToast(data.message ?? "Wallet credit ho gaya!");
+      setTimeout(() => setToast(""), 4000);
+    },
+  });
 
   const { data: withdrawals = [], isLoading } = useQuery<WithdrawalRecord[]>({
     queryKey: ["admin-withdrawals"],
@@ -117,9 +153,17 @@ export function WithdrawalsPage() {
           <h1 className="text-xl font-bold text-foreground">Driver Withdrawals</h1>
           <p className="text-muted-foreground text-sm">Withdrawal requests manage karo</p>
         </div>
-        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-2 text-center">
-          <div className="text-lg font-bold text-yellow-500">₹{totalPending.toFixed(2)}</div>
-          <div className="text-xs text-muted-foreground">Pending Amount</div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowCreditModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 text-sm font-semibold hover:bg-blue-500/20 transition-colors"
+          >
+            <PlusCircle className="w-4 h-4" /> Credit Wallet
+          </button>
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-2 text-center">
+            <div className="text-lg font-bold text-yellow-500">₹{totalPending.toFixed(2)}</div>
+            <div className="text-xs text-muted-foreground">Pending Amount</div>
+          </div>
         </div>
       </div>
 
@@ -300,6 +344,81 @@ export function WithdrawalsPage() {
                   <XCircle className="w-4 h-4" /> Reject
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreditModal && (
+        <div className="fixed inset-0 z-40 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowCreditModal(false)}>
+          <div className="bg-background w-full max-w-md rounded-2xl border border-border shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <div>
+                <h2 className="font-bold text-foreground flex items-center gap-2"><PlusCircle className="w-4 h-4 text-blue-500" /> Manual Wallet Credit</h2>
+                <p className="text-muted-foreground text-xs">Driver ke wallet mein amount add karo</p>
+              </div>
+              <button className="text-muted-foreground hover:text-foreground text-lg" onClick={() => setShowCreditModal(false)}>✕</button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Driver select karo:</label>
+                <select
+                  className="w-full rounded-lg border border-input bg-muted/30 text-sm p-3 focus:outline-none focus:ring-1 focus:ring-ring text-foreground"
+                  value={creditDriverId}
+                  onChange={(e) => setCreditDriverId(e.target.value)}
+                >
+                  <option value="">— Driver chunein —</option>
+                  {drivers.map((d) => (
+                    <option key={d.id} value={String(d.id)}>
+                      {d.name} ({d.phone}) — Bal: ₹{d.walletBalance.toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Credit Amount (₹):</label>
+                <input
+                  type="number"
+                  className="w-full rounded-lg border border-input bg-muted/30 text-sm p-3 focus:outline-none focus:ring-1 focus:ring-ring"
+                  placeholder="e.g. 500"
+                  min={1}
+                  max={50000}
+                  value={creditAmount}
+                  onChange={(e) => setCreditAmount(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Note / Reason (optional):</label>
+                <input
+                  className="w-full rounded-lg border border-input bg-muted/30 text-sm p-3 focus:outline-none focus:ring-1 focus:ring-ring"
+                  placeholder="e.g. Bonus ride, adjustment..."
+                  value={creditNote}
+                  onChange={(e) => setCreditNote(e.target.value)}
+                />
+              </div>
+
+              {creditDriverId && creditAmount && Number(creditAmount) > 0 && (
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                  <p className="text-blue-400 text-sm font-medium">
+                    ₹{Number(creditAmount).toFixed(2)} credit hoga {drivers.find((d) => d.id === Number(creditDriverId))?.name} ke wallet mein
+                  </p>
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  if (!creditDriverId || !creditAmount || Number(creditAmount) <= 0) return;
+                  creditMutation.mutate({ driverId: Number(creditDriverId), amount: Number(creditAmount), note: creditNote });
+                }}
+                disabled={!creditDriverId || !creditAmount || Number(creditAmount) <= 0 || creditMutation.isPending}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 transition-colors disabled:opacity-50"
+              >
+                <PlusCircle className="w-4 h-4" />
+                {creditMutation.isPending ? "Processing..." : "Credit Wallet"}
+              </button>
             </div>
           </div>
         </div>
