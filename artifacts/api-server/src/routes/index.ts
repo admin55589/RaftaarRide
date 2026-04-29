@@ -10,10 +10,12 @@ import walletRouter from "./wallet";
 import kycRouter from "./kyc";
 import scheduledRouter from "./scheduled";
 import voiceRouter from "./voice";
+import pagesRouter from "./pages";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(pagesRouter);
 router.use(authRouter);
 router.use(driverAuthRouter);
 router.use(adminRouter);
