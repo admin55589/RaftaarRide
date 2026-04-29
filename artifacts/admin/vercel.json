@@ -6,7 +6,6 @@
   "rewrites": [
     { "source": "/terms", "destination": "/terms.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/api/:path*", "destination": "https://68e41a5f-c1bd-4337-9c0e-5f9c6dd535e1-00-3rxx9zjx78ze2.janeway.replit.dev/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
