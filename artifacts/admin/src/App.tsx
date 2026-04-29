@@ -12,6 +12,8 @@ import { DriversPage } from "@/pages/DriversPage";
 import { RidesPage } from "@/pages/RidesPage";
 import { KYCPage } from "@/pages/KYCPage";
 import { WithdrawalsPage } from "@/pages/WithdrawalsPage";
+import { TermsPage } from "@/pages/TermsPage";
+import { PrivacyPage } from "@/pages/PrivacyPage";
 import NotFound from "@/pages/not-found";
 import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 
@@ -68,7 +70,11 @@ function App() {
       <TooltipProvider>
         <AuthProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <AppLayout />
+            <Switch>
+              <Route path="/terms" component={TermsPage} />
+              <Route path="/privacy" component={PrivacyPage} />
+              <Route component={AppLayout} />
+            </Switch>
           </WouterRouter>
         </AuthProvider>
         <Toaster />
