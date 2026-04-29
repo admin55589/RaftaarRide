@@ -85,7 +85,7 @@ export function Sidebar({ isLive = false }: SidebarProps) {
     <aside className="w-64 shrink-0 h-screen flex flex-col border-r border-sidebar-border bg-sidebar sticky top-0">
       <div className="flex items-center gap-3 px-6 py-5 border-b border-sidebar-border">
         <img
-          src={`${import.meta.env.BASE_URL}app-logo.jpg`}
+          src={`${import.meta.env.BASE_URL}app-logo.svg`}
           alt="RaftaarRide"
           className="w-8 h-8 rounded-lg object-cover"
         />
