@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View, Platform } from "react-native";
+import { Alert, Pressable, Share, StyleSheet, Text, View, Platform } from "react-native";
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -11,11 +11,14 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import * as Location from "expo-location";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
+import { SOSModal } from "@/components/SOSModal";
+import { CallModal } from "@/components/CallModal";
 import { connectSocket, joinRideRoom, getSocket } from "@/lib/socket";
 import { useNotification } from "@/context/NotificationContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -81,6 +84,8 @@ export function LiveTrackingScreen() {
   const [timeLeft, setTimeLeft] = useState(12);
   const [driverLiveLocation, setDriverLiveLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [ridePin, setRidePin] = useState<number | null>(null);
+  const [showSOS, setShowSOS] = useState(false);
+  const [showCall, setShowCall] = useState(false);
 
   useEffect(() => {
     if (!currentRideId) return;
@@ -186,6 +191,35 @@ export function LiveTrackingScreen() {
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
 
+  const handleCall = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowCall(true);
+  };
+
+  const handleShareLocation = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      let mapsLink = "";
+      if (status === "granted") {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const { latitude, longitude } = loc.coords;
+        mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
+      }
+      const message = [
+        `🏍️ Main RaftaarRide mein hoon!`,
+        ``,
+        `👤 Driver: ${driver.name} (⭐ ${driver.rating.toFixed(1)})`,
+        `🚘 ${driver.vehicle} • ${driver.vehicleNumber}`,
+        mapsLink ? `\n📍 Live Location: ${mapsLink}` : ``,
+        mapsLink ? `🗺️ Google Maps: ${mapsLink}` : ``,
+      ].filter(Boolean).join("\n");
+      await Share.share({ message, title: "Live Location - RaftaarRide" });
+    } catch {
+      Alert.alert("Share", "Location share nahi ho saka. Dobara try karein.");
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <MapView showRoute routeProgress={progress} driverLocation={driverLiveLocation} />
@@ -238,7 +272,10 @@ export function LiveTrackingScreen() {
                 <Text style={[styles.driverName, { color: colors.foreground }]}>{driver.name}</Text>
                 <Text style={[styles.driverPlate, { color: colors.mutedForeground }]}>{driver.vehicleNumber}</Text>
               </View>
-              <Pressable style={[styles.callBtn, { backgroundColor: colors.success + "22", borderColor: colors.success }]}>
+              <Pressable
+                onPress={handleCall}
+                style={[styles.callBtn, { backgroundColor: colors.success + "22", borderColor: colors.success }]}
+              >
                 <Text style={styles.callBtnEmoji}>📞</Text>
               </Pressable>
             </View>
@@ -251,18 +288,42 @@ export function LiveTrackingScreen() {
               </View>
             )}
 
-            <View style={styles.sosRow}>
-              <Pressable style={[styles.sosBtn, { backgroundColor: "rgba(239,68,68,0.13)", borderColor: colors.destructive }]}>
+            <View style={[styles.sosRow, { paddingBottom: Math.max(bottomPad, 4) }]}>
+              <Pressable
+                onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); setShowSOS(true); }}
+                style={[styles.sosBtn, { backgroundColor: "rgba(239,68,68,0.13)", borderColor: colors.destructive }]}
+              >
                 <Text style={{ fontSize: 14 }}>⚠️</Text>
                 <Text style={[styles.sosText, { color: colors.destructive }]}>Emergency SOS</Text>
               </Pressable>
-              <Pressable style={[styles.shareBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-                <Text style={{ fontSize: 14 }}>📤</Text>
+              <Pressable
+                onPress={handleShareLocation}
+                style={({ pressed }) => [
+                  styles.shareBtn,
+                  { backgroundColor: pressed ? "rgba(245,166,35,0.13)" : colors.secondary, borderColor: pressed ? colors.primary : colors.border },
+                ]}
+              >
+                <Text style={{ fontSize: 16 }}>📤</Text>
+                <Text style={[styles.shareText, { color: colors.primary }]}>Share</Text>
               </Pressable>
             </View>
           </View>
         </GlassCard>
       </Animated.View>
+
+      <SOSModal visible={showSOS} onClose={() => setShowSOS(false)} />
+      <CallModal
+        visible={showCall}
+        onClose={() => setShowCall(false)}
+        driver={{
+          name: driver.name,
+          phone: driver.phone,
+          vehicle: driver.vehicle,
+          vehicleNumber: driver.vehicleNumber,
+          photo: driver.photo,
+          rating: driver.rating,
+        }}
+      />
     </View>
   );
 }
@@ -421,12 +482,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   shareBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minWidth: 80,
+  },
+  shareText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    fontWeight: "600",
   },
   pinBox: {
     borderWidth: 1.5,
