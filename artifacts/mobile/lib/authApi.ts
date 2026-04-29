@@ -9,14 +9,45 @@ const isFirebaseReady =
   !!FIREBASE_API_KEY && FIREBASE_API_KEY !== "GOOGLE_API_KEY";
 
 async function post<T>(path: string, body: object): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (err: any) {
+    const msg = err?.message ?? "";
+    if (msg.includes("Network request failed") || msg.includes("Failed to fetch") || msg.includes("fetch failed")) {
+      throw new Error("Internet connection check karein aur dobara try karein.");
+    }
+    throw new Error("Server se connect nahi ho pa raha. Kripya dobara try karein.");
+  }
+
+  let text = "";
+  try {
+    text = await res.text();
+  } catch {
+    throw new Error("Server se response nahi mila. Dobara try karein.");
+  }
+
+  if (!text || !text.trim()) {
+    throw new Error("Server khaali response de raha hai. Dobara try karein.");
+  }
+
+  let data: any;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    // Server ne HTML error page ya non-JSON diya (e.g. 502 Bad Gateway)
+    if (res.status >= 500) {
+      throw new Error("Server error ho gayi. Thodi der baad try karein.");
+    }
+    throw new Error("Server response galat format mein hai. Dobara try karein.");
+  }
+
   if (!res.ok) {
-    throw new Error(data.message || "Request failed");
+    throw new Error(data?.message || `Request failed (${res.status})`);
   }
   return data as T;
 }
