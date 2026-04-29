@@ -36,13 +36,27 @@ export function Sidebar({ isLive = false }: SidebarProps) {
     refetchInterval: 30000,
   });
 
+  const { data: withdrawalPending = 0 } = useQuery<number>({
+    queryKey: ["withdrawal-pending-count"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/admin/withdrawals`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return 0;
+      const list: Array<{ status: string }> = await res.json();
+      return Array.isArray(list) ? list.filter((w) => w.status === "pending").length : 0;
+    },
+    enabled: !!token,
+    refetchInterval: 20000,
+  });
+
   const nav = [
     { label: "Dashboard", href: "/", icon: LayoutDashboard, badge: 0 },
     { label: "Users", href: "/users", icon: Users, badge: 0 },
     { label: "Drivers", href: "/drivers", icon: Car, badge: 0 },
     { label: "Rides", href: "/rides", icon: MapPin, badge: 0 },
     { label: "KYC Verification", href: "/kyc", icon: FileCheck, badge: kycPending },
-    { label: "Withdrawals", href: "/withdrawals", icon: Wallet, badge: 0 },
+    { label: "Withdrawals", href: "/withdrawals", icon: Wallet, badge: withdrawalPending },
   ];
 
   return (
