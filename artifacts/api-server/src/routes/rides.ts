@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { ridesTable, driversTable, usersTable } from "@workspace/db/schema";
+import { ridesTable, driversTable, usersTable, walletTransactionsTable } from "@workspace/db/schema";
 import { eq, desc, and, inArray, avg, isNotNull } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { emitRideUpdate, emitAdminUpdate, emitToDriver } from "../lib/socket";
@@ -290,9 +290,11 @@ router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) 
         const price = parseFloat(String(updated.price));
         const commission = parseFloat((price * 0.067).toFixed(2));
         const earning = parseFloat((price * 0.933).toFixed(2));
+        const newWalletBalance = parseFloat(String(driver.walletBalance ?? "0")) + earning;
 
         await db.update(driversTable).set({
           totalEarnings: String((parseFloat(String(driver.totalEarnings ?? "0")) + earning).toFixed(2)),
+          walletBalance: String(newWalletBalance.toFixed(2)),
           totalRides: (driver.totalRides ?? 0) + 1,
           isOnline: false,
         }).where(eq(driversTable.id, updated.driverId));
@@ -301,6 +303,13 @@ router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) 
           commissionAmount: String(commission),
           driverEarning: String(earning),
         }).where(eq(ridesTable.id, rideId));
+
+        await db.insert(walletTransactionsTable).values({
+          driverId: updated.driverId,
+          type: "earning",
+          amount: String(earning),
+          description: `Ride #${rideId} earning — ₹${earning.toFixed(2)} (6.7% commission deducted)`,
+        });
       }
     }
 
@@ -344,13 +353,24 @@ router.post("/rides/:id/verify-pin", async (req: Request, res: Response) => {
       const price = parseFloat(String(updated.price));
       const commission = parseFloat((price * 0.067).toFixed(2));
       const earning = parseFloat((price * 0.933).toFixed(2));
+      const newWalletBalance = parseFloat(String(driver.walletBalance ?? "0")) + earning;
+
       await db.update(driversTable).set({
         totalEarnings: String((parseFloat(String(driver.totalEarnings ?? "0")) + earning).toFixed(2)),
+        walletBalance: String(newWalletBalance.toFixed(2)),
         totalRides: (driver.totalRides ?? 0) + 1,
         isOnline: false,
       }).where(eq(driversTable.id, driverId));
+
       await db.update(ridesTable).set({ commissionAmount: String(commission), driverEarning: String(earning) })
         .where(eq(ridesTable.id, rideId));
+
+      await db.insert(walletTransactionsTable).values({
+        driverId,
+        type: "earning",
+        amount: String(earning),
+        description: `Ride #${rideId} earning — ₹${earning.toFixed(2)} (6.7% commission deducted)`,
+      });
     }
 
     /* Notify passenger: PIN confirmed → go to payment */
