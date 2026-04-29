@@ -79,7 +79,8 @@ export default function SignupScreen() {
         <Pressable
           onPress={toggleLanguage}
           hitSlop={8}
-          style={{ position: "absolute", top: insets.top + 12, right: 16, zIndex: 100, width: 40, height: 40, borderRadius: 20, borderWidth: 1, backgroundColor: "rgba(245,166,35,0.15)", borderColor: "rgba(245,166,35,0.4)", alignItems: "center", justifyContent: "center" }}
+          android_ripple={null}
+          style={({ pressed }) => [{ position: "absolute", top: insets.top + 12, right: 16, zIndex: 100, width: 40, height: 40, borderRadius: 20, borderWidth: 1, backgroundColor: pressed ? "rgba(245,166,35,0.25)" : "rgba(245,166,35,0.15)", borderColor: "rgba(245,166,35,0.4)", alignItems: "center", justifyContent: "center" }]}
         >
           <Text style={{ color: "#F5A623", fontSize: 12, fontWeight: "700" }}>{lang === "hi" ? "हिं" : "EN"}</Text>
         </Pressable>
@@ -89,7 +90,7 @@ export default function SignupScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
-            <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Pressable onPress={() => router.back()} android_ripple={null} style={({ pressed }) => [styles.backBtn, pressed && { backgroundColor: "#1F1F2E" }]}>
               <Text style={{ fontSize: 20, color: "#FFFFFF", lineHeight: 24 }}>←</Text>
             </Pressable>
             <View style={styles.logoRow}>
@@ -149,7 +150,8 @@ export default function SignupScreen() {
                 {GENDERS.map((g) => (
                   <Pressable
                     key={g.value}
-                    style={[styles.genderBtn, gender === g.value && styles.genderBtnActive]}
+                    style={({ pressed }) => [styles.genderBtn, gender === g.value && styles.genderBtnActive, pressed && !gender && { backgroundColor: "rgba(245,166,35,0.12)" }]}
+                    android_ripple={null}
                     onPress={() => setGender(g.value)}
                   >
                     <Text style={[styles.genderText, gender === g.value && styles.genderTextActive]}>
@@ -223,6 +225,7 @@ export default function SignupScreen() {
             <Pressable
               style={[styles.primaryBtn, loading && styles.disabled]}
               onPress={handleSignup}
+              android_ripple={null}
               disabled={loading}
             >
               <LinearGradient colors={["#F5A623", "#E09010"]} style={styles.primaryGrad}>
@@ -234,7 +237,11 @@ export default function SignupScreen() {
               </LinearGradient>
             </Pressable>
 
-            <Pressable style={styles.loginLink} onPress={() => router.replace("/auth/login")}>
+            <Pressable
+              style={({ pressed }) => [styles.loginLink, pressed && styles.loginLinkPressed]}
+              android_ripple={null}
+              onPress={() => router.replace("/auth/login")}
+            >
               <Text style={styles.loginLinkText}>
                 Already account hai? <Text style={{ color: "#F5A623" }}>Login karo</Text>
               </Text>
@@ -242,7 +249,7 @@ export default function SignupScreen() {
 
             <View style={styles.termsRow}>
               <Text style={styles.termsText}>Account banake aap humare </Text>
-              <Pressable onPress={() => router.push("/terms")}>
+              <Pressable onPress={() => router.push("/terms")} android_ripple={null}>
                 <Text style={styles.termsLink}>Terms & Privacy Policy</Text>
               </Pressable>
               <Text style={styles.termsText}> se agree karte hain</Text>
@@ -301,7 +308,8 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.6 },
   primaryGrad: { paddingVertical: 16, alignItems: "center", borderRadius: 16 },
   primaryText: { color: "#0A0A0F", fontWeight: "800", fontSize: 16 },
-  loginLink: { marginTop: 20, alignItems: "center" },
+  loginLink: { marginTop: 20, alignItems: "center", paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10 },
+  loginLinkPressed: { backgroundColor: "rgba(245,166,35,0.1)" },
   loginLinkText: { color: "#8A8A9A", fontSize: 14 },
   termsRow: { marginTop: 16, flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "center" },
   termsText: { color: "#8A8A9A", fontSize: 11 },
