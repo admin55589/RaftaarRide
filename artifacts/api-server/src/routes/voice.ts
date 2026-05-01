@@ -6,13 +6,21 @@ import { toFile } from "openai";
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-});
+function getOpenAI(): OpenAI | null {
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  if (!apiKey) return null;
+  return new OpenAI({ baseURL, apiKey });
+}
 
 router.post("/voice/transcribe", upload.single("audio"), async (req: Request, res: Response) => {
   try {
+    const openai = getOpenAI();
+    if (!openai) {
+      res.status(503).json({ error: "Voice service not configured", text: "" });
+      return;
+    }
+
     if (!req.file) {
       res.status(400).json({ error: "Audio file required" });
       return;
