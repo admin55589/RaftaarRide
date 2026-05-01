@@ -81,6 +81,17 @@ export function WithdrawalsPage() {
   const [creditConfirm, setCreditConfirm] = useState(false);
   const [newRequestNotif, setNewRequestNotif] = useState(0);
   const prevPendingCount = useRef(0);
+  const [automationOn, setAutomationOn] = useState<boolean>(() => {
+    const saved = localStorage.getItem("raftaar_automation_on");
+    return saved === null ? true : saved === "true";
+  });
+
+  const toggleAutomation = () => {
+    const newVal = !automationOn;
+    setAutomationOn(newVal);
+    localStorage.setItem("raftaar_automation_on", String(newVal));
+    showToast(newVal ? "✅ Auto-Processing ON kar diya" : "⏸️ Auto-Processing OFF kar diya", "success");
+  };
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -229,12 +240,23 @@ export function WithdrawalsPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-foreground">⚡ Auto-Withdrawal Gateway</h1>
-            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-              Auto-Processing ON
-            </span>
+            <button
+              onClick={toggleAutomation}
+              className={cn(
+                "px-3 py-0.5 rounded-full text-xs font-bold border transition-all duration-200 cursor-pointer hover:opacity-80 active:scale-95",
+                automationOn
+                  ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25"
+                  : "bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/25"
+              )}
+              title={automationOn ? "Click karke automation band karo" : "Click karke automation shuru karo"}
+            >
+              {automationOn ? "🟢 Auto-Processing ON" : "🔴 Auto-Processing OFF"}
+            </button>
           </div>
           <p className="text-muted-foreground text-sm mt-0.5">
-            Valid requests automatic approve hote hain via Razorpay • Invalid auto-reject + refund
+            {automationOn
+              ? "Valid requests check hote hain • Invalid auto-reject + refund • Manual transfer required"
+              : "⏸️ Automation band hai — sirf manual processing ho rahi hai"}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -245,8 +267,9 @@ export function WithdrawalsPage() {
             <PlusCircle className="w-4 h-4" /> Credit Wallet
           </button>
           <button
-            onClick={() => qc.invalidateQueries({ queryKey: ["admin-withdrawals"] })}
+            onClick={() => window.location.reload()}
             className="p-2 rounded-xl border border-border hover:bg-muted/40 transition-colors"
+            title="Page refresh karo"
           >
             <RefreshCw className="w-4 h-4 text-muted-foreground" />
           </button>
