@@ -618,7 +618,7 @@ export function WithdrawalsPage() {
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 transition-colors disabled:opacity-50"
               >
                 <PlusCircle className="w-4 h-4" />
-                {creditMutation.isPending ? "⏳ Credit Ho Raha Hai..." : "💰 Credit Wallet (Real)"}
+                {creditMutation.isPending ? "⏳ Credit Ho Raha Hai..." : "💰 Credit Wallet"}
               </button>
             </div>
           </div>
