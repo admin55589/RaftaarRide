@@ -85,12 +85,19 @@ export function WithdrawalsPage() {
     const saved = localStorage.getItem("raftaar_automation_on");
     return saved === null ? true : saved === "true";
   });
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const toggleAutomation = () => {
     const newVal = !automationOn;
     setAutomationOn(newVal);
     localStorage.setItem("raftaar_automation_on", String(newVal));
     showToast(newVal ? "✅ Auto-Processing ON kar diya" : "⏸️ Auto-Processing OFF kar diya", "success");
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await qc.invalidateQueries({ queryKey: ["admin-withdrawals"] });
+    setTimeout(() => setIsRefreshing(false), 800);
   };
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -267,11 +274,12 @@ export function WithdrawalsPage() {
             <PlusCircle className="w-4 h-4" /> Credit Wallet
           </button>
           <button
-            onClick={() => window.location.reload()}
-            className="p-2 rounded-xl border border-border hover:bg-muted/40 transition-colors"
-            title="Page refresh karo"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="p-2 rounded-xl border border-border hover:bg-muted/40 transition-colors disabled:opacity-60"
+            title="Data refresh karo"
           >
-            <RefreshCw className="w-4 h-4 text-muted-foreground" />
+            <RefreshCw className={cn("w-4 h-4 text-muted-foreground transition-transform", isRefreshing && "animate-spin")} />
           </button>
         </div>
       </div>
