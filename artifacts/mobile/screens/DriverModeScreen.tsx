@@ -508,6 +508,21 @@ export function DriverModeScreen() {
     return "https://workspaceapi-server-production-2e22.up.railway.app/api";
   })();
 
+  /* On mount: fetch fresh profile so rating/stats are always up to date (not stale cache) */
+  useEffect(() => {
+    if (!driverToken) return;
+    fetch(`${API_BASE}/driver-auth/me`, {
+      headers: { Authorization: `Bearer ${driverToken}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.driver && driver) {
+          updateDriver({ ...driver, ...data.driver });
+        }
+      })
+      .catch(() => {});
+  }, [driverToken]);
+
   /* Toggle driver online/offline — calls API and syncs context */
   const handleToggleOnline = async () => {
     if (onlineToggling || !driverToken || !driver) return;
