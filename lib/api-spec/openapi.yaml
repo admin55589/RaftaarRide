@@ -258,6 +258,12 @@ components:
           type: number
         totalRides:
           type: integer
+        walletBalance:
+          type: number
+        ratingCount:
+          type: integer
+        isOnline:
+          type: boolean
         createdAt:
           type: string
       required:

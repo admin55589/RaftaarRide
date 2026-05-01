@@ -400,7 +400,7 @@ router.patch("/driver-auth/rides/:id/status", async (req: Request, res: Response
       res.status(403).json({ success: false, message: "Driver token required" });
       return;
     }
-    const rideId = parseInt(req.params.id, 10);
+    const rideId = parseInt(String(req.params.id), 10);
     const { status } = req.body as { status: string };
     const allowedStatuses = ["arrived", "onRide", "completed", "cancelled"];
     if (!allowedStatuses.includes(status)) {

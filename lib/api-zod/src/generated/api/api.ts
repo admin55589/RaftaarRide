@@ -56,6 +56,9 @@ export const ListDriversResponseItem = zod.object({
   status: zod.string(),
   totalEarnings: zod.number(),
   totalRides: zod.number(),
+  walletBalance: zod.number().optional(),
+  ratingCount: zod.number().optional(),
+  isOnline: zod.boolean().optional(),
   createdAt: zod.string(),
 });
 export const ListDriversResponse = zod.array(ListDriversResponseItem);

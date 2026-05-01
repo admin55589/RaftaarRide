@@ -176,6 +176,7 @@ router.get("/admin/drivers", authMiddleware, async (_req: Request, res: Response
         totalEarnings: Number(d.totalEarnings),
         walletBalance: Number(d.walletBalance ?? 0),
         totalRides: d.totalRides,
+        isOnline: d.isOnline,
         createdAt: d.createdAt.toISOString(),
       };
     })
@@ -707,7 +708,7 @@ router.post("/admin/promo-codes", authMiddleware, async (req: Request, res: Resp
 });
 
 router.patch("/admin/promo-codes/:id", authMiddleware, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   const { isActive, maxUses, expiresAt } = req.body as { isActive?: boolean; maxUses?: number; expiresAt?: string | null };
   try {
     const updates: Record<string, any> = {};
@@ -723,7 +724,7 @@ router.patch("/admin/promo-codes/:id", authMiddleware, async (req: Request, res:
 });
 
 router.delete("/admin/promo-codes/:id", authMiddleware, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   try {
     const [deleted] = await db.delete(promoCodesTable).where(eq(promoCodesTable.id, id)).returning();
     if (!deleted) { res.status(404).json({ message: "Promo code nahi mila" }); return; }
@@ -770,7 +771,7 @@ router.get("/admin/live-rides", authMiddleware, async (_req: Request, res: Respo
 });
 
 router.get("/admin/chat/:rideId", authMiddleware, async (req: Request, res: Response) => {
-  const rideId = parseInt(req.params.rideId, 10);
+  const rideId = parseInt(String(req.params.rideId), 10);
   try {
     const [ride] = await db
       .select({ id: ridesTable.id, pickup: ridesTable.pickup, destination: ridesTable.destination,
@@ -820,7 +821,7 @@ router.get("/admin/chats/recent", authMiddleware, async (_req: Request, res: Res
 });
 
 router.patch("/admin/users/:id/status", authMiddleware, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   const { status } = req.body as { status: string };
   const allowed = ["active", "blocked", "suspended"];
   if (!allowed.includes(status)) { res.status(400).json({ message: "Invalid status" }); return; }
@@ -832,7 +833,7 @@ router.patch("/admin/users/:id/status", authMiddleware, async (req: Request, res
 });
 
 router.patch("/admin/drivers/:id/status", authMiddleware, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(String(req.params.id), 10);
   const { status } = req.body as { status: string };
   const allowed = ["active", "blocked", "suspended", "pending"];
   if (!allowed.includes(status)) { res.status(400).json({ message: "Invalid status" }); return; }
