@@ -39,7 +39,7 @@ function AutoBadge({ autoProcessed }: { autoProcessed: string | null }) {
   const config: Record<string, { label: string; cls: string }> = {
     approved: { label: "⚡ Auto-Approved", cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
     rejected: { label: "🤖 Auto-Rejected", cls: "bg-red-500/15 text-red-400 border-red-500/30" },
-    pending_manual: { label: "✅ Valid — Manual Transfer", cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+    pending_manual: { label: "⚠️ Format OK — UPI Verify Karein", cls: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
     payout_failed: { label: "⚠️ Payout Failed — Retry", cls: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
   };
   const c = config[autoProcessed];
