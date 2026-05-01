@@ -178,9 +178,9 @@ export function SearchingScreen() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const vehicleIcon = selectedVehicle === "bike" ? "🏍️" : selectedVehicle === "auto" ? "🛺" : "🚗";
-  const vehicleLabel = selectedVehicle === "bike" ? "Bike" : selectedVehicle === "auto" ? "Auto" : "Cab";
-  const vehicleColor = selectedVehicle === "bike" ? "#F5A623" : selectedVehicle === "auto" ? "#22c55e" : "#818cf8";
+  const vehicleIcon = selectedVehicle === "bike" ? "🏍️" : selectedVehicle === "auto" ? "🛺" : selectedVehicle === "suv" ? "🚙" : "🚗";
+  const vehicleLabel = selectedVehicle === "bike" ? "Bike" : selectedVehicle === "auto" ? "Auto" : selectedVehicle === "suv" ? "SUV" : "Cab";
+  const vehicleColor = selectedVehicle === "bike" ? "#F5A623" : selectedVehicle === "auto" ? "#22c55e" : selectedVehicle === "suv" ? "#9333ea" : "#818cf8";
 
   useEffect(() => {
     announceSearching();

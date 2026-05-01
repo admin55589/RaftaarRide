@@ -40,7 +40,7 @@ export function DriversPage() {
             { value: "all", label: "All" },
             { value: "bike", label: "Bike" },
             { value: "auto", label: "Auto" },
-            { value: "prime", label: "Prime" },
+            { value: "prime", label: "Cab" },
             { value: "suv", label: "SUV" },
           ].map((f) => (
             <button

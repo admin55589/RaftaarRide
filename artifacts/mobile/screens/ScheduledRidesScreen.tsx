@@ -97,6 +97,13 @@ const VEHICLE_ICONS: Record<string, string> = {
   suv: "🚙",
 };
 
+const VEHICLE_LABELS: Record<string, string> = {
+  bike: "Bike",
+  auto: "Auto",
+  prime: "Cab",
+  suv: "SUV",
+};
+
 interface ScheduledRide {
   id: number;
   pickup: string;
@@ -359,7 +366,7 @@ export function ScheduledRidesScreen() {
                   >
                     <Text style={styles.vehicleIcon}>{icon}</Text>
                     <Text style={[styles.vehicleName, { color: formVehicle === v ? colors.primary : colors.textSecondary }]}>
-                      {v.charAt(0).toUpperCase() + v.slice(1)}
+                      {VEHICLE_LABELS[v] ?? v.charAt(0).toUpperCase() + v.slice(1)}
                     </Text>
                   </TouchableOpacity>
                 ))}
