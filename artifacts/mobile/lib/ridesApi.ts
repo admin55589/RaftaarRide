@@ -80,9 +80,10 @@ export const ridesApi = {
     });
   },
 
-  async cancelRide(token: string, rideId: number): Promise<{ ride: RideRecord }> {
+  async cancelRide(token: string, rideId: number, cancelReason?: string): Promise<{ ride: RideRecord }> {
     return authFetch<{ success: boolean; ride: RideRecord }>(`/rides/${rideId}/cancel`, token, {
       method: "POST",
+      body: JSON.stringify({ cancelReason }),
     });
   },
 

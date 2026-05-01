@@ -11,6 +11,7 @@ import {
   Tag,
   Map,
   MessageSquare,
+  Bell,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
@@ -85,6 +86,7 @@ export function Sidebar({ isLive = false }: SidebarProps) {
     { label: "Promo Codes", href: "/promo-codes", icon: Tag, badge: 0 },
     { label: "Live Map", href: "/live-map", icon: Map, badge: 0 },
     { label: "Chat History", href: "/chat-history", icon: MessageSquare, badge: 0 },
+    { label: "Broadcast", href: "/broadcast", icon: Bell, badge: 0 },
   ];
 
   return (

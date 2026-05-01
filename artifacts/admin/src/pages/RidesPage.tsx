@@ -1,13 +1,39 @@
 import { useState } from "react";
 import { useListRides } from "@workspace/api-client-react";
-import { Search } from "lucide-react";
+import { Search, Download } from "lucide-react";
 import { StatusBadge, VehicleBadge, formatCurrency, formatDate } from "@/components/shared";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
+
+function downloadCsv(data: object[], filename: string) {
+  if (!data.length) return;
+  const headers = Object.keys(data[0]);
+  const rows = data.map((row) => headers.map((h) => JSON.stringify((row as any)[h] ?? "")).join(","));
+  const csv = [headers.join(","), ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
 
 const STATUS_FILTERS = ["all", "completed", "in_progress", "pending", "assigned", "cancelled"];
 
 export function RidesPage() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [search, setSearch] = useState("");
+  const { token } = useAuth();
+  const { toast } = useToast();
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/rides/export`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); downloadCsv(data, `raftaarride-rides-${new Date().toISOString().slice(0, 10)}.csv`); toast({ title: `✅ ${data.length} rides export ho gayi` }); }
+    } finally { setExporting(false); }
+  };
 
   const { data: rides, isLoading } = useListRides(
     statusFilter ? { status: statusFilter } : undefined
@@ -25,9 +51,16 @@ export function RidesPage() {
 
   return (
     <div className="p-6 space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-foreground">Rides</h1>
-        <p className="text-muted-foreground text-sm">All ride history and management</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Rides</h1>
+          <p className="text-muted-foreground text-sm">All ride history and management</p>
+        </div>
+        <button onClick={handleExport} disabled={exporting}
+          className="flex items-center gap-2 px-3 py-2 text-xs font-medium bg-muted/40 text-muted-foreground hover:bg-muted border border-border rounded-lg transition-colors active:scale-95 disabled:opacity-50">
+          <Download className="w-3.5 h-3.5" />
+          {exporting ? "Exporting..." : "Export CSV"}
+        </button>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
@@ -132,6 +165,11 @@ export function RidesPage() {
                       </td>
                       <td className="px-5 py-3.5">
                         <StatusBadge status={ride.status} />
+                        {ride.status === "cancelled" && (ride as any).cancelReason && (
+                          <div className="text-xs text-red-400/70 mt-0.5 max-w-[120px] truncate" title={(ride as any).cancelReason}>
+                            ↳ {(ride as any).cancelReason}
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-3.5 text-muted-foreground hidden xl:table-cell">{formatDate(ride.createdAt)}</td>
                     </tr>

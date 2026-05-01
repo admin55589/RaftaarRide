@@ -27,6 +27,7 @@ import { WalletScreen } from "@/screens/WalletScreen";
 import { ScheduledRidesScreen } from "@/screens/ScheduledRidesScreen";
 import { DriverKYCScreen } from "@/screens/DriverKYCScreen";
 import { DriverEarningsScreen } from "@/screens/DriverEarningsScreen";
+import { RideHistoryScreen } from "@/screens/RideHistoryScreen";
 
 const MONTHS_SHORT = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 
@@ -96,9 +97,10 @@ const calStyles = StyleSheet.create({
 });
 
 const USER_TABS = [
-  { key: "home",     icon: "🏠", label_hi: "होम",     label_en: "Home",     custom: false },
-  { key: "wallet",   icon: "💰", label_hi: "वॉलेट",   label_en: "Wallet",   custom: false },
-  { key: "schedule", icon: null, label_hi: "शेड्यूल", label_en: "Schedule", custom: true  },
+  { key: "home",     icon: "🏠", label_hi: "होम",      label_en: "Home",     custom: false },
+  { key: "wallet",   icon: "💰", label_hi: "वॉलेट",    label_en: "Wallet",   custom: false },
+  { key: "history",  icon: "🕓", label_hi: "इतिहास",  label_en: "History",  custom: false },
+  { key: "schedule", icon: null, label_hi: "शेड्यूल",  label_en: "Schedule", custom: true  },
 ];
 
 
@@ -143,6 +145,7 @@ export default function MainScreen() {
 
     switch (activeTab) {
       case "wallet":   return <WalletScreen />;
+      case "history":  return <RideHistoryScreen />;
       case "schedule": return <ScheduledRidesScreen />;
       default:         return <HomeScreen />;
     }

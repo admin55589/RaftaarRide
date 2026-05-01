@@ -117,14 +117,25 @@ function LiveBadge() {
   );
 }
 
-function CancelModal({ visible, onConfirm, onDismiss }: { visible: boolean; onConfirm: () => void; onDismiss: () => void }) {
+const CANCEL_REASONS = [
+  "Driver bahut door hai",
+  "Plan change ho gaya",
+  "Galat pickup location",
+  "Driver response nahi kar raha",
+  "Emergency",
+  "Koi aur reason",
+];
+
+function CancelModal({ visible, onConfirm, onDismiss }: { visible: boolean; onConfirm: (reason: string) => void; onDismiss: () => void }) {
   const { isDark } = useTheme();
   const colors = useColors();
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const iconScale = useSharedValue(0);
   useEffect(() => {
     if (visible) {
       iconScale.value = 0;
       iconScale.value = withSpring(1, { damping: 12, stiffness: 180 });
+      setSelectedReason(null);
     }
   }, [visible]);
   const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: iconScale.value }] }));
@@ -142,19 +153,49 @@ function CancelModal({ visible, onConfirm, onDismiss }: { visible: boolean; onCo
                 </View>
               </Animated.View>
               <Animated.View entering={FadeInDown.delay(80)} style={styles.modalTextWrap}>
-                <Text style={[styles.modalTitle, { color: colors.foreground }]}>Ride Cancel Karen?</Text>
+                <Text style={[styles.modalTitle, { color: colors.foreground }]}>Cancel Kyon Karna Chahte Ho?</Text>
                 <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>
-                  Kya aap sach mein yeh ride cancel karna chahte hain?{"\n"}
-                  <Text style={styles.modalNote}>Driver dhundhna bandh ho jaega.</Text>
+                  Ek reason select karo (analytics ke liye)
                 </Text>
               </Animated.View>
+              <View style={{ paddingHorizontal: 16, gap: 8, marginBottom: 12 }}>
+                {CANCEL_REASONS.map((reason) => (
+                  <TouchableOpacity
+                    key={reason}
+                    onPress={() => setSelectedReason(reason)}
+                    activeOpacity={0.7}
+                    style={{
+                      paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10,
+                      borderWidth: 1.5,
+                      borderColor: selectedReason === reason ? "#f59e0b" : colors.border,
+                      backgroundColor: selectedReason === reason ? "rgba(245,158,11,0.1)" : colors.muted,
+                      flexDirection: "row", alignItems: "center", gap: 8,
+                    }}
+                  >
+                    <View style={{
+                      width: 18, height: 18, borderRadius: 9, borderWidth: 2,
+                      borderColor: selectedReason === reason ? "#f59e0b" : colors.mutedForeground,
+                      backgroundColor: selectedReason === reason ? "#f59e0b" : "transparent",
+                      alignItems: "center", justifyContent: "center",
+                    }}>
+                      {selectedReason === reason && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "white" }} />}
+                    </View>
+                    <Text style={{ color: selectedReason === reason ? "#f59e0b" : colors.foreground, fontSize: 13, fontWeight: "500", flex: 1 }}>{reason}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
               <View style={[styles.modalDivider, { backgroundColor: colors.border }]} />
               <Animated.View entering={FadeInDown.delay(140)} style={styles.modalBtnRow}>
                 <TouchableOpacity style={[styles.modalBtn, styles.modalBtnKeep, { borderRightColor: colors.border }]} onPress={onDismiss} activeOpacity={0.8}>
                   <Text style={[styles.modalBtnKeepText, { color: colors.foreground }]}>⬅  Nahi, Wapas Jao</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.modalBtn, styles.modalBtnCancel]} onPress={onConfirm} activeOpacity={0.8}>
-                  <Text style={styles.modalBtnCancelText}>✕  Haan, Cancel Karo</Text>
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalBtnCancel, { opacity: selectedReason ? 1 : 0.5 }]}
+                  onPress={() => selectedReason && onConfirm(selectedReason)}
+                  activeOpacity={0.8}
+                  disabled={!selectedReason}
+                >
+                  <Text style={styles.modalBtnCancelText}>✕  Cancel Karo</Text>
                 </TouchableOpacity>
               </Animated.View>
             </Pressable>
@@ -273,12 +314,12 @@ export function SearchingScreen() {
   }, []);
   const progressStyle = useAnimatedStyle(() => ({ width: `${progressWidth.value * 100}%` as any }));
 
-  const handleConfirmCancel = async () => {
+  const handleConfirmCancel = async (cancelReason: string) => {
     setShowCancelModal(false);
     if (pollRef.current) clearInterval(pollRef.current);
     if (timerRef.current) clearInterval(timerRef.current);
     if (currentRideId && token) {
-      try { await ridesApi.cancelRide(token, currentRideId); } catch { }
+      try { await ridesApi.cancelRide(token, currentRideId, cancelReason); } catch { }
       setCurrentRideId(null);
     }
     setScreen("home");

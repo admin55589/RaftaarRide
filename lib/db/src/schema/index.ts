@@ -79,6 +79,8 @@ export const ridesTable = pgTable("rides", {
   driverEarning: numeric("driver_earning", { precision: 8, scale: 2 }).default("0"),
   userRating: integer("user_rating"),
   completionPin: integer("completion_pin"),
+  cancelReason: text("cancel_reason"),
+  cancelledBy: text("cancelled_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
