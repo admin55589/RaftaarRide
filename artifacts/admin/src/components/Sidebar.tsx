@@ -8,6 +8,7 @@ import {
   FileCheck,
   Wallet,
   Camera,
+  Tag,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
@@ -79,6 +80,7 @@ export function Sidebar({ isLive = false }: SidebarProps) {
     { label: "Rides", href: "/rides", icon: MapPin, badge: 0 },
     { label: "KYC Verification", href: "/kyc", icon: FileCheck, badge: kycPending },
     { label: "Withdrawals", href: "/withdrawals", icon: Wallet, badge: withdrawalPending },
+    { label: "Promo Codes", href: "/promo-codes", icon: Tag, badge: 0 },
   ];
 
   return (

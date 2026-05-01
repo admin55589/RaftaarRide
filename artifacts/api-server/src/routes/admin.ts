@@ -7,6 +7,7 @@ import {
   driverKycTable,
   withdrawalRequestsTable,
   walletTransactionsTable,
+  promoCodesTable,
 } from "@workspace/db/schema";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import jwt from "jsonwebtoken";
@@ -664,6 +665,71 @@ router.post("/admin/automation", authMiddleware, (req: Request, res: Response) =
     automationEnabled: isAutomationEnabled(),
     message: enabled ? "✅ Auto-Processing ON ho gaya" : "⏸️ Auto-Processing OFF ho gaya",
   });
+});
+
+// ── Promo Codes ──────────────────────────────────────────────────────────────
+router.get("/admin/promo-codes", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const codes = await db.select().from(promoCodesTable).orderBy(desc(promoCodesTable.createdAt));
+    res.json(codes);
+  } catch (err) {
+    req.log?.error(err, "Promo list error");
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.post("/admin/promo-codes", authMiddleware, async (req: Request, res: Response) => {
+  const { code, discountPct, maxUses, expiresAt } = req.body as {
+    code: string; discountPct: number; maxUses: number; expiresAt?: string;
+  };
+  if (!code || !discountPct || !maxUses) {
+    res.status(400).json({ message: "code, discountPct, maxUses required hain" }); return;
+  }
+  if (discountPct < 1 || discountPct > 100) {
+    res.status(400).json({ message: "discountPct 1-100 ke beech hona chahiye" }); return;
+  }
+  try {
+    const [promo] = await db.insert(promoCodesTable).values({
+      code: code.toUpperCase().trim(),
+      discountPct,
+      maxUses,
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
+      isActive: true,
+    }).returning();
+    res.status(201).json(promo);
+  } catch (err: any) {
+    if (err?.code === "23505") {
+      res.status(409).json({ message: "Yeh code already exist karta hai" }); return;
+    }
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.patch("/admin/promo-codes/:id", authMiddleware, async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id, 10);
+  const { isActive, maxUses, expiresAt } = req.body as { isActive?: boolean; maxUses?: number; expiresAt?: string | null };
+  try {
+    const updates: Record<string, any> = {};
+    if (typeof isActive === "boolean") updates.isActive = isActive;
+    if (typeof maxUses === "number") updates.maxUses = maxUses;
+    if (expiresAt !== undefined) updates.expiresAt = expiresAt ? new Date(expiresAt) : null;
+    const [updated] = await db.update(promoCodesTable).set(updates).where(eq(promoCodesTable.id, id)).returning();
+    if (!updated) { res.status(404).json({ message: "Promo code nahi mila" }); return; }
+    res.json(updated);
+  } catch {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.delete("/admin/promo-codes/:id", authMiddleware, async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id, 10);
+  try {
+    const [deleted] = await db.delete(promoCodesTable).where(eq(promoCodesTable.id, id)).returning();
+    if (!deleted) { res.status(404).json({ message: "Promo code nahi mila" }); return; }
+    res.json({ success: true, message: "Promo code delete ho gaya" });
+  } catch {
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 export default router;
