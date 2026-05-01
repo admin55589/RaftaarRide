@@ -12,6 +12,7 @@ import { eq, desc, sql, and, gte } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { validateAccountDetails, createRazorpayPayout } from "../lib/razorpay-payout";
 import { sendPushNotification } from "../lib/expoPush";
+import { isAutomationEnabled, setAutomationEnabled } from "../lib/automation-state";
 
 const router: IRouter = Router();
 
@@ -627,6 +628,24 @@ router.post("/admin/drivers/:id/wallet/credit", authMiddleware, async (req: Requ
     req.log?.error(err, "Wallet credit error");
     res.status(500).json({ success: false, message: "Server error — dobara try karo" });
   }
+});
+
+// ── Automation Toggle ────────────────────────────────────────────────────────
+router.get("/admin/automation", authMiddleware, (_req: Request, res: Response) => {
+  res.json({ automationEnabled: isAutomationEnabled() });
+});
+
+router.post("/admin/automation", authMiddleware, (req: Request, res: Response) => {
+  const { enabled } = req.body as { enabled: boolean };
+  if (typeof enabled !== "boolean") {
+    res.status(400).json({ error: "enabled field boolean hona chahiye" });
+    return;
+  }
+  setAutomationEnabled(enabled);
+  res.json({
+    automationEnabled: isAutomationEnabled(),
+    message: enabled ? "✅ Auto-Processing ON ho gaya" : "⏸️ Auto-Processing OFF ho gaya",
+  });
 });
 
 export default router;

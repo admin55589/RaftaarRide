@@ -9,6 +9,7 @@ import {
 import { eq, desc } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { validateAccountDetails, createRazorpayPayout } from "../lib/razorpay-payout";
+import { isAutomationEnabled } from "../lib/automation-state";
 
 const router: IRouter = Router();
 const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
@@ -231,6 +232,15 @@ async function autoProcessWithdrawal(
   validation: ReturnType<typeof validateAccountDetails>
 ) {
   try {
+    // ── Check if automation is enabled by admin ────────────────────────────
+    if (!isAutomationEnabled()) {
+      await db.update(withdrawalRequestsTable).set({
+        autoProcessed: "pending_manual",
+        processingNote: "⏸️ Auto-processing OFF hai — admin manual review karega",
+      }).where(eq(withdrawalRequestsTable.id, withdrawalId));
+      return;
+    }
+
     if (!validation.valid || !validation.parsedAccount) {
       // Auto-reject: invalid details → refund driver wallet
       const rejectReason = validation.reason ?? "Account details format galat hai";
