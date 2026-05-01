@@ -398,6 +398,7 @@ export function DriverAssignedScreen() {
   const vehicleColor =
     driver.vehicleType === "bike" ? colors.bikeColor
     : driver.vehicleType === "auto" ? colors.autoColor
+    : driver.vehicleType === "suv" ? "#9333ea"
     : colors.cabColor;
 
   useEffect(() => { announceDriverFound(driver.name, driver.eta); }, []);
@@ -409,7 +410,7 @@ export function DriverAssignedScreen() {
 
   const handleShareLocation = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const vehicleEmoji = driver.vehicleType === "bike" ? "🏍️" : driver.vehicleType === "auto" ? "🛺" : "🚗";
+    const vehicleEmoji = driver.vehicleType === "bike" ? "🏍️" : driver.vehicleType === "auto" ? "🛺" : driver.vehicleType === "suv" ? "🚙" : "🚗";
 
     let locationLine = `📍 Pickup: ${pickup || "Current location"}`;
     let mapsLink = "";
