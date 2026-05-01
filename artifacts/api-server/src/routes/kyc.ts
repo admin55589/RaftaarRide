@@ -132,13 +132,8 @@ router.post("/driver/wallet/withdraw", driverAuth, async (req: Request, res: Res
     accountDetails: string;
   };
 
-  // ── Basic input checks ─────────────────────────────────────────────────
   if (!amount || amount < 100) {
     res.status(400).json({ success: false, error: "Minimum withdrawal ₹100 hai" });
-    return;
-  }
-  if (amount > 50000) {
-    res.status(400).json({ success: false, error: "Ek baar mein maximum ₹50,000 withdraw ho sakta hai" });
     return;
   }
 
@@ -154,96 +149,11 @@ router.post("/driver/wallet/withdraw", driverAuth, async (req: Request, res: Res
   }
 
   try {
-    // ── Fetch driver details (phone needed for cross-verification) ─────────
-    const [driver] = await db.select({
-      walletBalance: driversTable.walletBalance,
-      name: driversTable.name,
-      phone: driversTable.phone,
-    }).from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
+    const [driver] = await db.select({ walletBalance: driversTable.walletBalance, name: driversTable.name })
+      .from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
 
     if (!driver) { res.status(404).json({ success: false, error: "Driver not found" }); return; }
 
-    // ── SECURITY: Rate limiting — max 1 pending withdrawal at a time ──────
-    const [existingPending] = await db
-      .select({ id: withdrawalRequestsTable.id })
-      .from(withdrawalRequestsTable)
-      .where(eq(withdrawalRequestsTable.driverId, driverId))
-      .orderBy(desc(withdrawalRequestsTable.createdAt))
-      .limit(1);
-
-    if (existingPending) {
-      const [latestReq] = await db
-        .select({ status: withdrawalRequestsTable.status, createdAt: withdrawalRequestsTable.createdAt })
-        .from(withdrawalRequestsTable)
-        .where(eq(withdrawalRequestsTable.driverId, driverId))
-        .orderBy(desc(withdrawalRequestsTable.createdAt))
-        .limit(1);
-
-      if (latestReq?.status === "pending") {
-        res.status(429).json({ success: false, error: "Aapki pehli withdrawal request abhi pending hai. Pehle woh process ho jaaye." });
-        return;
-      }
-
-      // ── SECURITY: Cooldown — 1 hour between withdrawals ─────────────────
-      const lastTime = new Date(latestReq.createdAt).getTime();
-      const oneHourAgo = Date.now() - 60 * 60 * 1000;
-      if (lastTime > oneHourAgo) {
-        const minsLeft = Math.ceil((lastTime - oneHourAgo) / 60000);
-        res.status(429).json({ success: false, error: `Agli withdrawal ${minsLeft} minute baad kar sakte hain` });
-        return;
-      }
-    }
-
-    // ── SECURITY: Daily withdrawal cap — max ₹10,000/day ─────────────────
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayWithdrawals = await db
-      .select({ amount: withdrawalRequestsTable.amount, createdAt: withdrawalRequestsTable.createdAt })
-      .from(withdrawalRequestsTable)
-      .where(eq(withdrawalRequestsTable.driverId, driverId));
-
-    const todayTotal = todayWithdrawals
-      .filter(w => new Date(w.createdAt ?? 0) >= todayStart)
-      .reduce((sum, w) => sum + Number(w.amount), 0);
-
-    if (todayTotal + amount > 10000) {
-      res.status(400).json({
-        success: false,
-        error: `Aaj ka daily limit ₹10,000 hai. Aapne aaj ₹${todayTotal.toFixed(0)} withdraw kiye hain. Sirf ₹${(10000 - todayTotal).toFixed(0)} aur withdraw ho sakta hai.`,
-      });
-      return;
-    }
-
-    // ── SECURITY: Phone number cross-verification ─────────────────────────
-    const registeredPhone = (driver.phone ?? "").replace(/\D/g, "").slice(-10);
-    const detail = accountDetails.trim();
-
-    // For PhonePe/Paytm: if entering a phone number, must match registered phone
-    if (method === "phonepe" || method === "paytm") {
-      const phoneOnlyRegex = /^[6-9]\d{9}$/;
-      if (phoneOnlyRegex.test(detail) && detail !== registeredPhone) {
-        res.status(400).json({
-          success: false,
-          error: `Security check failed: ${method === "phonepe" ? "PhonePe" : "Paytm"} number aapke registered number se match nahi karta. Apna registered number ${registeredPhone.slice(0, 2)}XXXXXX${registeredPhone.slice(-2)} use karein.`,
-        });
-        return;
-      }
-    }
-
-    // For all UPI methods: if local part looks like a phone number, verify it
-    if (["upi", "phonepe", "paytm"].includes(method)) {
-      const localPart = detail.includes("@") ? detail.split("@")[0] : detail;
-      const phoneOnlyRegex = /^[6-9]\d{9}$/;
-      if (phoneOnlyRegex.test(localPart) && localPart !== registeredPhone) {
-        res.status(400).json({
-          success: false,
-          error: `Security check failed: UPI mein jo phone number hai (${localPart.slice(0, 2)}XXXXXX${localPart.slice(-2)}) aapke registered number se alag hai. Apna registered number use karein.`,
-        });
-        return;
-      }
-    }
-
-    // ── Balance check ──────────────────────────────────────────────────────
     const driverName = driver.name ?? "Driver";
     const balance = Number(driver.walletBalance);
     if (balance < amount) {
@@ -256,7 +166,7 @@ router.post("/driver/wallet/withdraw", driverAuth, async (req: Request, res: Res
       .set({ walletBalance: String(newBalance) })
       .where(eq(driversTable.id, driverId));
 
-    // ── Validate account details ───────────────────────────────────────────
+    // ── Auto-validate account details ─────────────────────────────────────
     const validation = validateAccountDetails(method, accountDetails);
 
     const [withdrawal] = await db.insert(withdrawalRequestsTable).values({
@@ -275,8 +185,8 @@ router.post("/driver/wallet/withdraw", driverAuth, async (req: Request, res: Res
       description: `Withdrawal request via ${method.toUpperCase()} — ₹${amount}`,
     });
 
-    // ── Auto-process asynchronously ────────────────────────────────────────
-    void autoProcessWithdrawal(withdrawal.id, driverId, driverName, amount, method, accountDetails, validation).catch(console.error);
+    // ── Auto-process asynchronously (don't block the response) ────────────
+    void autoProcessWithdrawal(withdrawal.id, driverId, driverName ?? "Driver", amount, method, accountDetails, validation).catch(console.error);
 
     res.json({
       success: true,
@@ -284,8 +194,8 @@ router.post("/driver/wallet/withdraw", driverAuth, async (req: Request, res: Res
       newBalance,
       validationOk: validation.valid,
       message: validation.valid
-        ? `₹${amount} withdrawal request submit ho gayi!`
-        : `Withdrawal request mein error hai: ${validation.reason}`,
+        ? `₹${amount} withdrawal request submit ho gayi — automatic processing shuru ho rahi hai!`
+        : `₹${amount} withdrawal request submit ho gayi — lekin account details mein error hai: ${validation.reason}`,
     });
   } catch { res.status(500).json({ success: false, error: "Server error" }); }
 });
@@ -354,7 +264,7 @@ async function autoProcessWithdrawal(
       await db.update(withdrawalRequestsTable).set({
         autoProcessed: "pending_manual",
         validationError: null,
-        processingNote: `Format valid ✅ | Transfer se pehle UPI verify karein — galat UPI pe paisa wapas nahi aata | Manual transfer required`,
+        processingNote: `Validation passed ✅ | Razorpay payout not configured — manual transfer required`,
       }).where(eq(withdrawalRequestsTable.id, withdrawalId));
     } else {
       // Razorpay error — keep pending for admin retry
