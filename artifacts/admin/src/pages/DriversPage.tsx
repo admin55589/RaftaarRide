@@ -98,18 +98,25 @@ export function DriversPage() {
             className="w-full pl-9 pr-4 py-2 rounded-lg bg-card border border-input text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30"
           />
         </div>
-        <div className="flex gap-1 flex-wrap">
+        <div className="flex gap-1 flex-wrap items-center">
+          <span className="text-xs text-muted-foreground mr-1">Vehicle:</span>
           {[{ value: "all", label: "All" }, { value: "bike", label: "Bike" }, { value: "auto", label: "Auto" }, { value: "prime", label: "Cab" }, { value: "suv", label: "SUV" }].map((f) => (
             <button key={f.value} onClick={() => setFilter(f.value)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors active:scale-95 ${filter === f.value ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground"}`}
             >{f.label}</button>
           ))}
         </div>
-        <div className="flex gap-1 flex-wrap">
-          {(["all", "active", "blocked", "suspended"] as const).map((s) => (
-            <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium capitalize transition-colors active:scale-95 ${statusFilter === s ? "bg-secondary text-secondary-foreground" : "bg-muted/30 text-muted-foreground border border-border"}`}
-            >{s}</button>
+        <div className="flex gap-1 flex-wrap items-center">
+          <span className="text-xs text-muted-foreground mr-1">Status:</span>
+          {([
+            { value: "all", label: "All" },
+            { value: "active", label: "Active" },
+            { value: "blocked", label: "Blocked" },
+            { value: "suspended", label: "Suspended" },
+          ] as const).map((s) => (
+            <button key={s.value} onClick={() => setStatusFilter(s.value)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium capitalize transition-colors active:scale-95 ${statusFilter === s.value ? "bg-secondary text-secondary-foreground" : "bg-muted/30 text-muted-foreground border border-border"}`}
+            >{s.label}</button>
           ))}
         </div>
         <div className="text-sm text-muted-foreground ml-auto">{filtered.length} drivers</div>
