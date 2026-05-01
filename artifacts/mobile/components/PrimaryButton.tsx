@@ -82,7 +82,7 @@ export function PrimaryButton({
       {loading ? (
         <ActivityIndicator color={txtColor} />
       ) : (
-        <Text style={[styles.label, { color: txtColor, fontSize }]}>{displayText}</Text>
+        <Text style={[styles.label, { color: txtColor, fontSize }]} numberOfLines={1} adjustsFontSizeToFit>{displayText}</Text>
       )}
     </AnimatedPressable>
   );
