@@ -1,9 +1,60 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
+/* ── Ripple Button ──────────────────────────────────────────────────────── */
+interface RippleButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+  rippleColor?: string;
+}
+
+function RippleButton({ children, className = "", rippleColor = "rgba(255,255,255,0.35)", onClick, disabled, ...rest }: RippleButtonProps) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [ripples, setRipples] = useState<{ id: number; x: number; y: number; size: number }[]>([]);
+
+  const handleClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    if (disabled) return;
+    const btn = btnRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height) * 2;
+    const x = e.clientX - rect.left - size / 2;
+    const y = e.clientY - rect.top - size / 2;
+    const id = Date.now();
+    setRipples((prev) => [...prev, { id, x, y, size }]);
+    setTimeout(() => setRipples((prev) => prev.filter((r) => r.id !== id)), 600);
+    onClick?.(e);
+  }, [disabled, onClick]);
+
+  return (
+    <button
+      ref={btnRef}
+      className={`relative overflow-hidden select-none active:scale-95 transition-transform duration-100 ${className}`}
+      onClick={handleClick}
+      disabled={disabled}
+      {...rest}
+    >
+      {ripples.map((r) => (
+        <span
+          key={r.id}
+          className="pointer-events-none absolute rounded-full animate-ripple"
+          style={{
+            left: r.x,
+            top: r.y,
+            width: r.size,
+            height: r.size,
+            background: rippleColor,
+          }}
+        />
+      ))}
+      {children}
+    </button>
+  );
+}
+
+/* ── Types ──────────────────────────────────────────────────────────────── */
 interface PromoCode {
   id: number;
   code: string;
@@ -35,6 +86,7 @@ function usePromoCodes() {
   return { codes, loading, fetchCodes, setCodes };
 }
 
+/* ── Page ───────────────────────────────────────────────────────────────── */
 export function PromoCodesPage() {
   const { token } = useAuth();
   const { toast } = useToast();
@@ -47,20 +99,11 @@ export function PromoCodesPage() {
   const [filter, setFilter] = useState<"all" | "active" | "inactive" | "expired">("all");
   const [search, setSearch] = useState("");
 
-  const [form, setForm] = useState({
-    code: "",
-    discountPct: 10,
-    maxUses: 100,
-    expiresAt: "",
-  });
+  const [form, setForm] = useState({ code: "", discountPct: 10, maxUses: 100, expiresAt: "" });
 
-  if (!fetched) {
-    fetchCodes();
-    setFetched(true);
-  }
+  if (!fetched) { fetchCodes(); setFetched(true); }
 
-  const isExpired = (code: PromoCode) =>
-    code.expiresAt ? new Date(code.expiresAt) < new Date() : false;
+  const isExpired = (c: PromoCode) => c.expiresAt ? new Date(c.expiresAt) < new Date() : false;
 
   const filtered = codes.filter((c) => {
     const matchSearch = c.code.toLowerCase().includes(search.toLowerCase());
@@ -73,20 +116,13 @@ export function PromoCodesPage() {
   });
 
   const handleCreate = async () => {
-    if (!form.code.trim()) {
-      toast({ title: "Code required hai", variant: "destructive" }); return;
-    }
+    if (!form.code.trim()) { toast({ title: "Code required hai", variant: "destructive" }); return; }
     setCreating(true);
     try {
       const res = await fetch(`${API_BASE}/api/admin/promo-codes`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          code: form.code.trim().toUpperCase(),
-          discountPct: Number(form.discountPct),
-          maxUses: Number(form.maxUses),
-          expiresAt: form.expiresAt || undefined,
-        }),
+        body: JSON.stringify({ code: form.code.trim().toUpperCase(), discountPct: Number(form.discountPct), maxUses: Number(form.maxUses), expiresAt: form.expiresAt || undefined }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -97,49 +133,35 @@ export function PromoCodesPage() {
       } else {
         toast({ title: data.message ?? "Error", variant: "destructive" });
       }
-    } finally {
-      setCreating(false);
-    }
+    } finally { setCreating(false); }
   };
 
-  const handleToggle = async (code: PromoCode) => {
-    setToggling(code.id);
+  const handleToggle = async (c: PromoCode) => {
+    setToggling(c.id);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/promo-codes/${code.id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/promo-codes/${c.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ isActive: !code.isActive }),
+        body: JSON.stringify({ isActive: !c.isActive }),
       });
       const data = await res.json();
       if (res.ok) {
-        setCodes((prev) => prev.map((c) => (c.id === code.id ? data : c)));
-        toast({ title: code.isActive ? "Code deactivate ho gaya" : "✅ Code activate ho gaya" });
+        setCodes((prev) => prev.map((x) => (x.id === c.id ? data : x)));
+        toast({ title: c.isActive ? "Code deactivate ho gaya" : "✅ Code activate ho gaya" });
       } else {
         toast({ title: data.message ?? "Error", variant: "destructive" });
       }
-    } finally {
-      setToggling(null);
-    }
+    } finally { setToggling(null); }
   };
 
   const handleDelete = async (id: number, code: string) => {
-    if (!confirm(`"${code}" delete karna chahte ho? Yeh wapas nahi aayega.`)) return;
+    if (!confirm(`"${code}" delete karna chahte ho?`)) return;
     setDeleting(id);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/promo-codes/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setCodes((prev) => prev.filter((c) => c.id !== id));
-        toast({ title: "🗑️ Promo code delete ho gaya" });
-      } else {
-        const data = await res.json();
-        toast({ title: data.message ?? "Error", variant: "destructive" });
-      }
-    } finally {
-      setDeleting(null);
-    }
+      const res = await fetch(`${API_BASE}/api/admin/promo-codes/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { setCodes((prev) => prev.filter((c) => c.id !== id)); toast({ title: "🗑️ Promo code delete ho gaya" }); }
+      else { const d = await res.json(); toast({ title: d.message ?? "Error", variant: "destructive" }); }
+    } finally { setDeleting(null); }
   };
 
   const countActive = codes.filter((c) => c.isActive && !isExpired(c)).length;
@@ -148,18 +170,28 @@ export function PromoCodesPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
+      {/* Ripple CSS */}
+      <style>{`
+        @keyframes ripple-anim {
+          0%   { transform: scale(0); opacity: 1; }
+          100% { transform: scale(1); opacity: 0; }
+        }
+        .animate-ripple { animation: ripple-anim 0.6s ease-out forwards; }
+      `}</style>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Promo Codes</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Discount codes create karo aur manage karo</p>
         </div>
-        <button
+        <RippleButton
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+          rippleColor="rgba(255,255,255,0.3)"
         >
           <span className="text-base">+</span> New Promo Code
-        </button>
+        </RippleButton>
       </div>
 
       {/* Stats */}
@@ -186,9 +218,10 @@ export function PromoCodesPage() {
           className="px-3 py-2 text-sm bg-muted/40 border border-border rounded-lg w-52 focus:outline-none focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
         />
         {(["all", "active", "inactive", "expired"] as const).map((f) => (
-          <button
+          <RippleButton
             key={f}
             onClick={() => setFilter(f)}
+            rippleColor={filter === f ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.15)"}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
               filter === f
                 ? "bg-primary text-primary-foreground"
@@ -196,14 +229,15 @@ export function PromoCodesPage() {
             }`}
           >
             {f}
-          </button>
+          </RippleButton>
         ))}
-        <button
-          onClick={() => { setFetched(false); }}
+        <RippleButton
+          onClick={() => setFetched(false)}
+          rippleColor="rgba(255,255,255,0.15)"
           className="ml-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-muted/40 text-muted-foreground hover:bg-muted border border-border transition-colors"
         >
           ↻ Refresh
-        </button>
+        </RippleButton>
       </div>
 
       {/* Table */}
@@ -294,9 +328,10 @@ export function PromoCodesPage() {
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2 justify-end">
-                          <button
+                          <RippleButton
                             onClick={() => handleToggle(c)}
                             disabled={toggling === c.id || expired}
+                            rippleColor={c.isActive ? "rgba(239,68,68,0.25)" : "rgba(74,222,128,0.3)"}
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
                               c.isActive
                                 ? "bg-muted/60 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 border border-border"
@@ -304,14 +339,15 @@ export function PromoCodesPage() {
                             }`}
                           >
                             {toggling === c.id ? "..." : c.isActive ? "Deactivate" : "Activate"}
-                          </button>
-                          <button
+                          </RippleButton>
+                          <RippleButton
                             onClick={() => handleDelete(c.id, c.code)}
                             disabled={deleting === c.id}
+                            rippleColor="rgba(239,68,68,0.3)"
                             className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-colors disabled:opacity-50"
                           >
                             {deleting === c.id ? "..." : "Delete"}
-                          </button>
+                          </RippleButton>
                         </div>
                       </td>
                     </tr>
@@ -354,8 +390,7 @@ export function PromoCodesPage() {
                     type="number"
                     value={form.discountPct}
                     onChange={(e) => setForm((f) => ({ ...f, discountPct: Number(e.target.value) }))}
-                    min={1}
-                    max={100}
+                    min={1} max={100}
                     className="w-full px-3 py-2.5 bg-muted/40 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
@@ -384,25 +419,27 @@ export function PromoCodesPage() {
 
               {form.code && (
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-xs text-muted-foreground">
-                  Preview: Code <span className="font-mono font-bold text-primary">{form.code || "..."}</span> se {form.discountPct}% discount milega, max {form.maxUses} baar use ho sakta hai
+                  Preview: Code <span className="font-mono font-bold text-primary">{form.code}</span> se {form.discountPct}% discount milega, max {form.maxUses} baar use ho sakta hai
                 </div>
               )}
             </div>
 
             <div className="flex gap-3 pt-1">
-              <button
+              <RippleButton
                 onClick={() => setShowCreate(false)}
+                rippleColor="rgba(255,255,255,0.1)"
                 className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-muted/40 text-muted-foreground hover:bg-muted border border-border transition-colors"
               >
                 Cancel
-              </button>
-              <button
+              </RippleButton>
+              <RippleButton
                 onClick={handleCreate}
                 disabled={creating || !form.code.trim()}
+                rippleColor="rgba(255,255,255,0.3)"
                 className="flex-1 py-2.5 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {creating ? "Creating..." : "Create Code"}
-              </button>
+              </RippleButton>
             </div>
           </div>
         </div>
