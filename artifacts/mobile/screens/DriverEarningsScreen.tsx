@@ -91,12 +91,12 @@ export function DriverEarningsScreen() {
 
   const handleWithdraw = async () => {
     const amt = Number(withdrawAmount);
-    if (!amt || amt < 100) {
-      showNotification({ title: t("account_invalid"), body: t("min_amount"), type: "error", icon: "❌" });
+    if (!amt || amt < 50) {
+      showNotification({ title: "Invalid Amount", body: t("min_amount"), type: "error", icon: "❌" });
       return;
     }
     if (amt > balance) {
-      showNotification({ title: t("account_invalid"), body: `₹${balance.toFixed(2)} available`, type: "error", icon: "❌" });
+      showNotification({ title: "Insufficient Balance", body: `₹${balance.toFixed(2)} available`, type: "error", icon: "❌" });
       return;
     }
     if (!accountDetails.trim() || accountDetails.trim().length < 5) {
