@@ -63,7 +63,6 @@ export function DriverEarningsScreen() {
   const [withdrawals, setWithdrawals] = useState<WithdrawalReq[]>([]);
   const [loading, setLoading] = useState(true);
   const [driverRating, setDriverRating] = useState<number | null>(null);
-  const [totalRides, setTotalRides] = useState(0);
 
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -98,7 +97,6 @@ export function DriverEarningsScreen() {
       const data = await res.json();
       if (data.success && data.driver) {
         setDriverRating(data.driver.rating ? Number(data.driver.rating) : null);
-        setTotalRides(data.driver.totalRides ?? 0);
       }
     } catch { }
   };
@@ -220,25 +218,6 @@ export function DriverEarningsScreen() {
           <GlassCard style={styles.statCard}>
             <Text style={[styles.statValue, { color: "#F87171" }]}>₹{(totalEarnings * COMMISSION_RATE).toFixed(0)}</Text>
             <Text style={styles.statLabel}>{t("commission_label")}</Text>
-          </GlassCard>
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(110)} style={styles.statsRow}>
-          <GlassCard style={[styles.statCard, { flexDirection: "row", alignItems: "center", gap: 8 }]}>
-            <Text style={{ fontSize: 22 }}>⭐</Text>
-            <View>
-              <Text style={[styles.statValue, { color: "#F59E0B" }]}>
-                {driverRating ? driverRating.toFixed(1) : "New"}
-              </Text>
-              <Text style={styles.statLabel}>Tumhari Rating</Text>
-            </View>
-          </GlassCard>
-          <GlassCard style={[styles.statCard, { flexDirection: "row", alignItems: "center", gap: 8 }]}>
-            <Text style={{ fontSize: 22 }}>🚗</Text>
-            <View>
-              <Text style={styles.statValue}>{totalRides}</Text>
-              <Text style={styles.statLabel}>Total Rides</Text>
-            </View>
           </GlassCard>
         </Animated.View>
 
