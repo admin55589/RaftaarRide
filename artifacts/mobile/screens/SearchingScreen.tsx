@@ -169,7 +169,7 @@ export function SearchingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
-  const { setScreen, setAssignedDriver, selectedVehicle, currentRideId, setCurrentRideId } = useApp();
+  const { setScreen, setAssignedDriver, selectedVehicle, currentRideId, setCurrentRideId, pickup, destination } = useApp();
   const [msgIndex, setMsgIndex] = React.useState(0);
   const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -286,22 +286,21 @@ export function SearchingScreen() {
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
-  /* Cap sheet height so it never overflows the screen */
-  const maxSheetH = SCREEN_H * 0.62;
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <MapView showRadar />
 
-      <Animated.View entering={FadeIn.springify()} style={[styles.bottomSheet, { maxHeight: maxSheetH, paddingBottom: insets.bottom + 8 }]}>
+      {/* Top gradient overlay over map */}
+      <LinearGradient
+        colors={["transparent", `${colors.background}99`, colors.background]}
+        style={styles.mapOverlay}
+        pointerEvents="none"
+      />
 
-        {/* Gradient fade at top of sheet */}
-        <LinearGradient
-          colors={[`${colors.background}00`, `${colors.background}CC`]}
-          style={styles.fadeTop}
-          pointerEvents="none"
-        />
-
+      <Animated.View
+        entering={FadeInUp.springify().damping(18)}
+        style={[styles.bottomSheet, { paddingBottom: insets.bottom + 8 }]}
+      >
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
 
           {/* Drag handle */}
@@ -312,7 +311,7 @@ export function SearchingScreen() {
             bounces={false}
             contentContainerStyle={styles.scrollContent}
           >
-            {/* ── Header ── */}
+            {/* ── Header row ── */}
             <Animated.View entering={FadeInDown.delay(60)} style={styles.headerRow}>
               <View style={styles.headerTextCol}>
                 <Text style={[styles.headerTitle, { color: colors.foreground }]}>Driver Mil Raha Hai</Text>
@@ -323,16 +322,36 @@ export function SearchingScreen() {
               <LiveBadge />
             </Animated.View>
 
-            {/* ── Radar + Vehicle (compact) ── */}
-            <Animated.View entering={FadeInDown.delay(100)} style={styles.radarRow}>
-              {/* Left: radar */}
+            {/* ── Route strip ── */}
+            <Animated.View entering={FadeInDown.delay(80)} style={[styles.routeStrip, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+              <View style={styles.routeRow}>
+                <View style={styles.routeDotCol}>
+                  <View style={[styles.routeDotInner, { backgroundColor: "#22c55e" }]} />
+                  <View style={[styles.routeConnector, { backgroundColor: colors.border }]} />
+                </View>
+                <Text style={[styles.routeText, { color: colors.foreground }]} numberOfLines={1}>
+                  {pickup || "Aapki location"}
+                </Text>
+              </View>
+              <View style={styles.routeRow}>
+                <View style={styles.routeDotCol}>
+                  <View style={[styles.routeDotInner, { backgroundColor: vehicleColor }]} />
+                </View>
+                <Text style={[styles.routeText, { color: colors.mutedForeground }]} numberOfLines={1}>
+                  {destination || "Destination"}
+                </Text>
+              </View>
+            </Animated.View>
+
+            {/* ── Centered Radar + Vehicle ── */}
+            <Animated.View entering={FadeInDown.delay(120)} style={styles.radarCenter}>
               <View style={styles.radarWrap}>
-                <RadarRing delay={0} size={72} />
-                <RadarRing delay={740} size={112} />
-                <RadarRing delay={1480} size={152} />
+                <RadarRing delay={0} size={90} />
+                <RadarRing delay={740} size={136} />
+                <RadarRing delay={1480} size={182} />
                 <View style={styles.vehicleIconWrap}>
                   <LinearGradient
-                    colors={[vehicleColor, vehicleColor + "CC"]}
+                    colors={[vehicleColor, vehicleColor + "BB"]}
                     style={styles.vehicleIconBg}
                   >
                     <Text style={styles.vehicleEmoji}>{vehicleIcon}</Text>
@@ -341,13 +360,12 @@ export function SearchingScreen() {
                 </View>
               </View>
 
-              {/* Right: info */}
-              <View style={styles.radarInfo}>
+              <View style={styles.radarTextCol}>
                 <PulsingDots />
                 <Text style={[styles.vehicleLabel, { color: colors.foreground }]}>
-                  {vehicleLabel} dhundh{"\n"}rahe hain...
+                  {vehicleLabel} dhundh rahe hain...
                 </Text>
-                <View style={[styles.etaBadge, { backgroundColor: vehicleColor + "18", borderColor: vehicleColor + "44" }]}>
+                <View style={[styles.etaBadge, { backgroundColor: vehicleColor + "20", borderColor: vehicleColor + "55" }]}>
                   <Text style={[styles.etaText, { color: vehicleColor }]}>⏱ {formatTime(elapsedSeconds)}</Text>
                 </View>
               </View>
@@ -356,33 +374,29 @@ export function SearchingScreen() {
             {/* ── Stats row ── */}
             <Animated.View entering={FadeInDown.delay(160)} style={styles.statsRow}>
               <LinearGradient
-                colors={["rgba(245,166,35,0.12)", "rgba(245,166,35,0.04)"]}
-                style={[styles.statCard, { borderColor: "rgba(245,166,35,0.25)" }]}
+                colors={["rgba(245,166,35,0.13)", "rgba(245,166,35,0.04)"]}
+                style={[styles.statCard, { borderColor: "rgba(245,166,35,0.3)" }]}
               >
                 <Text style={styles.statEmoji}>👥</Text>
                 <Text style={styles.statNum}>12</Text>
                 <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Paas ke{"\n"}Drivers</Text>
               </LinearGradient>
 
-              <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-
               <LinearGradient
-                colors={["rgba(99,102,241,0.12)", "rgba(99,102,241,0.04)"]}
-                style={[styles.statCard, { borderColor: "rgba(99,102,241,0.25)" }]}
+                colors={["rgba(99,102,241,0.13)", "rgba(99,102,241,0.04)"]}
+                style={[styles.statCard, { borderColor: "rgba(99,102,241,0.3)" }]}
               >
                 <Text style={styles.statEmoji}>⏱️</Text>
                 <Text style={[styles.statNum, { color: "#818cf8" }]}>{formatTime(elapsedSeconds)}</Text>
                 <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Intezaar{"\n"}ka Waqt</Text>
               </LinearGradient>
 
-              <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-
               <LinearGradient
-                colors={["rgba(34,197,94,0.12)", "rgba(34,197,94,0.04)"]}
-                style={[styles.statCard, { borderColor: "rgba(34,197,94,0.25)" }]}
+                colors={["rgba(34,197,94,0.13)", "rgba(34,197,94,0.04)"]}
+                style={[styles.statCard, { borderColor: "rgba(34,197,94,0.3)" }]}
               >
                 <Text style={styles.statEmoji}>🗺️</Text>
-                <Text style={[styles.statNum, { color: "#22c55e", fontSize: 18 }]}>2km</Text>
+                <Text style={[styles.statNum, { color: "#22c55e" }]}>2km</Text>
                 <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Search{"\n"}Radius</Text>
               </LinearGradient>
             </Animated.View>
@@ -404,7 +418,7 @@ export function SearchingScreen() {
                 style={({ pressed }) => [styles.cancelBtn, { opacity: pressed ? 0.75 : 1 }]}
               >
                 <LinearGradient
-                  colors={["rgba(239,68,68,0.14)", "rgba(239,68,68,0.07)"]}
+                  colors={["rgba(239,68,68,0.15)", "rgba(239,68,68,0.06)"]}
                   style={styles.cancelGrad}
                 >
                   <Text style={styles.cancelX}>✕</Text>
@@ -428,13 +442,13 @@ export function SearchingScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  fadeTop: {
+  mapOverlay: {
     position: "absolute",
-    top: -40,
+    bottom: 0,
     left: 0,
     right: 0,
-    height: 48,
-    zIndex: 1,
+    height: SCREEN_H * 0.45,
+    zIndex: 0,
   },
 
   bottomSheet: {
@@ -442,34 +456,35 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    zIndex: 1,
   },
 
   card: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     borderWidth: 1,
     borderBottomWidth: 0,
     shadowColor: "#000",
-    shadowOpacity: 0.45,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: -6 },
-    elevation: 20,
+    shadowOpacity: 0.55,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: -8 },
+    elevation: 24,
     overflow: "hidden",
   },
 
   handle: {
-    width: 38,
+    width: 44,
     height: 4,
     borderRadius: 2,
     alignSelf: "center",
-    marginTop: 10,
-    marginBottom: 2,
+    marginTop: 12,
+    marginBottom: 4,
   },
 
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 6,
-    gap: 14,
+    paddingBottom: 8,
+    gap: 16,
   },
 
   /* ── Header ── */
@@ -482,13 +497,13 @@ const styles = StyleSheet.create({
   headerTextCol: { flex: 1 },
   headerTitle: {
     fontFamily: "Inter_700Bold",
-    fontSize: 21,
-    letterSpacing: -0.4,
+    fontSize: 22,
+    letterSpacing: -0.5,
   },
   headerSub: {
     fontFamily: "Inter_400Regular",
     fontSize: 12.5,
-    marginTop: 2,
+    marginTop: 3,
   },
   liveChip: {
     flexDirection: "row",
@@ -514,109 +529,142 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
-  /* ── Radar row (horizontal layout) ── */
-  radarRow: {
+  /* ── Route Strip ── */
+  routeStrip: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 0,
+  },
+  routeRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 20,
-    paddingVertical: 6,
+    gap: 10,
+    minHeight: 28,
+  },
+  routeDotCol: {
+    width: 16,
+    alignItems: "center",
+    gap: 0,
+  },
+  routeDotInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  routeConnector: {
+    width: 2,
+    height: 12,
+    borderRadius: 1,
+    marginTop: 2,
+  },
+  routeText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    flex: 1,
+  },
+
+  /* ── Radar centered ── */
+  radarCenter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 24,
+    paddingVertical: 4,
   },
   radarWrap: {
-    width: 140,
-    height: 140,
+    width: 168,
+    height: 168,
     alignItems: "center",
     justifyContent: "center",
   },
   vehicleIconWrap: {
-    width: 60,
-    height: 60,
+    width: 72,
+    height: 72,
     alignItems: "center",
     justifyContent: "center",
   },
   vehicleIconBg: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#F5A623",
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
+    shadowOpacity: 0.6,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 8,
+    elevation: 10,
   },
-  vehicleEmoji: { fontSize: 26 },
+  vehicleEmoji: { fontSize: 32 },
 
   spinRing: {
-    borderRadius: 30,
+    borderRadius: 36,
     alignItems: "center",
   },
   spinDot: {
-    width: 7,
-    height: 7,
+    width: 8,
+    height: 8,
     borderRadius: 4,
     backgroundColor: "#F5A623",
     position: "absolute",
     top: 0,
     left: "50%",
-    marginLeft: -3.5,
+    marginLeft: -4,
     shadowColor: "#F5A623",
     shadowOpacity: 0.9,
-    shadowRadius: 5,
-    elevation: 5,
+    shadowRadius: 6,
+    elevation: 6,
   },
 
-  radarInfo: {
+  radarTextCol: {
     flex: 1,
-    gap: 8,
+    gap: 10,
+    justifyContent: "center",
   },
   dotsRow: { flexDirection: "row", gap: 5, alignItems: "center" },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: "#F5A623",
   },
   vehicleLabel: {
     fontFamily: "Inter_600SemiBold",
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 24,
   },
   etaBadge: {
     alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
     borderWidth: 1,
   },
   etaText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 12,
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
   },
 
   /* ── Stats ── */
   statsRow: {
     flexDirection: "row",
     alignItems: "stretch",
-    borderRadius: 16,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
+    gap: 10,
   },
   statCard: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 12,
-    gap: 2,
+    paddingVertical: 14,
+    gap: 3,
+    borderRadius: 16,
+    borderWidth: 1,
   },
-  statDivider: {
-    width: 1,
-    marginVertical: 8,
-  },
-  statEmoji: { fontSize: 18 },
+  statEmoji: { fontSize: 20 },
   statNum: {
     fontFamily: "Inter_700Bold",
-    fontSize: 20,
+    fontSize: 19,
     color: "#F5A623",
     letterSpacing: -0.5,
   },
@@ -628,41 +676,41 @@ const styles = StyleSheet.create({
   },
 
   /* ── Progress ── */
-  progressWrap: { gap: 5 },
+  progressWrap: { gap: 6 },
   progressBg: {
-    height: 4,
-    borderRadius: 2,
+    height: 5,
+    borderRadius: 3,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
     backgroundColor: "#F5A623",
-    borderRadius: 2,
+    borderRadius: 3,
   },
   progressHint: {
     fontFamily: "Inter_400Regular",
-    fontSize: 11,
+    fontSize: 11.5,
     textAlign: "center",
   },
 
   /* ── Cancel ── */
   cancelBtn: {
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.3)",
+    borderColor: "rgba(239,68,68,0.35)",
   },
   cancelGrad: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 13,
+    paddingVertical: 14,
   },
-  cancelX: { fontSize: 12, color: "#f87171" },
+  cancelX: { fontSize: 13, color: "#f87171" },
   cancelText: {
     fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
+    fontSize: 14.5,
     color: "#f87171",
   },
 
