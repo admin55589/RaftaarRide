@@ -374,8 +374,16 @@ export function DriverModeScreen() {
   const { showNotification } = useNotification();
   const { lang, toggleLanguage, t } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState<boolean>(driver?.isOnline ?? false);
+  const [onlineToggling, setOnlineToggling] = useState(false);
   const [requests, setRequests] = useState(MOCK_REQUESTS);
+
+  /* Sync isOnline when driver context loads/changes */
+  useEffect(() => {
+    if (driver && typeof driver.isOnline === "boolean") {
+      setIsOnline(driver.isOnline);
+    }
+  }, [driver?.isOnline]);
   const ridesCompleted = driver?.totalRides ?? 0;
 
   const [activeRide, setActiveRide] = useState<ActiveRide | null>(null);
@@ -499,6 +507,58 @@ export function DriverModeScreen() {
     if (domain) return `https://${domain}/api`;
     return "https://workspaceapi-server-production-2e22.up.railway.app/api";
   })();
+
+  /* On mount: fetch fresh profile so rating/stats are always up to date (not stale cache) */
+  useEffect(() => {
+    if (!driverToken) return;
+    fetch(`${API_BASE}/driver-auth/me`, {
+      headers: { Authorization: `Bearer ${driverToken}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.driver && driver) {
+          updateDriver({ ...driver, ...data.driver });
+        }
+      })
+      .catch(() => {});
+  }, [driverToken]);
+
+  /* Toggle driver online/offline — calls API and syncs context */
+  const handleToggleOnline = async () => {
+    if (onlineToggling || !driverToken || !driver) return;
+    if (activeRide) {
+      showNotification({ title: "Active ride chal rahi hai", body: "Pehle ride complete karo, phir offline ho sakte ho", type: "warning", icon: "⚠️", duration: 3000 });
+      return;
+    }
+    const newStatus = !isOnline;
+    setOnlineToggling(true);
+    try {
+      const res = await fetch(`${API_BASE}/driver-auth/online-status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${driverToken}` },
+        body: JSON.stringify({ isOnline: newStatus }),
+      });
+      const data = await res.json() as { success: boolean; isOnline: boolean; message: string };
+      if (data.success) {
+        setIsOnline(data.isOnline);
+        updateDriver({ ...driver, isOnline: data.isOnline });
+        showNotification({
+          title: data.isOnline ? "✅ Aap Online Hain" : "🔴 Aap Offline Ho Gaye",
+          body: data.isOnline ? "Ab aapko ride requests aayengi" : "Koi naya request nahi aayega",
+          type: data.isOnline ? "success" : "info",
+          icon: data.isOnline ? "🟢" : "🔴",
+          duration: 3000,
+        });
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } else {
+        showNotification({ title: "Error", body: data.message ?? "Status update failed", type: "error", icon: "❌", duration: 3000 });
+      }
+    } catch {
+      showNotification({ title: "Network Error", body: "Server se connect nahi ho paya", type: "error", icon: "❌", duration: 3000 });
+    } finally {
+      setOnlineToggling(false);
+    }
+  };
 
   /* Join driver socket room + fetch real rides + listen for new ride events */
   useEffect(() => {
@@ -789,12 +849,16 @@ export function DriverModeScreen() {
               {isOnline ? t("online") : t("offline")}
             </Text>
             <Pressable
-              onPress={() => { setIsOnline(!isOnline); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
-              style={[styles.toggleBtn, { backgroundColor: isOnline ? colors.success + "22" : colors.secondary, borderColor: isOnline ? colors.success : colors.border }]}
+              onPress={handleToggleOnline}
+              disabled={onlineToggling}
+              style={[styles.toggleBtn, { backgroundColor: isOnline ? colors.success + "22" : colors.secondary, borderColor: isOnline ? colors.success : colors.border, opacity: onlineToggling ? 0.6 : 1 }]}
             >
-              <Text style={[styles.toggleBtnText, { color: isOnline ? colors.success : colors.mutedForeground }]}>
-                {isOnline ? t("go_offline_btn") : t("go_online_btn")}
-              </Text>
+              {onlineToggling
+                ? <ActivityIndicator size="small" color={isOnline ? colors.success : colors.mutedForeground} />
+                : <Text style={[styles.toggleBtnText, { color: isOnline ? colors.success : colors.mutedForeground }]}>
+                    {isOnline ? t("go_offline_btn") : t("go_online_btn")}
+                  </Text>
+              }
             </Pressable>
           </GlassCard>
         </View>

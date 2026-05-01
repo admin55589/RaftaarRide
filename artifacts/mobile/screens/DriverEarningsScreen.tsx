@@ -91,7 +91,7 @@ export function DriverEarningsScreen() {
   const fetchProfile = async () => {
     if (!driverToken) return;
     try {
-      const res = await fetch(`${BASE_URL}driver/profile`, {
+      const res = await fetch(`${BASE_URL}driver-auth/me`, {
         headers: { Authorization: `Bearer ${driverToken}` },
       });
       const data = await res.json();

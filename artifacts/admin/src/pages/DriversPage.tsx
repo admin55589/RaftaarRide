@@ -159,10 +159,14 @@ export function DriversPage() {
                         <div className="text-xs text-muted-foreground mt-0.5">{driver.vehicleNumber}</div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-1 text-yellow-400">
-                          <Star className="w-3 h-3 fill-current" />
-                          <span className="font-medium text-foreground">{Number(driver.rating).toFixed(1)}</span>
-                        </div>
+                        {driver.rating > 0 ? (
+                          <div className="flex items-center gap-1 text-yellow-400">
+                            <Star className="w-3 h-3 fill-current" />
+                            <span className="font-medium text-foreground">{Number(driver.rating).toFixed(1)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">New</span>
+                        )}
                       </td>
                       <td className="px-5 py-3.5 text-foreground font-medium hidden lg:table-cell">{driver.totalRides}</td>
                       <td className="px-5 py-3.5 text-foreground font-medium hidden lg:table-cell">{formatCurrency(driver.totalEarnings)}</td>
