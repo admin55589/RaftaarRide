@@ -278,7 +278,14 @@ export function PromoCodesPage() {
                           : c.isActive ? "bg-green-500/10 text-green-400 border-green-500/20"
                           : "bg-muted text-muted-foreground border-border"
                         }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${expired ? "bg-red-400" : c.isActive ? "bg-green-400" : "bg-muted-foreground"}`} />
+                          {c.isActive && !expired ? (
+                            <span className="relative flex w-2 h-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                              <span className="relative inline-flex rounded-full w-2 h-2 bg-green-400" />
+                            </span>
+                          ) : (
+                            <span className={`w-1.5 h-1.5 rounded-full ${expired ? "bg-red-400" : "bg-muted-foreground"}`} />
+                          )}
                           {expired ? "Expired" : c.isActive ? "Active" : "Inactive"}
                         </span>
                       </td>
