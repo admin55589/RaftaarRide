@@ -17,5 +17,8 @@ export interface Driver {
   status: string;
   totalEarnings: number;
   totalRides: number;
+  walletBalance?: number;
+  ratingCount?: number;
+  isOnline?: boolean;
   createdAt: string;
 }
