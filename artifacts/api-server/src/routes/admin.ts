@@ -144,21 +144,39 @@ router.get("/admin/users", authMiddleware, async (_req: Request, res: Response) 
 
 router.get("/admin/drivers", authMiddleware, async (_req: Request, res: Response) => {
   const drivers = await db.select().from(driversTable).orderBy(desc(driversTable.createdAt));
+
+  const ratingStats = await db
+    .select({
+      driverId: ridesTable.driverId,
+      avgRating: sql<number>`coalesce(avg(${ridesTable.userRating}), 0)`,
+      ratingCount: sql<number>`count(${ridesTable.userRating})`,
+    })
+    .from(ridesTable)
+    .where(sql`${ridesTable.userRating} is not null`)
+    .groupBy(ridesTable.driverId);
+
+  const statsMap = new Map(ratingStats.map((r) => [r.driverId, r]));
+
   res.json(
-    drivers.map((d) => ({
-      id: d.id,
-      name: d.name,
-      email: d.email,
-      phone: d.phone,
-      vehicleType: d.vehicleType,
-      vehicleNumber: d.vehicleNumber,
-      rating: Number(d.rating),
-      status: d.status,
-      totalEarnings: Number(d.totalEarnings),
-      walletBalance: Number(d.walletBalance ?? 0),
-      totalRides: d.totalRides,
-      createdAt: d.createdAt.toISOString(),
-    }))
+    drivers.map((d) => {
+      const stats = statsMap.get(d.id);
+      const liveRating = stats && Number(stats.ratingCount) > 0 ? Number(Number(stats.avgRating).toFixed(2)) : Number(d.rating);
+      return {
+        id: d.id,
+        name: d.name,
+        email: d.email,
+        phone: d.phone,
+        vehicleType: d.vehicleType,
+        vehicleNumber: d.vehicleNumber,
+        rating: liveRating,
+        ratingCount: Number(stats?.ratingCount ?? 0),
+        status: d.status,
+        totalEarnings: Number(d.totalEarnings),
+        walletBalance: Number(d.walletBalance ?? 0),
+        totalRides: d.totalRides,
+        createdAt: d.createdAt.toISOString(),
+      };
+    })
   );
 });
 
