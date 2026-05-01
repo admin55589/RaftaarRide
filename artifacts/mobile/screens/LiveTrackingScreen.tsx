@@ -176,7 +176,7 @@ export function LiveTrackingScreen() {
   const driver = assignedDriver ?? { name: "Raj Kumar", rating: 4.8, vehicle: "Swift Dzire", vehicleNumber: "DL 4C AB 1234", vehicleType: selectedVehicle, eta: 5, photo: "RK" };
 
   const vehicleColor =
-    driver.vehicleType === "bike" ? colors.bikeColor : driver.vehicleType === "auto" ? colors.autoColor : colors.cabColor;
+    driver.vehicleType === "bike" ? colors.bikeColor : driver.vehicleType === "auto" ? colors.autoColor : driver.vehicleType === "suv" ? "#9333ea" : colors.cabColor;
 
   const glowOpacity = useSharedValue(1);
   useEffect(() => {
