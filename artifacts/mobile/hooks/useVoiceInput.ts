@@ -5,7 +5,7 @@ import { useLanguage } from "@/context/LanguageContext";
 const BASE_URL = (() => {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (domain) return `https://${domain}/api`;
-  return "http://localhost:8080/api";
+  return "https://workspaceapi-server-production-2e22.up.railway.app/api";
 })();
 
 export type VoiceInputState = "idle" | "listening" | "processing";

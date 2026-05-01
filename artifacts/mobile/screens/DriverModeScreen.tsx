@@ -497,7 +497,7 @@ export function DriverModeScreen() {
   const API_BASE = (() => {
     const domain = process.env.EXPO_PUBLIC_DOMAIN;
     if (domain) return `https://${domain}/api`;
-    return "http://localhost:8080/api";
+    return "https://workspaceapi-server-production-2e22.up.railway.app/api";
   })();
 
   /* Join driver socket room + fetch real rides + listen for new ride events */

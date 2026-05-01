@@ -138,7 +138,7 @@ export function RazorpayWebView({
     }
   };
 
-  const domain = process.env.EXPO_PUBLIC_DOMAIN || "68e41a5f-c1bd-4337-9c0e-5f9c6dd535e1-00-3rxx9zjx78ze2.janeway.replit.dev";
+  const domain = process.env.EXPO_PUBLIC_DOMAIN || "workspaceapi-server-production-2e22.up.railway.app";
   const logoUrl = `https://${domain}/api/assets/logo.png`;
   const html = buildCheckoutHtml(order, userInfo, logoUrl);
 

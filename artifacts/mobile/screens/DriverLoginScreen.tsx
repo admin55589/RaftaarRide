@@ -20,7 +20,7 @@ import { useLanguage } from "@/context/LanguageContext";
 
 const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-  : "http://localhost:8080";
+  : "https://workspaceapi-server-production-2e22.up.railway.app";
 
 async function driverLogin(phone: string, password: string) {
   const res = await fetch(`${BASE_URL}/api/driver-auth/login`, {

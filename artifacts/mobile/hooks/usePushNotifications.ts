@@ -18,7 +18,7 @@ Notifications.setNotificationHandler({
 const API_BASE = (() => {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (domain) return `https://${domain}/api`;
-  return "http://localhost:8080/api";
+  return "https://workspaceapi-server-production-2e22.up.railway.app/api";
 })();
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
