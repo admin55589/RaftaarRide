@@ -16,9 +16,10 @@ import { useApp, VehicleType } from "@/context/AppContext";
 import { calculateFare, getRideModeMultiplier, VEHICLE_PRICING, DEFAULT_DISTANCE_KM } from "@/lib/pricing";
 
 const VEHICLES: { type: VehicleType; timeMultiplier: number }[] = [
-  { type: "bike", timeMultiplier: 0.7 },
-  { type: "auto", timeMultiplier: 0.9 },
-  { type: "cab",  timeMultiplier: 1.0 },
+  { type: "bike",  timeMultiplier: 0.7 },
+  { type: "auto",  timeMultiplier: 0.9 },
+  { type: "prime", timeMultiplier: 1.0 },
+  { type: "suv",   timeMultiplier: 1.1 },
 ];
 
 function VehicleCard({ vehicle }: { vehicle: typeof VEHICLES[0] }) {
@@ -29,7 +30,8 @@ function VehicleCard({ vehicle }: { vehicle: typeof VEHICLES[0] }) {
 
   const vehicleColor =
     vehicle.type === "bike" ? colors.bikeColor :
-    vehicle.type === "auto" ? colors.autoColor : colors.cabColor;
+    vehicle.type === "auto" ? colors.autoColor :
+    vehicle.type === "suv" ? "#9333ea" : colors.cabColor;
 
   const distanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
   const fare = calculateFare(vehicle.type, distanceKm, 0, getRideModeMultiplier(rideMode));
