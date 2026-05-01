@@ -84,14 +84,20 @@ export function WithdrawalsPage() {
   const [automationOn, setAutomationOn] = useState<boolean>(true);
   const [automationLoading, setAutomationLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [creditPulse, setCreditPulse] = useState(false);
+  // creditPulse removed — using pure CSS hover/active animation instead
+
+  // showToast — defined first so all functions below can safely call it
+  const showToast = (msg: string, type: "success" | "error" = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   // Fetch automation state from server on load
   useEffect(() => {
     if (!token) return;
     fetch(`${API_BASE}/api/admin/automation`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((d) => { if (typeof d.automationEnabled === "boolean") setAutomationOn(d.automationEnabled); })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d && typeof d.automationEnabled === "boolean") setAutomationOn(d.automationEnabled); })
       .catch(() => {});
   }, [token]);
 
@@ -118,17 +124,6 @@ export function WithdrawalsPage() {
     setIsRefreshing(true);
     await qc.invalidateQueries({ queryKey: ["admin-withdrawals"] });
     setTimeout(() => setIsRefreshing(false), 800);
-  };
-
-  const handleCreditOpen = () => {
-    setCreditPulse(true);
-    setTimeout(() => setCreditPulse(false), 600);
-    setShowCreditModal(true);
-  };
-
-  const showToast = (msg: string, type: "success" | "error" = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 4000);
   };
 
   const { data: drivers = [] } = useQuery<Array<{ id: number; name: string; phone: string; walletBalance: number }>>({
@@ -298,15 +293,10 @@ export function WithdrawalsPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={handleCreditOpen}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 text-sm font-semibold transition-all duration-200 active:scale-95",
-              creditPulse
-                ? "scale-105 bg-blue-500/25 shadow-[0_0_12px_rgba(59,130,246,0.5)]"
-                : "hover:bg-blue-500/20 hover:shadow-[0_0_8px_rgba(59,130,246,0.25)]"
-            )}
+            onClick={() => setShowCreditModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 text-sm font-semibold transition-all duration-150 hover:bg-blue-500/20 hover:scale-105 active:scale-95"
           >
-            <PlusCircle className={cn("w-4 h-4 transition-transform duration-300", creditPulse && "rotate-90")} />
+            <PlusCircle className="w-4 h-4" />
             💰 Credit Wallet
           </button>
           <button
