@@ -78,7 +78,6 @@ export function WithdrawalsPage() {
   const [creditDriverId, setCreditDriverId] = useState("");
   const [creditAmount, setCreditAmount] = useState("");
   const [creditNote, setCreditNote] = useState("");
-  const [creditConfirm, setCreditConfirm] = useState(false);
   const [newRequestNotif, setNewRequestNotif] = useState(0);
   const prevPendingCount = useRef(0);
   const [automationOn, setAutomationOn] = useState<boolean>(true);
@@ -593,7 +592,7 @@ export function WithdrawalsPage() {
                 <h2 className="font-bold text-foreground flex items-center gap-2"><PlusCircle className="w-4 h-4 text-blue-500" /> Manual Wallet Credit</h2>
                 <p className="text-muted-foreground text-xs">Driver ke wallet mein amount add karo</p>
               </div>
-              <button className="text-muted-foreground hover:text-foreground text-lg" onClick={() => { setShowCreditModal(false); setCreditConfirm(false); setCreditDriverId(""); setCreditAmount(""); setCreditNote(""); }}>✕</button>
+              <button className="text-muted-foreground hover:text-foreground text-lg" onClick={() => { setShowCreditModal(false); setCreditDriverId(""); setCreditAmount(""); setCreditNote(""); }}>✕</button>
             </div>
 
             <div className="p-5 space-y-4">
@@ -636,47 +635,37 @@ export function WithdrawalsPage() {
               </div>
 
               {creditDriverId && creditAmount && Number(creditAmount) > 0 && (
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 space-y-2">
-                  <p className="text-blue-400 text-sm font-semibold">
-                    💰 ₹{Number(creditAmount).toFixed(2)} credit hoga:
-                  </p>
-                  <p className="text-foreground text-sm">
-                    👤 Driver: <strong>{drivers.find((d) => d.id === Number(creditDriverId))?.name}</strong>
-                  </p>
-                  <p className="text-foreground text-sm">
-                    📱 Phone: <strong>{drivers.find((d) => d.id === Number(creditDriverId))?.phone}</strong>
-                  </p>
-                  <p className="text-foreground text-sm">
-                    💼 Current Balance: <strong>₹{drivers.find((d) => d.id === Number(creditDriverId))?.walletBalance.toFixed(2)}</strong>
-                  </p>
-                  <p className="text-green-400 text-sm font-semibold">
-                    ✅ New Balance: ₹{(Number(drivers.find((d) => d.id === Number(creditDriverId))?.walletBalance ?? 0) + Number(creditAmount)).toFixed(2)}
-                  </p>
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="checkbox"
-                      id="creditConfirmChk"
-                      checked={creditConfirm}
-                      onChange={(e) => setCreditConfirm(e.target.checked)}
-                      className="w-4 h-4 accent-blue-500"
-                    />
-                    <label htmlFor="creditConfirmChk" className="text-xs text-muted-foreground cursor-pointer">
-                      Main confirm karta hoon — yeh real wallet credit hai
-                    </label>
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 space-y-1.5">
+                  <p className="text-blue-400 text-xs font-bold uppercase tracking-wide mb-2">📋 Summary</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Driver</span>
+                    <span className="font-semibold text-foreground">{drivers.find((d) => d.id === Number(creditDriverId))?.name}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Credit Amount</span>
+                    <span className="font-bold text-blue-400">₹{Number(creditAmount).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Current Balance</span>
+                    <span className="font-semibold text-foreground">₹{drivers.find((d) => d.id === Number(creditDriverId))?.walletBalance.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm border-t border-blue-500/20 pt-1.5">
+                    <span className="text-muted-foreground">New Balance</span>
+                    <span className="font-bold text-green-400">₹{(Number(drivers.find((d) => d.id === Number(creditDriverId))?.walletBalance ?? 0) + Number(creditAmount)).toFixed(2)}</span>
                   </div>
                 </div>
               )}
 
               <button
                 onClick={() => {
-                  if (!creditDriverId || !creditAmount || Number(creditAmount) <= 0 || !creditConfirm) return;
+                  if (!creditDriverId || !creditAmount || Number(creditAmount) <= 0) return;
                   creditMutation.mutate({ driverId: Number(creditDriverId), amount: Number(creditAmount), note: creditNote });
                 }}
-                disabled={!creditDriverId || !creditAmount || Number(creditAmount) <= 0 || !creditConfirm || creditMutation.isPending}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 transition-colors disabled:opacity-50"
+                disabled={!creditDriverId || !creditAmount || Number(creditAmount) <= 0 || creditMutation.isPending}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-500 text-white font-bold text-sm hover:bg-blue-600 active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <PlusCircle className="w-4 h-4" />
-                {creditMutation.isPending ? "⏳ Credit Ho Raha Hai..." : "💰 Credit Wallet"}
+                {creditMutation.isPending ? "⏳ Credit Ho Raha Hai..." : "💰 Credit Karo"}
               </button>
             </div>
           </div>
