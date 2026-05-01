@@ -136,10 +136,6 @@ router.post("/driver/wallet/withdraw", driverAuth, async (req: Request, res: Res
     res.status(400).json({ success: false, error: "Minimum withdrawal ₹50 hai" });
     return;
   }
-  if (amount > 10000) {
-    res.status(400).json({ success: false, error: "Maximum withdrawal ₹10,000 hai" });
-    return;
-  }
 
   const validMethods = ["upi", "paytm", "phonepe", "bank"];
   if (!method || !validMethods.includes(method)) {
