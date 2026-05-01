@@ -264,7 +264,7 @@ async function autoProcessWithdrawal(
       await db.update(withdrawalRequestsTable).set({
         autoProcessed: "pending_manual",
         validationError: null,
-        processingNote: `Validation passed ✅ | Razorpay payout not configured — manual transfer required`,
+        processingNote: `Format valid ✅ | Transfer se pehle UPI verify karein — galat UPI pe paisa wapas nahi aata | Manual transfer required`,
       }).where(eq(withdrawalRequestsTable.id, withdrawalId));
     } else {
       // Razorpay error — keep pending for admin retry
