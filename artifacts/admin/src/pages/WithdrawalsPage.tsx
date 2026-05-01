@@ -78,6 +78,7 @@ export function WithdrawalsPage() {
   const [creditDriverId, setCreditDriverId] = useState("");
   const [creditAmount, setCreditAmount] = useState("");
   const [creditNote, setCreditNote] = useState("");
+  const [creditConfirm, setCreditConfirm] = useState(false);
   const [newRequestNotif, setNewRequestNotif] = useState(0);
   const prevPendingCount = useRef(0);
 
