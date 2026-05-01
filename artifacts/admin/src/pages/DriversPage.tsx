@@ -100,21 +100,24 @@ export function DriversPage() {
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-1 text-yellow-400">
-                            <Star className="w-3 h-3 fill-current" />
-                            <span className="font-medium text-foreground">{driver.rating.toFixed(1)}</span>
-                          </div>
-                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                          {((driver as any).ratingCount ?? 0) > 0 ? (
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                        {((driver as any).ratingCount ?? 0) > 0 ? (
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1 text-yellow-400">
+                              <Star className="w-3 h-3 fill-current" />
+                              <span className="font-medium text-foreground">{driver.rating.toFixed(1)}</span>
+                            </div>
                             <span className="text-[10px] text-muted-foreground">
                               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                               {(driver as any).ratingCount} ratings
                             </span>
-                          ) : (
+                          </div>
+                        ) : (
+                          <div className="flex flex-col">
+                            <span className="font-medium text-muted-foreground">—</span>
                             <span className="text-[10px] text-muted-foreground">No ratings yet</span>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-3.5 text-foreground font-medium hidden lg:table-cell">{driver.totalRides}</td>
                       <td className="px-5 py-3.5 text-foreground font-medium hidden lg:table-cell">{formatCurrency(driver.totalEarnings)}</td>
