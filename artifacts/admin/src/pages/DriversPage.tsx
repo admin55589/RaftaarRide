@@ -35,18 +35,24 @@ export function DriversPage() {
             className="w-full pl-9 pr-4 py-2 rounded-lg bg-card border border-input text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30"
           />
         </div>
-        <div className="flex gap-1">
-          {["all", "bike", "auto", "cab"].map((f) => (
+        <div className="flex gap-1 flex-wrap">
+          {[
+            { value: "all", label: "All" },
+            { value: "bike", label: "Bike" },
+            { value: "auto", label: "Auto" },
+            { value: "prime", label: "Prime" },
+            { value: "suv", label: "SUV" },
+          ].map((f) => (
             <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
-                filter === f
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                filter === f.value
                   ? "bg-primary text-primary-foreground"
                   : "bg-card border border-border text-muted-foreground hover:text-foreground"
               }`}
             >
-              {f}
+              {f.label}
             </button>
           ))}
         </div>
