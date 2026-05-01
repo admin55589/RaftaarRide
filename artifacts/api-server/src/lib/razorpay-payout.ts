@@ -35,7 +35,7 @@ export function validateAccountDetails(method: string, accountDetails: string): 
     // UPI VPA format: localPart@handle (e.g., 9876543210@upi, name@okaxis)
     const upiRegex = /^[\w.\-+]{2,256}@[a-zA-Z]{2,64}$/;
     if (!upiRegex.test(detail)) {
-      return { valid: false, reason: `UPI ID format galat hai: "${detail}" — example: 9876543210@upi ya name@okaxis` };
+      return { valid: false, reason: `Account details validation failed: UPI ID format galat hai` };
     }
     return { valid: true, parsedAccount: { type: "vpa", vpa: detail, mode: "UPI" } };
   }
@@ -68,20 +68,20 @@ export function validateAccountDetails(method: string, accountDetails: string): 
     if (parts.length < 2) {
       return {
         valid: false,
-        reason: `Bank details format: "AccountNumber|IFSC" — example: "1234567890|HDFC0001234"`,
+        reason: `Account details validation failed: Bank details format galat hai`,
       };
     }
 
     const [accountNumber, ifsc] = parts;
 
     if (!accountNumber || accountNumber.length < 8 || accountNumber.length > 20 || !/^\d+$/.test(accountNumber)) {
-      return { valid: false, reason: `Bank account number galat hai: "${accountNumber}" — 8-20 digits hone chahiye` };
+      return { valid: false, reason: `Account details validation failed: Bank account number galat hai` };
     }
 
     // IFSC: 4 alpha + 0 + 6 alphanumeric
     const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/i;
     if (!ifsc || !ifscRegex.test(ifsc)) {
-      return { valid: false, reason: `IFSC code galat hai: "${ifsc}" — example: HDFC0001234` };
+      return { valid: false, reason: `Account details validation failed: IFSC code galat hai` };
     }
 
     return {
