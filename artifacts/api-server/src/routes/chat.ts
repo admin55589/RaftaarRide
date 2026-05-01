@@ -22,7 +22,7 @@ function getUserFromToken(req: Request): { id: number; type: "user" | "driver" }
 router.get("/chat/:rideId/messages", async (req: Request, res: Response) => {
   const sender = getUserFromToken(req);
   if (!sender) { res.status(401).json({ message: "Unauthorized" }); return; }
-  const rideId = parseInt(req.params.rideId, 10);
+  const rideId = parseInt(String(req.params.rideId), 10);
   try {
     const messages = await db
       .select()
@@ -38,7 +38,7 @@ router.get("/chat/:rideId/messages", async (req: Request, res: Response) => {
 router.post("/chat/:rideId/send", async (req: Request, res: Response) => {
   const sender = getUserFromToken(req);
   if (!sender) { res.status(401).json({ message: "Unauthorized" }); return; }
-  const rideId = parseInt(req.params.rideId, 10);
+  const rideId = parseInt(String(req.params.rideId), 10);
   const { message } = req.body;
   if (!message?.trim()) { res.status(400).json({ message: "Message required" }); return; }
   try {
