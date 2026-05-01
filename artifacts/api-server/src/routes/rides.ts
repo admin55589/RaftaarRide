@@ -237,7 +237,12 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
       res.status(400).json({ success: false, error: `Cannot cancel a ${ride.status} ride` }); return;
     }
 
-    const [updated] = await db.update(ridesTable).set({ status: "cancelled" }).where(eq(ridesTable.id, rideId)).returning();
+    const { cancelReason } = req.body as { cancelReason?: string };
+    const [updated] = await db.update(ridesTable).set({
+      status: "cancelled",
+      cancelReason: cancelReason?.trim() || null,
+      cancelledBy: "user",
+    }).where(eq(ridesTable.id, rideId)).returning();
 
     if (ride.driverId) {
       await db.update(driversTable).set({ isOnline: true }).where(eq(driversTable.id, ride.driverId));

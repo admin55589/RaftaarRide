@@ -7,8 +7,10 @@ import {
   driverKycTable,
   withdrawalRequestsTable,
   walletTransactionsTable,
+  promoCodesTable,
+  chatMessagesTable,
 } from "@workspace/db/schema";
-import { eq, desc, sql, and, gte } from "drizzle-orm";
+import { eq, desc, sql, and, gte, isNotNull, ne } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { validateAccountDetails, createRazorpayPayout } from "../lib/razorpay-payout";
 import { sendPushNotification } from "../lib/expoPush";
@@ -664,6 +666,259 @@ router.post("/admin/automation", authMiddleware, (req: Request, res: Response) =
     automationEnabled: isAutomationEnabled(),
     message: enabled ? "✅ Auto-Processing ON ho gaya" : "⏸️ Auto-Processing OFF ho gaya",
   });
+});
+
+// ── Promo Codes ──────────────────────────────────────────────────────────────
+router.get("/admin/promo-codes", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const codes = await db.select().from(promoCodesTable).orderBy(desc(promoCodesTable.createdAt));
+    res.json(codes);
+  } catch (err) {
+    req.log?.error(err, "Promo list error");
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.post("/admin/promo-codes", authMiddleware, async (req: Request, res: Response) => {
+  const { code, discountPct, maxUses, expiresAt } = req.body as {
+    code: string; discountPct: number; maxUses: number; expiresAt?: string;
+  };
+  if (!code || !discountPct || !maxUses) {
+    res.status(400).json({ message: "code, discountPct, maxUses required hain" }); return;
+  }
+  if (discountPct < 1 || discountPct > 100) {
+    res.status(400).json({ message: "discountPct 1-100 ke beech hona chahiye" }); return;
+  }
+  try {
+    const [promo] = await db.insert(promoCodesTable).values({
+      code: code.toUpperCase().trim(),
+      discountPct,
+      maxUses,
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
+      isActive: true,
+    }).returning();
+    res.status(201).json(promo);
+  } catch (err: any) {
+    if (err?.code === "23505") {
+      res.status(409).json({ message: "Yeh code already exist karta hai" }); return;
+    }
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.patch("/admin/promo-codes/:id", authMiddleware, async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id, 10);
+  const { isActive, maxUses, expiresAt } = req.body as { isActive?: boolean; maxUses?: number; expiresAt?: string | null };
+  try {
+    const updates: Record<string, any> = {};
+    if (typeof isActive === "boolean") updates.isActive = isActive;
+    if (typeof maxUses === "number") updates.maxUses = maxUses;
+    if (expiresAt !== undefined) updates.expiresAt = expiresAt ? new Date(expiresAt) : null;
+    const [updated] = await db.update(promoCodesTable).set(updates).where(eq(promoCodesTable.id, id)).returning();
+    if (!updated) { res.status(404).json({ message: "Promo code nahi mila" }); return; }
+    res.json(updated);
+  } catch {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.delete("/admin/promo-codes/:id", authMiddleware, async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id, 10);
+  try {
+    const [deleted] = await db.delete(promoCodesTable).where(eq(promoCodesTable.id, id)).returning();
+    if (!deleted) { res.status(404).json({ message: "Promo code nahi mila" }); return; }
+    res.json({ success: true, message: "Promo code delete ho gaya" });
+  } catch {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.get("/admin/live-rides", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const rides = await db
+      .select({
+        id: ridesTable.id,
+        pickup: ridesTable.pickup,
+        destination: ridesTable.destination,
+        pickupLat: ridesTable.pickupLat,
+        pickupLng: ridesTable.pickupLng,
+        dropLat: ridesTable.dropLat,
+        dropLng: ridesTable.dropLng,
+        status: ridesTable.status,
+        vehicleType: ridesTable.vehicleType,
+        price: ridesTable.price,
+        createdAt: ridesTable.createdAt,
+        userName: usersTable.name,
+        userPhone: usersTable.phone,
+        driverName: driversTable.name,
+        driverPhone: driversTable.phone,
+        driverLat: driversTable.driverLat,
+        driverLng: driversTable.driverLng,
+      })
+      .from(ridesTable)
+      .leftJoin(usersTable, eq(ridesTable.userId, usersTable.id))
+      .leftJoin(driversTable, eq(ridesTable.driverId, driversTable.id))
+      .where(
+        sql`${ridesTable.status} IN ('accepted', 'ongoing', 'searching')`
+      )
+      .orderBy(desc(ridesTable.createdAt))
+      .limit(50);
+    res.json(rides);
+  } catch {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.get("/admin/chat/:rideId", authMiddleware, async (req: Request, res: Response) => {
+  const rideId = parseInt(req.params.rideId, 10);
+  try {
+    const [ride] = await db
+      .select({ id: ridesTable.id, pickup: ridesTable.pickup, destination: ridesTable.destination,
+        userName: usersTable.name, driverName: driversTable.name, status: ridesTable.status })
+      .from(ridesTable)
+      .leftJoin(usersTable, eq(ridesTable.userId, usersTable.id))
+      .leftJoin(driversTable, eq(ridesTable.driverId, driversTable.id))
+      .where(eq(ridesTable.id, rideId));
+    if (!ride) { res.status(404).json({ message: "Ride nahi mili" }); return; }
+    const messages = await db
+      .select()
+      .from(chatMessagesTable)
+      .where(eq(chatMessagesTable.rideId, rideId))
+      .orderBy(chatMessagesTable.createdAt);
+    res.json({ ride, messages });
+  } catch {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.get("/admin/chats/recent", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const ridesWithChats = await db
+      .select({
+        rideId: chatMessagesTable.rideId,
+        lastMessage: sql<string>`MAX(${chatMessagesTable.message})`,
+        messageCount: sql<number>`COUNT(*)`,
+        lastAt: sql<string>`MAX(${chatMessagesTable.createdAt})`,
+        pickup: ridesTable.pickup,
+        destination: ridesTable.destination,
+        status: ridesTable.status,
+        userName: usersTable.name,
+        driverName: driversTable.name,
+      })
+      .from(chatMessagesTable)
+      .leftJoin(ridesTable, eq(chatMessagesTable.rideId, ridesTable.id))
+      .leftJoin(usersTable, eq(ridesTable.userId, usersTable.id))
+      .leftJoin(driversTable, eq(ridesTable.driverId, driversTable.id))
+      .groupBy(chatMessagesTable.rideId, ridesTable.pickup, ridesTable.destination,
+        ridesTable.status, usersTable.name, driversTable.name)
+      .orderBy(sql`MAX(${chatMessagesTable.createdAt}) DESC`)
+      .limit(50);
+    res.json(ridesWithChats);
+  } catch {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.patch("/admin/users/:id/status", authMiddleware, async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id, 10);
+  const { status } = req.body as { status: string };
+  const allowed = ["active", "blocked", "suspended"];
+  if (!allowed.includes(status)) { res.status(400).json({ message: "Invalid status" }); return; }
+  try {
+    const [updated] = await db.update(usersTable).set({ status }).where(eq(usersTable.id, id)).returning();
+    if (!updated) { res.status(404).json({ message: "User nahi mila" }); return; }
+    res.json(updated);
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+router.patch("/admin/drivers/:id/status", authMiddleware, async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id, 10);
+  const { status } = req.body as { status: string };
+  const allowed = ["active", "blocked", "suspended", "pending"];
+  if (!allowed.includes(status)) { res.status(400).json({ message: "Invalid status" }); return; }
+  try {
+    const [updated] = await db.update(driversTable).set({
+      status,
+      isOnline: status === "blocked" || status === "suspended" ? false : undefined,
+    }).where(eq(driversTable.id, id)).returning();
+    if (!updated) { res.status(404).json({ message: "Driver nahi mila" }); return; }
+    res.json(updated);
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+router.post("/admin/broadcast", authMiddleware, async (req: Request, res: Response) => {
+  const { title, body, target } = req.body as { title: string; body: string; target: "users" | "drivers" | "all" };
+  if (!title?.trim() || !body?.trim()) { res.status(400).json({ message: "Title aur body required hai" }); return; }
+  if (!["users", "drivers", "all"].includes(target)) { res.status(400).json({ message: "Target must be users/drivers/all" }); return; }
+  try {
+    const tokens: string[] = [];
+    if (target === "users" || target === "all") {
+      const userTokens = await db.select({ pushToken: usersTable.pushToken }).from(usersTable)
+        .where(and(isNotNull(usersTable.pushToken), ne(usersTable.pushToken, "")));
+      userTokens.forEach((r) => { if (r.pushToken) tokens.push(r.pushToken); });
+    }
+    if (target === "drivers" || target === "all") {
+      const driverTokens = await db.select({ pushToken: driversTable.pushToken }).from(driversTable)
+        .where(and(isNotNull(driversTable.pushToken), ne(driversTable.pushToken, "")));
+      driverTokens.forEach((r) => { if (r.pushToken) tokens.push(r.pushToken); });
+    }
+    let sent = 0;
+    let failed = 0;
+    for (const token of tokens) {
+      try {
+        await sendPushNotification({ to: token, title, body, data: { type: "broadcast" } });
+        sent++;
+      } catch { failed++; }
+    }
+    res.json({ success: true, total: tokens.length, sent, failed });
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+router.get("/admin/rides/export", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const rides = await db
+      .select({
+        id: ridesTable.id, pickup: ridesTable.pickup, destination: ridesTable.destination,
+        status: ridesTable.status, vehicleType: ridesTable.vehicleType, price: ridesTable.price,
+        distanceKm: ridesTable.distanceKm, paymentMethod: ridesTable.paymentMethod,
+        cancelReason: ridesTable.cancelReason, cancelledBy: ridesTable.cancelledBy,
+        createdAt: ridesTable.createdAt,
+        userName: usersTable.name, userPhone: usersTable.phone,
+        driverName: driversTable.name, driverPhone: driversTable.phone,
+      })
+      .from(ridesTable)
+      .leftJoin(usersTable, eq(ridesTable.userId, usersTable.id))
+      .leftJoin(driversTable, eq(ridesTable.driverId, driversTable.id))
+      .orderBy(desc(ridesTable.createdAt));
+    res.json(rides);
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+router.get("/admin/users/export", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const users = await db.select({
+      id: usersTable.id, name: usersTable.name, email: usersTable.email,
+      phone: usersTable.phone, status: usersTable.status,
+      walletBalance: usersTable.walletBalance, isVerified: usersTable.isVerified,
+      createdAt: usersTable.createdAt,
+    }).from(usersTable).orderBy(desc(usersTable.createdAt));
+    res.json(users);
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+router.get("/admin/drivers/export", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const drivers = await db.select({
+      id: driversTable.id, name: driversTable.name, email: driversTable.email,
+      phone: driversTable.phone, vehicleType: driversTable.vehicleType,
+      vehicleNumber: driversTable.vehicleNumber, status: driversTable.status,
+      kycStatus: driversTable.kycStatus, rating: driversTable.rating,
+      totalRides: driversTable.totalRides, totalEarnings: driversTable.totalEarnings,
+      walletBalance: driversTable.walletBalance, isOnline: driversTable.isOnline,
+      createdAt: driversTable.createdAt,
+    }).from(driversTable).orderBy(desc(driversTable.createdAt));
+    res.json(drivers);
+  } catch { res.status(500).json({ message: "Server error" }); }
 });
 
 export default router;
