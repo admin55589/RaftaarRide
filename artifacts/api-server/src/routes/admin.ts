@@ -12,6 +12,7 @@ import { eq, desc, sql, and, gte } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { validateAccountDetails, createRazorpayPayout } from "../lib/razorpay-payout";
 import { sendPushNotification } from "../lib/expoPush";
+import { isAutomationEnabled, setAutomationEnabled } from "../lib/automation-state";
 
 const router: IRouter = Router();
 
@@ -573,36 +574,78 @@ router.post("/admin/drivers/:id/wallet/credit", authMiddleware, async (req: Requ
   const driverId = Number(req.params.id);
   const { amount, note } = req.body as { amount: number; note?: string };
 
-  if (!amount || amount <= 0 || amount > 50000) {
-    res.status(400).json({ message: "Amount 1 se 50000 ke beech hona chahiye" });
+  if (!driverId || isNaN(driverId)) {
+    res.status(400).json({ success: false, message: "Invalid driver ID" });
+    return;
+  }
+  const parsedAmount = Number(amount);
+  if (!parsedAmount || parsedAmount <= 0 || parsedAmount > 50000) {
+    res.status(400).json({ success: false, message: "Amount 1 se 50000 ke beech hona chahiye" });
     return;
   }
 
   try {
-    const [driver] = await db.select({ walletBalance: driversTable.walletBalance, name: driversTable.name })
+    const [driver] = await db
+      .select({ walletBalance: driversTable.walletBalance, name: driversTable.name, phone: driversTable.phone })
       .from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
-    if (!driver) { res.status(404).json({ message: "Driver nahi mila" }); return; }
 
-    const newBalance = Number(driver.walletBalance ?? 0) + amount;
+    if (!driver) {
+      res.status(404).json({ success: false, message: "Driver nahi mila" });
+      return;
+    }
+
+    const prevBalance = Number(driver.walletBalance ?? 0);
+    const newBalance = prevBalance + parsedAmount;
+    const now = new Date().toISOString();
+
     await db.update(driversTable)
-      .set({ walletBalance: String(newBalance.toFixed(2)) })
+      .set({ walletBalance: newBalance.toFixed(2) })
       .where(eq(driversTable.id, driverId));
+
+    const description = note?.trim()
+      ? `Admin credit — ₹${parsedAmount} — ${note.trim()} [${now.slice(0,10)}]`
+      : `Admin se manual credit — ₹${parsedAmount} [${now.slice(0,10)}]`;
 
     await db.insert(walletTransactionsTable).values({
       driverId,
       type: "credit",
-      amount: String(amount),
-      description: note?.trim() || `Admin se manual credit — ₹${amount}`,
+      amount: parsedAmount.toFixed(2),
+      description,
     });
+
+    req.log?.info({ driverId, driver: driver.name, prevBalance, parsedAmount, newBalance }, "Admin manual wallet credit");
 
     res.json({
       success: true,
       driverName: driver.name,
-      creditedAmount: amount,
+      driverPhone: driver.phone,
+      creditedAmount: parsedAmount,
+      prevBalance,
       newBalance,
-      message: `₹${amount} ${driver.name} ke wallet mein credit ho gaya`,
+      message: `✅ ₹${parsedAmount} ${driver.name} ke wallet mein credit ho gaya! New balance: ₹${newBalance.toFixed(2)}`,
     });
-  } catch { res.status(500).json({ message: "Server error" }); }
+  } catch (err) {
+    req.log?.error(err, "Wallet credit error");
+    res.status(500).json({ success: false, message: "Server error — dobara try karo" });
+  }
+});
+
+// ── Automation Toggle ────────────────────────────────────────────────────────
+router.get("/admin/automation", authMiddleware, (_req: Request, res: Response) => {
+  res.json({ automationEnabled: isAutomationEnabled() });
+});
+
+router.post("/admin/automation", authMiddleware, (req: Request, res: Response) => {
+  const { enabled } = req.body as { enabled: boolean };
+  if (typeof enabled !== "boolean") {
+    res.status(400).json({ error: "enabled field boolean hona chahiye" });
+    return;
+  }
+  setAutomationEnabled(enabled);
+  res.json({
+    automationEnabled: isAutomationEnabled(),
+    message: enabled ? "✅ Auto-Processing ON ho gaya" : "⏸️ Auto-Processing OFF ho gaya",
+  });
 });
 
 export default router;
