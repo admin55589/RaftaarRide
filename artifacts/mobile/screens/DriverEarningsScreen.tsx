@@ -389,10 +389,7 @@ export function DriverEarningsScreen() {
                   </View>
                 </View>
                 <View style={styles.wRow}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                    <LiveCalendarIcon size="sm" primaryColor="#F5A623" bgColor="#fff" />
-                    <Text style={styles.wDate}>{formatDate(w.createdAt)}</Text>
-                  </View>
+                  <LiveCalendarIcon size="sm" primaryColor="#F5A623" bgColor="#fff" />
                   <Text style={[styles.wAmt, { color: "#4ADE80" }]}>₹{Number(w.amount).toFixed(2)}</Text>
                 </View>
                 <Text style={[styles.wDate, { marginTop: 4 }]} numberOfLines={1}>{w.accountDetails}</Text>
