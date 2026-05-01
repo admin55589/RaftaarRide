@@ -35,7 +35,6 @@ import { useTheme } from "@/context/ThemeContext";
 import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
-import { useVoiceAI } from "@/hooks/useVoiceAI";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
 
 function getGreeting(t: (k: any) => string, hour: number) {
@@ -259,15 +258,13 @@ export function HomeScreen() {
     setScreen("booking");
   };
 
-  const { announceVoicePrompt } = useVoiceAI();
   const { state: voiceState, toggle: toggleVoice } = useVoiceInput((text) => {
     if (text.trim()) handleDestinationSelect(text.trim());
   });
 
   const handleMicPress = useCallback(async () => {
-    if (voiceState === "idle") announceVoicePrompt();
     await toggleVoice();
-  }, [voiceState, toggleVoice, announceVoicePrompt]);
+  }, [voiceState, toggleVoice]);
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
 

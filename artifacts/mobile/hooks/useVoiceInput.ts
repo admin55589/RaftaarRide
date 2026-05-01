@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { Audio } from "expo-av";
+import * as Speech from "expo-speech";
 import { useLanguage } from "@/context/LanguageContext";
 
 const BASE_URL = (() => {
@@ -19,6 +20,9 @@ export function useVoiceInput(onResult: (text: string) => void) {
     try {
       const { granted } = await Audio.requestPermissionsAsync();
       if (!granted) return;
+
+      Speech.stop();
+      await new Promise((r) => setTimeout(r, 700));
 
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
