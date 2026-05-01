@@ -160,7 +160,7 @@ router.get("/admin/drivers", authMiddleware, async (_req: Request, res: Response
   res.json(
     drivers.map((d) => {
       const stats = statsMap.get(d.id);
-      const liveRating = stats && Number(stats.ratingCount) > 0 ? Number(Number(stats.avgRating).toFixed(2)) : Number(d.rating);
+      const liveRating = stats && Number(stats.ratingCount) > 0 ? Number(Number(stats.avgRating).toFixed(2)) : 0;
       return {
         id: d.id,
         name: d.name,
