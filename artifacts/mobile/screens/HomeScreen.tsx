@@ -259,7 +259,11 @@ export function HomeScreen() {
   };
 
   const { state: voiceState, toggle: toggleVoice } = useVoiceInput((text) => {
-    if (text.trim()) handleDestinationSelect(text.trim());
+    if (text === "__script_error__") {
+      showToast("Hindi mein bolein", "Urdu script detect hui — phir se Hindi mein bolne ki koshish karein", "error");
+    } else if (text.trim()) {
+      handleDestinationSelect(text.trim());
+    }
   });
 
   const handleMicPress = useCallback(async () => {
