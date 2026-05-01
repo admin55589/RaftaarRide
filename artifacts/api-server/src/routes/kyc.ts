@@ -132,8 +132,12 @@ router.post("/driver/wallet/withdraw", driverAuth, async (req: Request, res: Res
     accountDetails: string;
   };
 
-  if (!amount || amount < 100) {
-    res.status(400).json({ success: false, error: "Minimum withdrawal ₹100 hai" });
+  if (!amount || amount < 50) {
+    res.status(400).json({ success: false, error: "Minimum withdrawal ₹50 hai" });
+    return;
+  }
+  if (amount > 10000) {
+    res.status(400).json({ success: false, error: "Maximum withdrawal ₹10,000 hai" });
     return;
   }
 
@@ -153,6 +157,26 @@ router.post("/driver/wallet/withdraw", driverAuth, async (req: Request, res: Res
       .from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
 
     if (!driver) { res.status(404).json({ success: false, error: "Driver not found" }); return; }
+
+    // ── Daily limit: max 2 withdrawals per day ────────────────────────────
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const allWithdrawals = await db
+      .select({ createdAt: withdrawalRequestsTable.createdAt, status: withdrawalRequestsTable.status })
+      .from(withdrawalRequestsTable)
+      .where(eq(withdrawalRequestsTable.driverId, driverId));
+
+    const todayCount = allWithdrawals.filter(
+      (w) => new Date(w.createdAt ?? 0) >= todayStart
+    ).length;
+
+    if (todayCount >= 2) {
+      res.status(429).json({
+        success: false,
+        error: "Aaj ke liye withdrawal limit ho gayi. Aap per day sirf 2 baar withdrawal kar sakte hain.",
+      });
+      return;
+    }
 
     const driverName = driver.name ?? "Driver";
     const balance = Number(driver.walletBalance);
@@ -213,13 +237,14 @@ async function autoProcessWithdrawal(
   try {
     if (!validation.valid || !validation.parsedAccount) {
       // Auto-reject: invalid details → refund driver wallet
+      const rejectReason = validation.reason ?? "Account details format galat hai";
       await db.update(withdrawalRequestsTable).set({
         status: "rejected",
         processedAt: new Date(),
         processedBy: "auto-system",
-        rejectionReason: `Account details validation failed: ${validation.reason}`,
+        rejectionReason: `❌ Auto-Rejected: ${rejectReason}`,
         autoProcessed: "rejected",
-        processingNote: "Automatic rejection — account details format galat tha",
+        processingNote: `Automatic rejection — ${rejectReason}`,
       }).where(eq(withdrawalRequestsTable.id, withdrawalId));
 
       // Refund to wallet
@@ -233,7 +258,7 @@ async function autoProcessWithdrawal(
           driverId,
           type: "credit",
           amount: String(amount),
-          description: `Auto-refund: withdrawal rejected (invalid details) — ₹${amount}`,
+          description: `🔄 Withdrawal Rejected & Refunded ₹${amount} — Reason: ${rejectReason}`,
         });
       }
       return;
