@@ -122,8 +122,6 @@ export function WithdrawalsPage() {
     prevPendingCount.current = pendingNow;
   }, [dataUpdatedAt]);
 
-  const [creditConfirm, setCreditConfirm] = useState(false);
-
   const creditMutation = useMutation({
     mutationFn: async ({ driverId, amount, note }: { driverId: number; amount: number; note: string }) => {
       const res = await fetch(`${API_BASE}/api/admin/drivers/${driverId}/wallet/credit`, {
@@ -131,19 +129,15 @@ export function WithdrawalsPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ amount, note }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? `Server error (${res.status})`);
-      if (!data.success) throw new Error(data.message ?? "Credit failed");
-      return data;
+      return res.json();
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["admin-drivers-wallet"] });
       setShowCreditModal(false);
-      setCreditConfirm(false);
       setCreditDriverId(""); setCreditAmount(""); setCreditNote("");
-      showToast(`✅ ${data.message ?? "Wallet credit ho gaya!"}`, "success");
+      showToast(data.message ?? "Wallet credit ho gaya!");
     },
-    onError: (err: Error) => showToast(`❌ ${err.message}`, "error"),
+    onError: () => showToast("Credit failed", "error"),
   });
 
   const processMutation = useMutation({
@@ -624,7 +618,7 @@ export function WithdrawalsPage() {
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500 text-white font-semibold text-sm hover:bg-blue-600 transition-colors disabled:opacity-50"
               >
                 <PlusCircle className="w-4 h-4" />
-                {creditMutation.isPending ? "⏳ Credit Ho Raha Hai..." : "💰 Credit Wallet (Real)"}
+                {creditMutation.isPending ? "⏳ Credit Ho Raha Hai..." : "💰 Credit Wallet"}
               </button>
             </div>
           </div>
