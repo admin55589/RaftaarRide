@@ -31,48 +31,19 @@ export function validateAccountDetails(method: string, accountDetails: string): 
     return { valid: false, reason: "Account details empty ya bahut chote hain" };
   }
 
-  // Known valid UPI handles in India
-  const KNOWN_UPI_HANDLES = new Set([
-    "upi", "okhdfcbank", "okaxis", "okicici", "oksbi",
-    "ybl", "ibl", "axl", "apl", "rapl",
-    "paytm", "freecharge",
-    "waicici", "wahdfcbank",
-    "kkbk", "rbl", "yesbankltd",
-    "ubi", "pnb", "cnrb", "barodampay", "mahb",
-    "unionbank", "centralbank", "idbi", "sbi",
-    "hdfc", "icici", "axis",
-    "airtel", "airtelpaymentsbank",
-    "juspay", "indus", "induslnd",
-    "kotak", "abfspay", "abhibank",
-    "mybank", "idfcbank", "ikwik",
-    "pingpay", "razor", "hsbc",
-    "sc", "citi", "dbs", "rblbank",
-    "equitas", "dcb", "federal", "kvb",
-    "lvb", "nsdl", "tjsb", "vijb",
-    "allbank", "andb", "boi", "bob",
-    "corporation", "dena", "indian",
-    "obc", "orientalbank", "psb", "syndicatebank",
-    "ucoin", "ucobank", "united",
-  ]);
-
   if (method === "upi") {
-    const upiRegex = /^[\w.\-+]{2,256}@[a-zA-Z0-9]{2,64}$/;
+    // UPI VPA format: localPart@handle (e.g., 9876543210@upi, name@okaxis)
+    const upiRegex = /^[\w.\-+]{2,256}@[a-zA-Z]{2,64}$/;
     if (!upiRegex.test(detail)) {
       return { valid: false, reason: `UPI ID format galat hai: "${detail}" — example: 9876543210@upi ya name@okaxis` };
     }
-    const handle = detail.split("@")[1]?.toLowerCase();
-    if (!handle || !KNOWN_UPI_HANDLES.has(handle)) {
-      return {
-        valid: false,
-        reason: `UPI handle "@${handle}" valid nahi hai ya India mein support nahi karta. Sahi handle use karein jaise @upi, @okaxis, @ybl, @paytm, @okhdfcbank`,
-      };
-    }
-    return { valid: true, parsedAccount: { type: "vpa", vpa: detail.toLowerCase(), mode: "UPI" } };
+    return { valid: true, parsedAccount: { type: "vpa", vpa: detail, mode: "UPI" } };
   }
 
   if (method === "phonepe" || method === "paytm") {
+    // PhonePe/Paytm can be either a UPI VPA or a 10-digit phone number
     const phoneRegex = /^[6-9]\d{9}$/;
-    const upiRegex = /^[\w.\-+]{2,256}@[a-zA-Z0-9]{2,64}$/;
+    const upiRegex = /^[\w.\-+]{2,256}@[a-zA-Z]{2,64}$/;
 
     if (phoneRegex.test(detail)) {
       const handle = method === "phonepe" ? "ybl" : "paytm";
@@ -80,14 +51,7 @@ export function validateAccountDetails(method: string, accountDetails: string): 
       return { valid: true, parsedAccount: { type: "vpa", vpa, mode: "UPI" } };
     }
     if (upiRegex.test(detail)) {
-      const handle = detail.split("@")[1]?.toLowerCase();
-      if (!handle || !KNOWN_UPI_HANDLES.has(handle)) {
-        return {
-          valid: false,
-          reason: `UPI handle "@${handle}" valid nahi hai. ${method === "phonepe" ? "PhonePe" : "Paytm"} ke liye sirf 10-digit number ya valid UPI ID dein`,
-        };
-      }
-      return { valid: true, parsedAccount: { type: "vpa", vpa: detail.toLowerCase(), mode: "UPI" } };
+      return { valid: true, parsedAccount: { type: "vpa", vpa: detail, mode: "UPI" } };
     }
     return {
       valid: false,
