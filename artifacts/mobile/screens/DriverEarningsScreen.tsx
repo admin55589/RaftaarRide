@@ -181,6 +181,11 @@ export function DriverEarningsScreen() {
     return dt.toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   };
 
+  const formatTime = (d: string) => {
+    const dt = new Date(d);
+    return dt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  };
+
   const QUICK_AMTS = [200, 500, 1000, 2000];
 
   return (
@@ -389,7 +394,10 @@ export function DriverEarningsScreen() {
                   </View>
                 </View>
                 <View style={styles.wRow}>
-                  <LiveCalendarIcon size="sm" primaryColor="#F5A623" bgColor="#fff" />
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <LiveCalendarIcon size="sm" primaryColor="#F5A623" bgColor="#fff" />
+                    <Text style={styles.wDate}>{formatTime(w.createdAt)}</Text>
+                  </View>
                   <Text style={[styles.wAmt, { color: "#4ADE80" }]}>₹{Number(w.amount).toFixed(2)}</Text>
                 </View>
                 <Text style={[styles.wDate, { marginTop: 4 }]} numberOfLines={1}>{w.accountDetails}</Text>
