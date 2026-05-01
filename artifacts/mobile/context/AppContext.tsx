@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { ridesApi, type RideRecord } from "@/lib/ridesApi";
 
 export type RideMode = "economy" | "fast" | "premium";
-export type VehicleType = "bike" | "auto" | "cab";
+export type VehicleType = "bike" | "auto" | "cab" | "prime" | "suv";
 export type AppScreen =
   | "home"
   | "booking"
@@ -53,9 +53,11 @@ export interface GeoCoords {
 }
 
 const VEHICLE_DEFAULTS: Record<VehicleType, { name: string; vehicle: string; vehicleNumber: string; photo: string; rating: number }> = {
-  bike: { name: "Raj Kumar", vehicle: "Honda Activa", vehicleNumber: "DL 4C AB 1234", photo: "RK", rating: 4.8 },
-  auto: { name: "Suresh Yadav", vehicle: "Bajaj Auto", vehicleNumber: "DL 8S XY 5678", photo: "SY", rating: 4.9 },
-  cab:  { name: "Arjun Sharma", vehicle: "Swift Dzire", vehicleNumber: "DL 2C PQ 9012", photo: "AS", rating: 4.7 },
+  bike:  { name: "Raj Kumar",    vehicle: "Honda Activa",  vehicleNumber: "DL 4C AB 1234", photo: "RK", rating: 4.8 },
+  auto:  { name: "Suresh Yadav", vehicle: "Bajaj Auto",    vehicleNumber: "DL 8S XY 5678", photo: "SY", rating: 4.9 },
+  cab:   { name: "Arjun Sharma", vehicle: "Swift Dzire",   vehicleNumber: "DL 2C PQ 9012", photo: "AS", rating: 4.7 },
+  prime: { name: "Arjun Sharma", vehicle: "Swift Dzire",   vehicleNumber: "DL 2C PQ 9012", photo: "AS", rating: 4.7 },
+  suv:   { name: "Vikram Singh", vehicle: "Toyota Innova", vehicleNumber: "DL 5C RS 3456", photo: "VS", rating: 4.8 },
 };
 
 function serverRideToLocal(record: RideRecord & { driver?: any }): Ride {
@@ -71,7 +73,7 @@ function serverRideToLocal(record: RideRecord & { driver?: any }): Ride {
         rating: d.rating != null
           ? (typeof d.rating === "number" ? d.rating : parseFloat(String(d.rating)) || defaults.rating)
           : defaults.rating,
-        vehicle: vType === "bike" ? "Honda Activa" : vType === "auto" ? "Bajaj Auto" : "Swift Dzire",
+        vehicle: vType === "bike" ? "Honda Activa" : vType === "auto" ? "Bajaj Auto" : vType === "suv" ? "Toyota Innova" : "Swift Dzire",
         vehicleNumber: d.vehicleNumber ?? defaults.vehicleNumber,
         vehicleType: (d.vehicleType as VehicleType) ?? vType,
         eta: 5,
@@ -145,7 +147,7 @@ const AppContext = createContext<AppContextType | null>(null);
 const MOCK_DRIVERS: Driver[] = [
   { id: "1", name: "Raj Kumar", rating: 4.8, vehicle: "Honda Activa", vehicleNumber: "DL 4C AB 1234", vehicleType: "bike", eta: 3, photo: "RK" },
   { id: "2", name: "Suresh Yadav", rating: 4.9, vehicle: "Bajaj Auto", vehicleNumber: "DL 8S XY 5678", vehicleType: "auto", eta: 5, photo: "SY" },
-  { id: "3", name: "Arjun Sharma", rating: 4.7, vehicle: "Swift Dzire", vehicleNumber: "DL 2C PQ 9012", vehicleType: "cab", eta: 7, photo: "AS" },
+  { id: "3", name: "Arjun Sharma", rating: 4.7, vehicle: "Swift Dzire", vehicleNumber: "DL 2C PQ 9012", vehicleType: "prime", eta: 7, photo: "AS" },
 ];
 
 const SAVED_PLACES: SavedPlace[] = [
@@ -158,7 +160,7 @@ const HISTORY_CACHE_KEY = "rideHistory_v2";
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [screen, setScreen] = useState<AppScreen>("home");
-  const [selectedVehicle, setSelectedVehicle] = useState<VehicleType>("cab");
+  const [selectedVehicle, setSelectedVehicle] = useState<VehicleType>("prime");
   const [rideMode, setRideMode] = useState<RideMode>("economy");
   const [pickup, setPickup] = useState("Connaught Place, New Delhi");
   const [pickupCoords, setPickupCoords] = useState<GeoCoords | null>(null);
