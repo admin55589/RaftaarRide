@@ -329,6 +329,35 @@ router.patch("/driver-auth/push-token", async (req: Request, res: Response) => {
   }
 });
 
+/* PATCH /driver-auth/online-status — driver online/offline toggle */
+router.patch("/driver-auth/online-status", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({ success: false, message: "Token required" });
+    return;
+  }
+  try {
+    const payload = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { driverId: number; role: string };
+    if (payload.role !== "driver") {
+      res.status(403).json({ success: false, message: "Driver token required" });
+      return;
+    }
+    const { isOnline } = req.body as { isOnline: boolean };
+    if (typeof isOnline !== "boolean") {
+      res.status(400).json({ success: false, message: "isOnline (boolean) required hai" });
+      return;
+    }
+    const [updated] = await db
+      .update(driversTable)
+      .set({ isOnline })
+      .where(eq(driversTable.id, payload.driverId))
+      .returning();
+    res.json({ success: true, isOnline: updated.isOnline, message: isOnline ? "Aap online hain" : "Aap offline ho gaye" });
+  } catch {
+    res.status(401).json({ success: false, message: "Invalid token" });
+  }
+});
+
 /* PATCH /driver-auth/location — update driver's GPS coordinates */
 router.patch("/driver-auth/location", async (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
@@ -371,7 +400,7 @@ router.patch("/driver-auth/rides/:id/status", async (req: Request, res: Response
       res.status(403).json({ success: false, message: "Driver token required" });
       return;
     }
-    const rideId = parseInt(req.params.id, 10);
+    const rideId = parseInt(String(req.params.id), 10);
     const { status } = req.body as { status: string };
     const allowedStatuses = ["arrived", "onRide", "completed", "cancelled"];
     if (!allowedStatuses.includes(status)) {
