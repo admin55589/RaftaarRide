@@ -11,6 +11,7 @@ import kycRouter from "./kyc";
 import scheduledRouter from "./scheduled";
 import voiceRouter from "./voice";
 import pagesRouter from "./pages";
+import chatRouter from "./chat";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(walletRouter);
 router.use(kycRouter);
 router.use(scheduledRouter);
 router.use(voiceRouter);
+router.use(chatRouter);
 
 export default router;

@@ -13,6 +13,8 @@ import { RidesPage } from "@/pages/RidesPage";
 import { KYCPage } from "@/pages/KYCPage";
 import { WithdrawalsPage } from "@/pages/WithdrawalsPage";
 import { PromoCodesPage } from "@/pages/PromoCodesPage";
+import { LiveMapPage } from "@/pages/LiveMapPage";
+import { ChatHistoryPage } from "@/pages/ChatHistoryPage";
 import { TermsPage } from "@/pages/TermsPage";
 import { PrivacyPage } from "@/pages/PrivacyPage";
 import NotFound from "@/pages/not-found";
@@ -59,6 +61,8 @@ function AppLayout() {
           <Route path="/kyc" component={KYCPage} />
           <Route path="/withdrawals" component={WithdrawalsPage} />
           <Route path="/promo-codes" component={PromoCodesPage} />
+          <Route path="/live-map" component={LiveMapPage} />
+          <Route path="/chat-history" component={ChatHistoryPage} />
           <Route component={NotFound} />
         </Switch>
       </main>

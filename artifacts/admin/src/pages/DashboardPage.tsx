@@ -10,8 +10,16 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { Users, Car, MapPin, IndianRupee, TrendingUp, Star } from "lucide-react";
+import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap } from "lucide-react";
 import { StatusBadge, VehicleBadge, formatCurrency, formatDate } from "@/components/shared";
+
+function getSurgeInfo() {
+  const hour = new Date().getHours();
+  if (hour >= 8 && hour < 10) return { multiplier: 1.5, label: "1.5x", reason: "Morning peak hours", isActive: true };
+  if (hour >= 18 && hour < 21) return { multiplier: 1.6, label: "1.6x", reason: "Evening peak hours", isActive: true };
+  if (hour >= 22 || hour < 5) return { multiplier: 1.2, label: "1.2x", reason: "Late night charges", isActive: true };
+  return { multiplier: 1.0, label: "Normal", reason: "No surge", isActive: false };
+}
 
 function StatCard({
   label,
@@ -48,14 +56,41 @@ export function DashboardPage() {
   const { data: stats, isLoading: statsLoading } = useGetAdminStats();
   const { data: recentRides } = useGetRecentRides();
   const { data: analytics } = useGetDailyAnalytics();
+  const surge = getSurgeInfo();
 
   const chartData = analytics?.slice(-14) ?? [];
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground text-sm">RaftaarRide overview & analytics</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground text-sm">RaftaarRide overview & analytics</p>
+        </div>
+        {/* Surge Indicator */}
+        <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border ${
+          surge.isActive
+            ? "bg-amber-500/10 border-amber-500/30"
+            : "bg-green-500/10 border-green-500/30"
+        }`}>
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${surge.isActive ? "bg-amber-500/20" : "bg-green-500/20"}`}>
+            <Zap className={`w-4 h-4 ${surge.isActive ? "text-amber-400" : "text-green-400"}`} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className={`text-base font-bold ${surge.isActive ? "text-amber-400" : "text-green-400"}`}>
+                {surge.label}
+              </span>
+              {surge.isActive && (
+                <span className="relative flex w-1.5 h-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-amber-400" />
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground">{surge.reason}</div>
+          </div>
+        </div>
       </div>
 
       {statsLoading ? (

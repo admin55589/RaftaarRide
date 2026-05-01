@@ -160,3 +160,13 @@ export const withdrawalRequestsTable = pgTable("withdrawal_requests", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 export type WithdrawalRequest = typeof withdrawalRequestsTable.$inferSelect;
+
+export const chatMessagesTable = pgTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  rideId: integer("ride_id").notNull().references(() => ridesTable.id),
+  senderType: text("sender_type").notNull(),
+  senderId: integer("sender_id").notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type ChatMessage = typeof chatMessagesTable.$inferSelect;

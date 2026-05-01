@@ -8,6 +8,7 @@ import {
   withdrawalRequestsTable,
   walletTransactionsTable,
   promoCodesTable,
+  chatMessagesTable,
 } from "@workspace/db/schema";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import jwt from "jsonwebtoken";
@@ -727,6 +728,92 @@ router.delete("/admin/promo-codes/:id", authMiddleware, async (req: Request, res
     const [deleted] = await db.delete(promoCodesTable).where(eq(promoCodesTable.id, id)).returning();
     if (!deleted) { res.status(404).json({ message: "Promo code nahi mila" }); return; }
     res.json({ success: true, message: "Promo code delete ho gaya" });
+  } catch {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.get("/admin/live-rides", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const rides = await db
+      .select({
+        id: ridesTable.id,
+        pickup: ridesTable.pickup,
+        destination: ridesTable.destination,
+        pickupLat: ridesTable.pickupLat,
+        pickupLng: ridesTable.pickupLng,
+        dropLat: ridesTable.dropLat,
+        dropLng: ridesTable.dropLng,
+        status: ridesTable.status,
+        vehicleType: ridesTable.vehicleType,
+        price: ridesTable.price,
+        createdAt: ridesTable.createdAt,
+        userName: usersTable.name,
+        userPhone: usersTable.phone,
+        driverName: driversTable.name,
+        driverPhone: driversTable.phone,
+        driverLat: driversTable.driverLat,
+        driverLng: driversTable.driverLng,
+      })
+      .from(ridesTable)
+      .leftJoin(usersTable, eq(ridesTable.userId, usersTable.id))
+      .leftJoin(driversTable, eq(ridesTable.driverId, driversTable.id))
+      .where(
+        sql`${ridesTable.status} IN ('accepted', 'ongoing', 'searching')`
+      )
+      .orderBy(desc(ridesTable.createdAt))
+      .limit(50);
+    res.json(rides);
+  } catch {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.get("/admin/chat/:rideId", authMiddleware, async (req: Request, res: Response) => {
+  const rideId = parseInt(req.params.rideId, 10);
+  try {
+    const [ride] = await db
+      .select({ id: ridesTable.id, pickup: ridesTable.pickup, destination: ridesTable.destination,
+        userName: usersTable.name, driverName: driversTable.name, status: ridesTable.status })
+      .from(ridesTable)
+      .leftJoin(usersTable, eq(ridesTable.userId, usersTable.id))
+      .leftJoin(driversTable, eq(ridesTable.driverId, driversTable.id))
+      .where(eq(ridesTable.id, rideId));
+    if (!ride) { res.status(404).json({ message: "Ride nahi mili" }); return; }
+    const messages = await db
+      .select()
+      .from(chatMessagesTable)
+      .where(eq(chatMessagesTable.rideId, rideId))
+      .orderBy(chatMessagesTable.createdAt);
+    res.json({ ride, messages });
+  } catch {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.get("/admin/chats/recent", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const ridesWithChats = await db
+      .select({
+        rideId: chatMessagesTable.rideId,
+        lastMessage: sql<string>`MAX(${chatMessagesTable.message})`,
+        messageCount: sql<number>`COUNT(*)`,
+        lastAt: sql<string>`MAX(${chatMessagesTable.createdAt})`,
+        pickup: ridesTable.pickup,
+        destination: ridesTable.destination,
+        status: ridesTable.status,
+        userName: usersTable.name,
+        driverName: driversTable.name,
+      })
+      .from(chatMessagesTable)
+      .leftJoin(ridesTable, eq(chatMessagesTable.rideId, ridesTable.id))
+      .leftJoin(usersTable, eq(ridesTable.userId, usersTable.id))
+      .leftJoin(driversTable, eq(ridesTable.driverId, driversTable.id))
+      .groupBy(chatMessagesTable.rideId, ridesTable.pickup, ridesTable.destination,
+        ridesTable.status, usersTable.name, driversTable.name)
+      .orderBy(sql`MAX(${chatMessagesTable.createdAt}) DESC`)
+      .limit(50);
+    res.json(ridesWithChats);
   } catch {
     res.status(500).json({ message: "Server error" });
   }
