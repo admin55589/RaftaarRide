@@ -3,7 +3,7 @@ import { io, type Socket } from "socket.io-client";
 const SOCKET_URL = (() => {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (domain) return `https://${domain}`;
-  return "http://localhost:8080";
+  return "https://workspaceapi-server-production-2e22.up.railway.app";
 })();
 
 let socket: Socket | null = null;
