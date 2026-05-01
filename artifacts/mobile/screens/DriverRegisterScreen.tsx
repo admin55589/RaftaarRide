@@ -20,7 +20,7 @@ import { firebaseDriverRegister } from "@/lib/authApi";
 
 const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-  : "http://localhost:8080";
+  : "https://workspaceapi-server-production-2e22.up.railway.app";
 
 async function driverRegister(data: {
   name: string;
