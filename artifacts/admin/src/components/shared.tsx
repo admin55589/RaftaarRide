@@ -21,6 +21,8 @@ export function VehicleBadge({ type }: { type: string }) {
   const config: Record<string, { color: string; label: string }> = {
     bike: { color: "text-yellow-400", label: "Bike" },
     auto: { color: "text-green-400", label: "Auto" },
+    prime: { color: "text-blue-400", label: "Prime" },
+    suv: { color: "text-purple-400", label: "SUV" },
     cab: { color: "text-blue-400", label: "Cab" },
   };
   const c = config[type] ?? { color: "text-muted-foreground", label: type };
