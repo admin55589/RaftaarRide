@@ -43,6 +43,26 @@ export const VEHICLE_PRICING: Record<string, VehiclePricing> = {
     label: "Cab",
     emoji: "🚗",
   },
+  prime: {
+    baseFare: 35,
+    perKm: 12.0,
+    perMin: WAITING_CHARGE_PER_MIN,
+    minFare: 80,
+    rapidoBaseFare: 45,
+    rapidoPerKm: 15.0,
+    label: "Cab",
+    emoji: "🚗",
+  },
+  suv: {
+    baseFare: 55,
+    perKm: 16.0,
+    perMin: WAITING_CHARGE_PER_MIN,
+    minFare: 120,
+    rapidoBaseFare: 70,
+    rapidoPerKm: 20.0,
+    label: "SUV",
+    emoji: "🚙",
+  },
 };
 
 export function calculateFare(
