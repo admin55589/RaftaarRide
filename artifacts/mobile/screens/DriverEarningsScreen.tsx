@@ -62,6 +62,8 @@ export function DriverEarningsScreen() {
   const [transactions, setTransactions] = useState<TxnItem[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalReq[]>([]);
   const [loading, setLoading] = useState(true);
+  const [driverRating, setDriverRating] = useState<number | null>(null);
+  const [totalRides, setTotalRides] = useState(0);
 
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -87,7 +89,21 @@ export function DriverEarningsScreen() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchWallet(); }, [driverToken]);
+  const fetchProfile = async () => {
+    if (!driverToken) return;
+    try {
+      const res = await fetch(`${BASE_URL}driver/profile`, {
+        headers: { Authorization: `Bearer ${driverToken}` },
+      });
+      const data = await res.json();
+      if (data.success && data.driver) {
+        setDriverRating(data.driver.rating ? Number(data.driver.rating) : null);
+        setTotalRides(data.driver.totalRides ?? 0);
+      }
+    } catch { }
+  };
+
+  useEffect(() => { fetchWallet(); fetchProfile(); }, [driverToken]);
 
   const handleWithdraw = async () => {
     const amt = Number(withdrawAmount);
@@ -206,6 +222,41 @@ export function DriverEarningsScreen() {
             <Text style={styles.statLabel}>{t("commission_label")}</Text>
           </GlassCard>
         </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(110)} style={styles.statsRow}>
+          <GlassCard style={[styles.statCard, { flexDirection: "row", alignItems: "center", gap: 8 }]}>
+            <Text style={{ fontSize: 22 }}>⭐</Text>
+            <View>
+              <Text style={[styles.statValue, { color: "#F59E0B" }]}>
+                {driverRating ? driverRating.toFixed(1) : "New"}
+              </Text>
+              <Text style={styles.statLabel}>Tumhari Rating</Text>
+            </View>
+          </GlassCard>
+          <GlassCard style={[styles.statCard, { flexDirection: "row", alignItems: "center", gap: 8 }]}>
+            <Text style={{ fontSize: 22 }}>🚗</Text>
+            <View>
+              <Text style={styles.statValue}>{totalRides}</Text>
+              <Text style={styles.statLabel}>Total Rides</Text>
+            </View>
+          </GlassCard>
+        </Animated.View>
+
+        {driverRating && driverRating < 4.0 && (
+          <Animated.View entering={FadeInDown.delay(115)} style={{
+            marginHorizontal: 20, marginBottom: 12, padding: 14, borderRadius: 12,
+            backgroundColor: "rgba(239,68,68,0.1)", borderWidth: 1, borderColor: "rgba(239,68,68,0.3)",
+            flexDirection: "row", alignItems: "center", gap: 10,
+          }}>
+            <Text style={{ fontSize: 20 }}>⚠️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: "#EF4444" }}>Rating Improve Karo</Text>
+              <Text style={{ fontSize: 12, color: "#EF4444", opacity: 0.8, marginTop: 2 }}>
+                4.0 se neeche rating account suspend ka risk badh sakta hai. Customers se better service dene ki koshish karo.
+              </Text>
+            </View>
+          </Animated.View>
+        )}
 
         <Animated.View entering={FadeInDown.delay(120)} style={[styles.balanceCard, { backgroundColor: "#16A34A" }]}>
           <Text style={styles.balanceLabel}>{t("withdrawable_balance")}</Text>
