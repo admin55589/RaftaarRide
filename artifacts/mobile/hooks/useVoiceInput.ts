@@ -70,8 +70,10 @@ export function useVoiceInput(onResult: (text: string) => void) {
         body: formData,
       });
 
-      const data = (await res.json()) as { text?: string };
-      if (data.text?.trim()) {
+      const data = (await res.json()) as { text?: string; scriptError?: boolean };
+      if (data.scriptError) {
+        onResult("__script_error__");
+      } else if (data.text?.trim()) {
         onResult(data.text.trim());
       }
     } catch (err) {
