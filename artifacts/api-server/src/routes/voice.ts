@@ -51,10 +51,11 @@ router.post("/voice/transcribe", upload.single("audio"), async (req: Request, re
     const mimeType = req.file.mimetype || "audio/m4a";
     const file = await toFile(req.file.buffer, `audio.${ext}`, { type: mimeType });
 
-    const transcriptionParams: Parameters<typeof config.client.audio.transcriptions.create>[0] = {
+    const transcriptionParams: OpenAI.Audio.TranscriptionCreateParamsNonStreaming = {
       file,
       model: config.model,
       language: whisperLang,
+      stream: false,
     };
 
     if (whisperLang === "hi") {
