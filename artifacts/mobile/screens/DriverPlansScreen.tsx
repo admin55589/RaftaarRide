@@ -17,8 +17,8 @@ import { DRIVER_PLANS, type DriverPlan } from "@/lib/pricing";
 
 const COMPETITOR_DATA = [
   { name: "RaftaarRide ✅", commission: "0%", passMonthly: "₹150–₹570", surge: "Max 1.2x", highlight: true },
-  { name: "Rapido", commission: "0%", passMonthly: "₹149–₹500", surge: "2x+", highlight: false },
-  { name: "Ola", commission: "0%", passMonthly: "₹67/day", surge: "2x+", highlight: false },
+  { name: "Rapido", commission: "0%", passMonthly: "₹199–₹999", surge: "2x+", highlight: false },
+  { name: "Ola", commission: "15–20%", passMonthly: "₹199+/day", surge: "2x+", highlight: false },
   { name: "Uber", commission: "20–30%", passMonthly: "N/A", surge: "3x+", highlight: false },
 ];
 
