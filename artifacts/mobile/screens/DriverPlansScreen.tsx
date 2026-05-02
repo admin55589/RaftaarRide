@@ -110,7 +110,7 @@ export function DriverPlansScreen() {
             <View style={[styles.heroBannerInner, { backgroundColor: "#F5A623" }]}>
               <Text style={styles.heroIcon}>🏆</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.heroTitle}>India ka Sabse Sasta Model</Text>
+                <Text style={styles.heroTitle}>India ka Sabse Sasta Platform</Text>
                 <Text style={styles.heroSubtitle}>
                   Rapido/Ola/Uber se zyada driver-friendly — sirf ek chhota sa pass
                 </Text>
