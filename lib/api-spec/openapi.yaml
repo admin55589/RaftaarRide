@@ -199,6 +199,12 @@ components:
           type: number
         avgRating:
           type: number
+        convenienceFeeTotal:
+          type: number
+        convenienceFeeToday:
+          type: number
+        convenienceFeeThisMonth:
+          type: number
       required:
         - totalRides
         - totalUsers

@@ -18,6 +18,9 @@ export interface AdminStats {
   ridesThisMonth: number;
   earningsThisMonth: number;
   avgRating: number;
+  convenienceFeeTotal?: number;
+  convenienceFeeToday?: number;
+  convenienceFeeThisMonth?: number;
 }
 
 export interface User {

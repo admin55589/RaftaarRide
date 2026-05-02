@@ -26,6 +26,9 @@ export const GetAdminStatsResponse = zod.object({
   ridesThisMonth: zod.number(),
   earningsThisMonth: zod.number(),
   avgRating: zod.number(),
+  convenienceFeeTotal: zod.number().optional(),
+  convenienceFeeToday: zod.number().optional(),
+  convenienceFeeThisMonth: zod.number().optional(),
 });
 
 /**

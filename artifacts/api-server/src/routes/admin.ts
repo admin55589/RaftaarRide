@@ -110,6 +110,30 @@ router.get("/admin/stats", authMiddleware, async (_req: Request, res: Response) 
     avg: sql<number>`coalesce(avg(rating::numeric), 0)`,
   }).from(driversTable);
 
+  // Convenience fee = fixed per vehicle type, summed over completed rides
+  const convFeeExpr = sql<number>`coalesce(sum(
+    CASE vehicle_type
+      WHEN 'bike'  THEN 4
+      WHEN 'auto'  THEN 6
+      WHEN 'cab'   THEN 12
+      WHEN 'prime' THEN 12
+      WHEN 'suv'   THEN 15
+      ELSE 12
+    END
+  ), 0)`;
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const [convFeeTotalResult] = await db.select({ total: convFeeExpr })
+    .from(ridesTable).where(eq(ridesTable.status, "completed"));
+
+  const [convFeeTodayResult] = await db.select({ total: convFeeExpr })
+    .from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, todayStart)));
+
+  const [convFeeMonthResult] = await db.select({ total: convFeeExpr })
+    .from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, thisMonthStart)));
+
   res.json({
     totalRides: Number(totalRidesResult?.count ?? 0),
     totalUsers: Number(totalUsersResult?.count ?? 0),
@@ -119,6 +143,9 @@ router.get("/admin/stats", authMiddleware, async (_req: Request, res: Response) 
     ridesThisMonth: Number(ridesThisMonthResult?.count ?? 0),
     earningsThisMonth: Number(earningsThisMonthResult?.total ?? 0),
     avgRating: Number(Number(avgRatingResult?.avg ?? 0).toFixed(1)),
+    convenienceFeeTotal: Number(convFeeTotalResult?.total ?? 0),
+    convenienceFeeToday: Number(convFeeTodayResult?.total ?? 0),
+    convenienceFeeThisMonth: Number(convFeeMonthResult?.total ?? 0),
   });
 });
 

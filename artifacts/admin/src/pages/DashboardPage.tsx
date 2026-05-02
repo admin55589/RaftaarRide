@@ -10,7 +10,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap } from "lucide-react";
+import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet } from "lucide-react";
 import { StatusBadge, VehicleBadge, formatCurrency, formatDate } from "@/components/shared";
 
 function getSurgeInfo() {
@@ -158,6 +158,31 @@ export function DashboardPage() {
           />
         </div>
       )}
+
+      {/* Convenience Fee Section */}
+      <div>
+        <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <Wallet className="w-4 h-4 text-emerald-400" />
+          Convenience Fee Collected (Admin Revenue)
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5">
+            <p className="text-xs font-medium text-emerald-400 uppercase tracking-wide">Aaj Ka</p>
+            <p className="text-2xl font-bold text-emerald-400 mt-1">{formatCurrency(stats?.convenienceFeeToday ?? 0)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Today's convenience fee</p>
+          </div>
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5">
+            <p className="text-xs font-medium text-emerald-400 uppercase tracking-wide">Is Mahine Ka</p>
+            <p className="text-2xl font-bold text-emerald-400 mt-1">{formatCurrency(stats?.convenienceFeeThisMonth ?? 0)}</p>
+            <p className="text-xs text-muted-foreground mt-1">This month's convenience fee</p>
+          </div>
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5">
+            <p className="text-xs font-medium text-emerald-400 uppercase tracking-wide">Kul Collected</p>
+            <p className="text-2xl font-bold text-emerald-400 mt-1">{formatCurrency(stats?.convenienceFeeTotal ?? 0)}</p>
+            <p className="text-xs text-muted-foreground mt-1">All-time convenience fee</p>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-card border border-card-border rounded-2xl p-5">
