@@ -672,7 +672,6 @@ const styles = StyleSheet.create({
   priceSummary: {
     marginHorizontal: 20,
     marginTop: 16,
-    borderTopWidth: 1,
     paddingTop: 12,
     gap: 8,
   },
