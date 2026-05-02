@@ -81,6 +81,9 @@ export const ridesTable = pgTable("rides", {
   completionPin: integer("completion_pin"),
   cancelReason: text("cancel_reason"),
   cancelledBy: text("cancelled_by"),
+  promoCode: text("promo_code"),
+  discountAmount: numeric("discount_amount", { precision: 8, scale: 2 }).default("0"),
+  originalPrice: numeric("original_price", { precision: 8, scale: 2 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
