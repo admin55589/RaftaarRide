@@ -15,9 +15,9 @@ import { StatusBadge, VehicleBadge, formatCurrency, formatDate } from "@/compone
 
 function getSurgeInfo() {
   const hour = new Date().getHours();
-  if (hour >= 8 && hour < 10) return { multiplier: 1.5, label: "1.5x", reason: "Morning peak hours", isActive: true };
-  if (hour >= 18 && hour < 21) return { multiplier: 1.6, label: "1.6x", reason: "Evening peak hours", isActive: true };
-  if (hour >= 22 || hour < 5) return { multiplier: 1.2, label: "1.2x", reason: "Late night charges", isActive: true };
+  if (hour >= 8 && hour < 10) return { multiplier: 1.2, label: "1.2x", reason: "Morning peak hours", isActive: true };
+  if (hour >= 18 && hour < 21) return { multiplier: 1.2, label: "1.2x", reason: "Evening peak hours", isActive: true };
+  if (hour >= 22 || hour < 5) return { multiplier: 1.1, label: "1.1x", reason: "Late night charges", isActive: true };
   return { multiplier: 1.0, label: "Normal", reason: "No surge", isActive: false };
 }
 

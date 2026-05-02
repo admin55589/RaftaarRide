@@ -405,16 +405,24 @@ router.post("/rides/:id/verify-pin", async (req: Request, res: Response) => {
     /* Mark ride as completed */
     const [updated] = await db.update(ridesTable).set({ status: "completed" }).where(eq(ridesTable.id, rideId)).returning();
 
-    /* Calculate earnings — same Cash vs Online logic */
+    /* Calculate earnings — 0% commission, platform fee model */
     const [driver] = await db.select().from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
     if (driver) {
       const price = parseFloat(String(updated.price));
-      const commission = parseFloat((price * 0.067).toFixed(2));
-      const earning = parseFloat((price * 0.933).toFixed(2));
       const isCash = updated.paymentMethod === "Cash";
 
+      const vt = String(updated.vehicleType ?? "cab").toLowerCase();
+      const PLATFORM_FEE_MAP: Record<string, number> = {
+        bike: 4, auto: 6, cab: 12, prime: 12, suv: 15,
+      };
+      const platformFee = PLATFORM_FEE_MAP[vt] ?? 12;
+      const commission = 0;
+      const earning = parseFloat((price - platformFee).toFixed(2));
+
       const currentBalance = parseFloat(String(driver.walletBalance ?? "0"));
-      const newWalletBalance = isCash ? currentBalance - commission : currentBalance + earning;
+      const newWalletBalance = isCash
+        ? currentBalance - platformFee
+        : currentBalance + earning;
 
       await db.update(driversTable).set({
         totalEarnings: String((parseFloat(String(driver.totalEarnings ?? "0")) + earning).toFixed(2)),
@@ -429,10 +437,10 @@ router.post("/rides/:id/verify-pin", async (req: Request, res: Response) => {
       await db.insert(walletTransactionsTable).values({
         driverId,
         type: isCash ? "commission_debit" : "earning",
-        amount: String(isCash ? -commission : earning),
+        amount: String(isCash ? -platformFee : earning),
         description: isCash
-          ? `Ride #${rideId} — Cash ride: user ne ₹${price.toFixed(2)} diye. Commission ₹${commission.toFixed(2)} deducted.`
-          : `Ride #${rideId} earning — ₹${earning.toFixed(2)} credit (6.7% commission deducted)`,
+          ? `Ride #${rideId} — Cash: aapne ₹${price.toFixed(2)} collect kiye. Platform fee ₹${platformFee} admin ko dena hai.`
+          : `Ride #${rideId} — Ride fare ₹${earning.toFixed(2)} credit (0% commission, platform fee ₹${platformFee} admin ka).`,
       });
     }
 
