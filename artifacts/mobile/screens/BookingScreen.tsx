@@ -462,12 +462,6 @@ export function BookingScreen() {
                 </View>
                 <Text style={[styles.priceValue, { color: colors.mutedForeground }]}>₹0.5/min</Text>
               </View>
-              <View style={[styles.priceRow, { backgroundColor: "#F5A62310", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, marginTop: 4 }]}>
-                <Text style={{ fontSize: 12 }}>✅</Text>
-                <Text style={{ fontSize: 11, color: "#F5A623", fontFamily: "Inter_500Medium", flex: 1, marginLeft: 6 }}>
-                  0% commission — poora fare driver ka. No hidden charges.
-                </Text>
-              </View>
             </View>
 
             <View style={styles.bookBtnContainer}>
