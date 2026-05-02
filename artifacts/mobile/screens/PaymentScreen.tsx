@@ -406,7 +406,7 @@ export function PaymentScreen() {
                     ? `👛 Wallet se Pay ₹${price}`
                     : selectedMethod === "Cash"
                       ? `💵 Cash se Pay ₹${price}`
-                      : `Pay ₹${price} →`
+                      : `Pay ₹${price}`
               }
               onPress={handlePay}
               loading={isProcessing}
