@@ -161,6 +161,13 @@ export default function DriverRegisterScreen() {
         style={[styles.container, { paddingTop: insets.top + 20 }]}
       >
         <Pressable
+          onPress={() => router.back()}
+          hitSlop={8}
+          style={{ position: "absolute", top: insets.top + 12, left: 16, zIndex: 100, width: 40, height: 40, borderRadius: 20, borderWidth: 1, backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" }}
+        >
+          <View style={{ width: 10, height: 10, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: "#FFFFFF", transform: [{ rotate: "45deg" }], marginLeft: 3 }} />
+        </Pressable>
+        <Pressable
           onPress={toggleLanguage}
           hitSlop={8}
           style={{ position: "absolute", top: insets.top + 12, right: 16, zIndex: 100, width: 40, height: 40, borderRadius: 20, borderWidth: 1, backgroundColor: "rgba(245,166,35,0.15)", borderColor: "rgba(245,166,35,0.4)", alignItems: "center", justifyContent: "center" }}
