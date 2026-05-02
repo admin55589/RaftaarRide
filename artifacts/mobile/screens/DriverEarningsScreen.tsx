@@ -212,12 +212,12 @@ export function DriverEarningsScreen() {
 
         <Animated.View entering={FadeInDown.delay(100)} style={styles.statsRow}>
           <GlassCard style={styles.statCard}>
-            <Text style={styles.statValue}>₹{totalEarnings.toFixed(0)}</Text>
-            <Text style={styles.statLabel}>{t("total_earned")}</Text>
+            <Text style={[styles.statValue, { color: "#22c55e" }]}>0%</Text>
+            <Text style={styles.statLabel}>{t("commission_label")}</Text>
           </GlassCard>
           <GlassCard style={styles.statCard}>
-            <Text style={[styles.statValue, { color: "#22c55e" }]}>0%</Text>
-            <Text style={styles.statLabel}>Commission</Text>
+            <Text style={styles.statValue}>₹{totalEarnings.toFixed(0)}</Text>
+            <Text style={styles.statLabel}>{t("total_earned")}</Text>
           </GlassCard>
         </Animated.View>
 
@@ -244,7 +244,7 @@ export function DriverEarningsScreen() {
           ) : (
             <Text style={styles.balanceAmount}>₹{balance.toFixed(2)}</Text>
           )}
-          <Text style={styles.commissionNote}>0% commission — jo customer dega, woh poora aapka 🎉</Text>
+          <Text style={styles.commissionNote}>{t("commission_note")}</Text>
 
           <TouchableOpacity
             style={[styles.withdrawBtn, {
