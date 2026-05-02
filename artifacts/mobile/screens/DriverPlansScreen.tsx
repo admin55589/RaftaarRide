@@ -181,7 +181,7 @@ export function DriverPlansScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(250)} style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Convenience Fee (Graaahak se)</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Convenience Fee (Customer se)</Text>
           <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>
             Yeh chhoti si fee customer se li jaati hai — driver se kuch nahi
           </Text>
