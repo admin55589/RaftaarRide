@@ -9,11 +9,15 @@ const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024"
 
 interface JwtPayload { userId: number; phone: string; role: string; }
 
-function userAuth(req: Request, res: Response, next: NextFunction) {
+async function userAuth(req: Request, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) { res.status(401).json({ success: false, error: "Unauthorized" }); return; }
   try {
     const payload = jwt.verify(auth.slice(7), JWT_SECRET) as JwtPayload;
+    const [user] = await db.select({ id: usersTable.id, status: usersTable.status }).from(usersTable).where(eq(usersTable.id, payload.userId)).limit(1);
+    if (!user) { res.status(401).json({ success: false, error: "User not found" }); return; }
+    if (user.status === "blocked") { res.status(403).json({ success: false, error: "Aapka account block kar diya gaya hai. Support se contact karein." }); return; }
+    if (user.status === "suspended") { res.status(403).json({ success: false, error: "Aapka account suspend hai. Support se contact karein." }); return; }
     (req as any).userId = payload.userId;
     next();
   } catch { res.status(401).json({ success: false, error: "Invalid token" }); }
