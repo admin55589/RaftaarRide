@@ -182,6 +182,15 @@ router.post("/auth/login", async (req: Request, res: Response) => {
       return;
     }
 
+    if (user.status === "blocked") {
+      res.status(403).json({ message: "Aapka account block kar diya gaya hai. Support se contact karein." });
+      return;
+    }
+    if (user.status === "suspended") {
+      res.status(403).json({ message: "Aapka account suspend hai. Support se contact karein." });
+      return;
+    }
+
     const token = jwt.sign(
       { userId: user.id, phone: user.phone, role: "user" },
       JWT_SECRET,
@@ -227,6 +236,15 @@ router.post("/auth/send-otp", async (req: Request, res: Response) => {
     const isNewUser = existing.length === 0;
 
     if (!isNewUser) {
+      const existingUser = existing[0];
+      if (existingUser.status === "blocked") {
+        res.status(403).json({ message: "Aapka account block kar diya gaya hai. Support se contact karein." });
+        return;
+      }
+      if (existingUser.status === "suspended") {
+        res.status(403).json({ message: "Aapka account suspend hai. Support se contact karein." });
+        return;
+      }
       await db
         .update(usersTable)
         .set({ otpCode: otp, otpExpiresAt: expiresAt })
@@ -289,6 +307,15 @@ router.post("/auth/verify-otp", async (req: Request, res: Response) => {
 
     if (user.otpExpiresAt && new Date() > user.otpExpiresAt) {
       res.status(400).json({ message: "OTP expire ho gaya. Dobara request karo." });
+      return;
+    }
+
+    if (user.status === "blocked") {
+      res.status(403).json({ message: "Aapka account block kar diya gaya hai. Support se contact karein." });
+      return;
+    }
+    if (user.status === "suspended") {
+      res.status(403).json({ message: "Aapka account suspend hai. Support se contact karein." });
       return;
     }
 
