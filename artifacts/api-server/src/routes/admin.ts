@@ -9,6 +9,7 @@ import {
   walletTransactionsTable,
   promoCodesTable,
   chatMessagesTable,
+  planTransactionsTable,
 } from "@workspace/db/schema";
 import { eq, desc, sql, and, gte, isNotNull, ne } from "drizzle-orm";
 import jwt from "jsonwebtoken";
@@ -1014,6 +1015,93 @@ router.patch("/admin/driver-plans/:id/extend", authMiddleware, async (req: Reque
 
     res.json({ success: true, newEndAt: newEnd.toISOString() });
   } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+/* GET /api/admin/plan-revenue — plan purchase revenue stats + transactions */
+router.get("/admin/plan-revenue", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOf6Months = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+    const [totalRow] = await db
+      .select({ total: sql<string>`coalesce(sum(amount_rupees), 0)`, count: sql<string>`count(*)` })
+      .from(planTransactionsTable);
+
+    const [todayRow] = await db
+      .select({ total: sql<string>`coalesce(sum(amount_rupees), 0)`, count: sql<string>`count(*)` })
+      .from(planTransactionsTable)
+      .where(gte(planTransactionsTable.createdAt, startOfToday));
+
+    const [monthRow] = await db
+      .select({ total: sql<string>`coalesce(sum(amount_rupees), 0)`, count: sql<string>`count(*)` })
+      .from(planTransactionsTable)
+      .where(gte(planTransactionsTable.createdAt, startOfMonth));
+
+    const byVehicle = await db
+      .select({
+        vehicleType: planTransactionsTable.vehicleType,
+        total: sql<string>`coalesce(sum(amount_rupees), 0)`,
+        count: sql<string>`count(*)`,
+      })
+      .from(planTransactionsTable)
+      .groupBy(planTransactionsTable.vehicleType);
+
+    const byBilling = await db
+      .select({
+        billing: planTransactionsTable.billing,
+        total: sql<string>`coalesce(sum(amount_rupees), 0)`,
+        count: sql<string>`count(*)`,
+      })
+      .from(planTransactionsTable)
+      .groupBy(planTransactionsTable.billing);
+
+    const monthly = await db
+      .select({
+        month: sql<string>`to_char(created_at, 'YYYY-MM')`,
+        total: sql<string>`coalesce(sum(amount_rupees), 0)`,
+        count: sql<string>`count(*)`,
+      })
+      .from(planTransactionsTable)
+      .where(gte(planTransactionsTable.createdAt, startOf6Months))
+      .groupBy(sql`to_char(created_at, 'YYYY-MM')`)
+      .orderBy(sql`to_char(created_at, 'YYYY-MM')`);
+
+    const recent = await db
+      .select({
+        id: planTransactionsTable.id,
+        driverId: planTransactionsTable.driverId,
+        driverName: driversTable.name,
+        driverPhone: driversTable.phone,
+        vehicleType: driversTable.vehicleType,
+        vehicleNumber: driversTable.vehicleNumber,
+        planVehicleType: planTransactionsTable.vehicleType,
+        billing: planTransactionsTable.billing,
+        amountRupees: planTransactionsTable.amountRupees,
+        razorpayPaymentId: planTransactionsTable.razorpayPaymentId,
+        createdAt: planTransactionsTable.createdAt,
+      })
+      .from(planTransactionsTable)
+      .innerJoin(driversTable, eq(planTransactionsTable.driverId, driversTable.id))
+      .orderBy(desc(planTransactionsTable.createdAt))
+      .limit(100);
+
+    res.json({
+      summary: {
+        totalRevenue: Number(totalRow?.total ?? 0),
+        totalTransactions: Number(totalRow?.count ?? 0),
+        todayRevenue: Number(todayRow?.total ?? 0),
+        todayTransactions: Number(todayRow?.count ?? 0),
+        monthRevenue: Number(monthRow?.total ?? 0),
+        monthTransactions: Number(monthRow?.count ?? 0),
+      },
+      byVehicle: byVehicle.map((r) => ({ vehicleType: r.vehicleType, total: Number(r.total), count: Number(r.count) })),
+      byBilling: byBilling.map((r) => ({ billing: r.billing, total: Number(r.total), count: Number(r.count) })),
+      monthly: monthly.map((r) => ({ month: r.month, total: Number(r.total), count: Number(r.count) })),
+      recent: recent.map((r) => ({ ...r, amountRupees: Number(r.amountRupees) })),
+    });
+  } catch (err: any) { res.status(500).json({ message: "Server error", error: err?.message }); }
 });
 
 export default router;

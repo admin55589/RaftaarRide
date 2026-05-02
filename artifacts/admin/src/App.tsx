@@ -17,6 +17,7 @@ import { LiveMapPage } from "@/pages/LiveMapPage";
 import { ChatHistoryPage } from "@/pages/ChatHistoryPage";
 import { BroadcastPage } from "@/pages/BroadcastPage";
 import { DriverPlansPage } from "@/pages/DriverPlansPage";
+import { PlanRevenuePage } from "@/pages/PlanRevenuePage";
 import { TermsPage } from "@/pages/TermsPage";
 import { PrivacyPage } from "@/pages/PrivacyPage";
 import NotFound from "@/pages/not-found";
@@ -68,6 +69,7 @@ function AppLayout() {
           <Route path="/chat-history" component={ChatHistoryPage} />
           <Route path="/broadcast" component={BroadcastPage} />
           <Route path="/driver-plans" component={DriverPlansPage} />
+          <Route path="/plan-revenue" component={PlanRevenuePage} />
           <Route component={NotFound} />
         </Switch>
       </main>

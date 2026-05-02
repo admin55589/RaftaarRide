@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { driversTable, ridesTable, usersTable, walletTransactionsTable } from "@workspace/db/schema";
+import { driversTable, ridesTable, usersTable, walletTransactionsTable, planTransactionsTable } from "@workspace/db/schema";
 import { eq, or, inArray, sum, avg, count, isNotNull, and, sql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
@@ -681,6 +681,9 @@ router.post("/driver-auth/plan/activate", async (req: Request, res: Response) =>
     const baseDate = currentEnd && currentEnd > now ? currentEnd : now;
     const endAt = new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
     const planTypeNorm = vehicleType === "prime" ? "cab" : vehicleType;
+    const prices = PLAN_PRICES[vehicleType] ?? PLAN_PRICES.cab;
+    const amountRupees = billing === "daily" ? prices.daily : prices.monthly;
+
     const [updated] = await db.update(driversTable).set({
       planType: planTypeNorm, planBilling: billing,
       planStartAt: now, planEndAt: endAt,
@@ -690,6 +693,16 @@ router.post("/driver-auth/plan/activate", async (req: Request, res: Response) =>
       planStartAt: driversTable.planStartAt, planEndAt: driversTable.planEndAt,
       isTrial: driversTable.isTrial, trialUsed: driversTable.trialUsed,
     });
+
+    await db.insert(planTransactionsTable).values({
+      driverId: payload.driverId,
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+      vehicleType: planTypeNorm,
+      billing,
+      amountRupees: String(amountRupees),
+    });
+
     res.json({ success: true, plan: getPlanStatus(updated) });
   } catch (err: any) {
     res.status(500).json({ message: "Plan activate nahi hua", error: err?.message });
