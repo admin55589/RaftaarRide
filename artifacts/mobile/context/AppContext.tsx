@@ -183,7 +183,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [userName, setUserName] = useState("Aarav");
   const [currentRideId, setCurrentRideId] = useState<number | null>(null);
   const [finalPaymentPrice, setFinalPaymentPrice] = useState<number>(0);
-  const [fareBreakdown, setFareBreakdown] = useState<{ rideFare: number; platformFee: number; promoDiscount: number; promoCode: string } | null>(null);
+  const [fareBreakdown, setFareBreakdown] = useState<{ rideFare: number; platformFee: number; promoDiscount: number; promoCode: string; distanceKm: number; distanceCharge: number; waitingCharge: number } | null>(null);
 
   useEffect(() => {
     loadCachedHistory();

@@ -30,7 +30,7 @@ router.post("/driver-auth/register", async (req: Request, res: Response) => {
     return;
   }
 
-  const validVehicles = ["bike", "auto", "prime", "suv"];
+  const validVehicles = ["bike", "auto", "cab", "prime", "suv"];
   if (!validVehicles.includes(vehicleType)) {
     res.status(400).json({ message: "Invalid vehicle type" });
     return;
