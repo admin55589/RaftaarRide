@@ -25,8 +25,8 @@ export const DRIVER_PLANS: DriverPlan[] = [
     vehicleType: "bike",
     label: "Bike",
     emoji: "🏍️",
-    dailyPrice: 5,
-    monthlyPrice: 99,
+    dailyPrice: 9,
+    monthlyPrice: 180,
     firstMonthFree: true,
     color: "#F5A623",
     perks: [
@@ -40,8 +40,8 @@ export const DRIVER_PLANS: DriverPlan[] = [
     vehicleType: "auto",
     label: "Auto",
     emoji: "🛺",
-    dailyPrice: 10,
-    monthlyPrice: 199,
+    dailyPrice: 15,
+    monthlyPrice: 299,
     firstMonthFree: true,
     color: "#22c55e",
     perks: [
@@ -55,8 +55,8 @@ export const DRIVER_PLANS: DriverPlan[] = [
     vehicleType: "cab",
     label: "Cab / SUV",
     emoji: "🚗",
-    dailyPrice: 30,
-    monthlyPrice: 499,
+    dailyPrice: 39,
+    monthlyPrice: 799,
     firstMonthFree: true,
     color: "#3b82f6",
     perks: [
