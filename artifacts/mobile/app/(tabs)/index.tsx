@@ -9,10 +9,13 @@ import { useLanguage } from "@/context/LanguageContext";
 
 function getVehicleIcon(vehicleType?: string): string {
   switch ((vehicleType ?? "").toLowerCase()) {
-    case "bike": return "🏍️";
-    case "auto": return "🛺";
-    case "car":  return "🚗";
-    default:     return "🚗";
+    case "bike":  return "🏍️";
+    case "auto":  return "🛺";
+    case "suv":   return "🚙";
+    case "prime": return "🚗";
+    case "cab":
+    case "car":   return "🚗";
+    default:      return "🚗";
   }
 }
 
