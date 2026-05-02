@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
+import { API_BASE } from "@/lib/apiBase";
 
 interface ChatThread {
   rideId: number;
