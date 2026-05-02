@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 26, fontWeight: "800", fontFamily: "Inter_700Bold" },
   subtitle: { fontSize: 13, marginTop: 4, fontFamily: "Inter_400Regular" },
   summaryChip: {
-    flex: 1, alignItems: "center", padding: 12, borderRadius: 14,
+    flex: 1, alignItems: "center", justifyContent: "center", padding: 12, borderRadius: 14,
     borderWidth: 1, gap: 2,
   },
   rideCard: {
