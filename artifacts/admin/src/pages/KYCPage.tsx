@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { formatDate } from "@/components/shared";
 import { cn } from "@/lib/utils";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
+import { API_BASE } from "@/lib/apiBase";
 
 interface KYCRecord {
   id: number;
