@@ -112,7 +112,7 @@ export function DriverPlansScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.heroTitle}>India ka Sabse Sasta Platform</Text>
                 <Text style={styles.heroSubtitle}>
-                  Rapido/Ola/Uber se zyada driver-friendly — zero commission, poori kamai aapki
+                  Apni mehnat, apni poori kamai — koi commission nahi, koi katoti nahi
                 </Text>
               </View>
             </View>
