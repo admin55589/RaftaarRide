@@ -52,6 +52,9 @@ export interface CreateRideParams {
   price: number;
   distanceKm?: number;
   paymentMethod?: PaymentMethod;
+  promoCode?: string;
+  discountAmount?: number;
+  originalPrice?: number;
 }
 
 export type RideStatus = "searching" | "accepted" | "arrived" | "onRide" | "completed" | "cancelled";
