@@ -13,11 +13,18 @@ export interface AdminStats {
   totalRides: number;
   totalUsers: number;
   totalDrivers: number;
+  completedRides?: number;
+  cancelledRides?: number;
   totalEarnings: number;
   activeDrivers: number;
   ridesThisMonth: number;
   earningsThisMonth: number;
   avgRating: number;
+  totalFareAll?: number;
+  totalFareThisMonth?: number;
+  convenienceFeeTotal?: number;
+  convenienceFeeToday?: number;
+  convenienceFeeThisMonth?: number;
 }
 
 export interface User {
