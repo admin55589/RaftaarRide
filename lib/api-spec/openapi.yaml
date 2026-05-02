@@ -189,6 +189,10 @@ components:
           type: integer
         totalDrivers:
           type: integer
+        completedRides:
+          type: integer
+        cancelledRides:
+          type: integer
         totalEarnings:
           type: number
         activeDrivers:
@@ -198,6 +202,16 @@ components:
         earningsThisMonth:
           type: number
         avgRating:
+          type: number
+        totalFareAll:
+          type: number
+        totalFareThisMonth:
+          type: number
+        convenienceFeeTotal:
+          type: number
+        convenienceFeeToday:
+          type: number
+        convenienceFeeThisMonth:
           type: number
       required:
         - totalRides
