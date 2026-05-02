@@ -161,12 +161,6 @@ export function DashboardPage() {
               iconBg="bg-yellow-500/10"
             />
           </div>
-          {((stats as any)?.completedRides ?? 0) === 0 && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-5 py-3 flex items-center gap-3 text-sm">
-              <span className="text-amber-400 text-lg">⚠️</span>
-              <span className="text-amber-300">Abhi tak koi ride complete nahi hui — jab driver ride complete karega tab earnings show hogi. Ride Revenue tab count hota hai jab status "completed" hota hai.</span>
-            </div>
-          )}
         </>
       )}
 
