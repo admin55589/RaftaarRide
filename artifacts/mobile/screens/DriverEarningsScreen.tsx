@@ -20,8 +20,8 @@ import { LiveCalendarIcon } from "@/components/LiveCalendarIcon";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { BASE_URL } from "@/lib/api";
 
-const COMMISSION_RATE = 0.067;
-const DRIVER_SHARE = 1 - COMMISSION_RATE;
+const COMMISSION_RATE = 0;
+const DRIVER_SHARE = 1;
 
 const WITHDRAWAL_METHODS = [
   { id: "upi", label: "UPI", icon: "📲", placeholder_hi: "yourname@upi", placeholder_en: "yourname@upi" },
@@ -212,12 +212,12 @@ export function DriverEarningsScreen() {
 
         <Animated.View entering={FadeInDown.delay(100)} style={styles.statsRow}>
           <GlassCard style={styles.statCard}>
-            <Text style={styles.statValue}>₹{(totalEarnings * DRIVER_SHARE).toFixed(0)}</Text>
+            <Text style={styles.statValue}>₹{totalEarnings.toFixed(0)}</Text>
             <Text style={styles.statLabel}>{t("total_earned")}</Text>
           </GlassCard>
           <GlassCard style={styles.statCard}>
-            <Text style={[styles.statValue, { color: "#F87171" }]}>₹{(totalEarnings * COMMISSION_RATE).toFixed(0)}</Text>
-            <Text style={styles.statLabel}>{t("commission_label")}</Text>
+            <Text style={[styles.statValue, { color: "#22c55e" }]}>0%</Text>
+            <Text style={styles.statLabel}>Commission</Text>
           </GlassCard>
         </Animated.View>
 
@@ -244,7 +244,7 @@ export function DriverEarningsScreen() {
           ) : (
             <Text style={styles.balanceAmount}>₹{balance.toFixed(2)}</Text>
           )}
-          <Text style={styles.commissionNote}>{t("commission_note")}</Text>
+          <Text style={styles.commissionNote}>0% commission — jo customer dega, woh poora aapka 🎉</Text>
 
           <TouchableOpacity
             style={[styles.withdrawBtn, {
@@ -374,7 +374,7 @@ export function DriverEarningsScreen() {
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.wMethod, { fontSize: 12, flexShrink: 1 }]} numberOfLines={2}>
                             {isCashCommission
-                              ? "Cash Ride Commission"
+                              ? "Platform Fee (Cash Ride)"
                               : txn.type === "withdrawal" ? "Withdrawal"
                               : txn.type === "credit" ? "Admin Credit"
                               : "Ride Earning"}
@@ -390,8 +390,8 @@ export function DriverEarningsScreen() {
                           {isDebit ? "-" : "+"}₹{Math.abs(amt).toFixed(2)}
                         </Text>
                         {isCashCommission && (
-                          <View style={{ backgroundColor: "rgba(245,166,35,0.15)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginTop: 2 }}>
-                            <Text style={{ color: "#F5A623", fontSize: 10, fontFamily: "Inter_600SemiBold" }}>6.7% Cash</Text>
+                          <View style={{ backgroundColor: "rgba(34,197,94,0.15)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginTop: 2 }}>
+                            <Text style={{ color: "#22c55e", fontSize: 10, fontFamily: "Inter_600SemiBold" }}>0% Commission</Text>
                           </View>
                         )}
                       </View>

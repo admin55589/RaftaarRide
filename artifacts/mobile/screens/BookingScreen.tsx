@@ -372,18 +372,21 @@ export function BookingScreen() {
               <View style={styles.priceRow}>
                 <View style={styles.priceLabelRow}>
                   <Text style={styles.priceIcon}>🏷️</Text>
-                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>RaftaarRide Fare</Text>
+                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Ride Fare</Text>
                 </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  {promoApplied && (
-                    <Text style={{ fontSize: 12, color: colors.mutedForeground, textDecorationLine: "line-through", fontFamily: "Inter_400Regular" }}>
-                      ₹{basePrice}
-                    </Text>
-                  )}
-                  <Text style={[styles.priceValue, { color: promoApplied ? "#22c55e" : colors.primary }]}>
-                    ₹{finalPrice}
-                  </Text>
+                <Text style={[styles.priceValue, { color: colors.foreground }]}>
+                  ₹{fare.total - fare.platformFee}
+                </Text>
+              </View>
+
+              <View style={styles.priceRow}>
+                <View style={styles.priceLabelRow}>
+                  <Text style={styles.priceIcon}>🔧</Text>
+                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Platform Fee</Text>
                 </View>
+                <Text style={[styles.priceValue, { color: colors.mutedForeground }]}>
+                  +₹{fare.platformFee}
+                </Text>
               </View>
 
               {promoApplied && (
@@ -400,16 +403,36 @@ export function BookingScreen() {
                 </Animated.View>
               )}
 
-              <View style={styles.priceRow}>
+              <View style={[styles.priceRow, { borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 8, marginTop: 4 }]}>
                 <View style={styles.priceLabelRow}>
-                  <Text style={styles.priceIcon}>📉</Text>
-                  <Text style={[styles.priceLabel, { color: "#22c55e" }]}>Sabse sasta</Text>
+                  <Text style={styles.priceIcon}>💰</Text>
+                  <Text style={[styles.priceLabel, { color: colors.foreground, fontWeight: "700" }]}>Total</Text>
                 </View>
-                <Text style={[styles.priceValue, { color: "#22c55e" }]}>
-                  ₹{fare.savings} ({fare.savingsPct}%)
-                </Text>
+                <View style={{ alignItems: "flex-end" }}>
+                  {promoApplied && (
+                    <Text style={{ fontSize: 12, color: colors.mutedForeground, textDecorationLine: "line-through", fontFamily: "Inter_400Regular" }}>
+                      ₹{basePrice}
+                    </Text>
+                  )}
+                  <Text style={[styles.priceValue, { color: promoApplied ? "#22c55e" : colors.primary, fontSize: 18 }]}>
+                    ₹{finalPrice}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.priceRow}>
+
+              {fare.savings > 0 && (
+                <View style={[styles.priceRow, { backgroundColor: "#22c55e12", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, marginTop: 4 }]}>
+                  <View style={styles.priceLabelRow}>
+                    <Text style={styles.priceIcon}>📉</Text>
+                    <Text style={[styles.priceLabel, { color: "#22c55e" }]}>Rapido se sasta</Text>
+                  </View>
+                  <Text style={[styles.priceValue, { color: "#22c55e" }]}>
+                    ₹{fare.savings} ({fare.savingsPct}%) saved
+                  </Text>
+                </View>
+              )}
+
+              <View style={[styles.priceRow, { marginTop: 8 }]}>
                 <View style={styles.priceLabelRow}>
                   <Text style={styles.priceIcon}>🕐</Text>
                   <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Duration</Text>
@@ -429,6 +452,12 @@ export function BookingScreen() {
                   <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Waiting charge</Text>
                 </View>
                 <Text style={[styles.priceValue, { color: colors.mutedForeground }]}>₹0.5/min</Text>
+              </View>
+              <View style={[styles.priceRow, { backgroundColor: "#F5A62310", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, marginTop: 4 }]}>
+                <Text style={{ fontSize: 12 }}>✅</Text>
+                <Text style={{ fontSize: 11, color: "#F5A623", fontFamily: "Inter_500Medium", flex: 1, marginLeft: 6 }}>
+                  0% commission — poora fare driver ka. No hidden charges.
+                </Text>
               </View>
             </View>
 

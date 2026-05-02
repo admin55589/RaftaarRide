@@ -1,5 +1,72 @@
-export const ADMIN_COMMISSION_RATE = 0.067;
+export const ADMIN_COMMISSION_RATE = 0;
 export const WAITING_CHARGE_PER_MIN = 0.5;
+
+export const PLATFORM_FEES: Record<string, number> = {
+  bike: 4,
+  auto: 6,
+  cab: 12,
+  prime: 12,
+  suv: 15,
+};
+
+export interface DriverPlan {
+  vehicleType: string;
+  label: string;
+  emoji: string;
+  dailyPrice: number;
+  monthlyPrice: number;
+  firstMonthFree: boolean;
+  color: string;
+  perks: string[];
+}
+
+export const DRIVER_PLANS: DriverPlan[] = [
+  {
+    vehicleType: "bike",
+    label: "Bike",
+    emoji: "🏍️",
+    dailyPrice: 9,
+    monthlyPrice: 199,
+    firstMonthFree: true,
+    color: "#F5A623",
+    perks: [
+      "0% commission — poora fare aapka",
+      "Unlimited rides",
+      "Real-time ride requests",
+      "GPS tracking",
+    ],
+  },
+  {
+    vehicleType: "auto",
+    label: "Auto",
+    emoji: "🛺",
+    dailyPrice: 15,
+    monthlyPrice: 299,
+    firstMonthFree: true,
+    color: "#22c55e",
+    perks: [
+      "0% commission — poora fare aapka",
+      "Unlimited rides",
+      "Priority support",
+      "Weekly earnings report",
+    ],
+  },
+  {
+    vehicleType: "cab",
+    label: "Cab / SUV",
+    emoji: "🚗",
+    dailyPrice: 39,
+    monthlyPrice: 799,
+    firstMonthFree: true,
+    color: "#3b82f6",
+    perks: [
+      "0% commission — poora fare aapka",
+      "Unlimited rides",
+      "Premium badge on profile",
+      "Priority ride matching",
+    ],
+  },
+];
 
 export interface VehiclePricing {
   baseFare: number;
@@ -74,6 +141,7 @@ export function calculateFare(
   baseFare: number;
   distanceCharge: number;
   waitingCharge: number;
+  platformFee: number;
   subtotal: number;
   adminCommission: number;
   driverEarning: number;
@@ -83,26 +151,29 @@ export function calculateFare(
   savingsPct: number;
 } {
   const pricing = VEHICLE_PRICING[vehicleType] ?? VEHICLE_PRICING.cab;
+  const platformFee = PLATFORM_FEES[vehicleType] ?? 12;
 
   const baseFare = pricing.baseFare;
   const distanceCharge = pricing.perKm * distanceKm;
   const waitingCharge = pricing.perMin * waitingMinutes;
-  const subtotal = Math.max(
+  const rideFare = Math.max(
     Math.round((baseFare + distanceCharge + waitingCharge) * rideModeMultiplier),
     pricing.minFare
   );
 
-  const adminCommission = Math.round(subtotal * ADMIN_COMMISSION_RATE);
-  const driverEarning = subtotal - adminCommission;
+  const subtotal = rideFare + platformFee;
+  const adminCommission = 0;
+  const driverEarning = rideFare;
 
   const rapidoPrice = Math.round(pricing.rapidoBaseFare + pricing.rapidoPerKm * distanceKm);
   const savings = rapidoPrice - subtotal;
-  const savingsPct = Math.round((savings / rapidoPrice) * 100);
+  const savingsPct = Math.max(0, Math.round((savings / rapidoPrice) * 100));
 
   return {
     baseFare,
     distanceCharge: Math.round(distanceCharge),
     waitingCharge: Math.round(waitingCharge),
+    platformFee,
     subtotal,
     adminCommission,
     driverEarning,
@@ -116,8 +187,8 @@ export function calculateFare(
 export function getRideModeMultiplier(rideMode: string): number {
   switch (rideMode) {
     case "economy": return 1.0;
-    case "fast": return 1.25;
-    case "premium": return 1.55;
+    case "fast": return 1.15;
+    case "premium": return 1.35;
     default: return 1.0;
   }
 }
@@ -135,13 +206,13 @@ export function getSurgeInfo(): SurgeInfo {
   const hour = new Date().getHours();
 
   if (hour >= 8 && hour < 10) {
-    return { multiplier: 1.5, label: "1.5x", reason: "Morning peak hours", isActive: true };
+    return { multiplier: 1.2, label: "1.2x", reason: "Morning peak hours", isActive: true };
   }
   if (hour >= 18 && hour < 21) {
-    return { multiplier: 1.6, label: "1.6x", reason: "Evening peak hours", isActive: true };
+    return { multiplier: 1.2, label: "1.2x", reason: "Evening peak hours", isActive: true };
   }
   if (hour >= 22 || hour < 5) {
-    return { multiplier: 1.2, label: "1.2x", reason: "Late night charges", isActive: true };
+    return { multiplier: 1.1, label: "1.1x", reason: "Late night charges", isActive: true };
   }
   return { multiplier: 1.0, label: "Normal", reason: "", isActive: false };
 }

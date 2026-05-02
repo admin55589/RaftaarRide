@@ -27,6 +27,7 @@ import { WalletScreen } from "@/screens/WalletScreen";
 import { ScheduledRidesScreen } from "@/screens/ScheduledRidesScreen";
 import { DriverKYCScreen } from "@/screens/DriverKYCScreen";
 import { DriverEarningsScreen } from "@/screens/DriverEarningsScreen";
+import { DriverPlansScreen } from "@/screens/DriverPlansScreen";
 import { RideHistoryScreen } from "@/screens/RideHistoryScreen";
 
 const MONTHS_SHORT = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
@@ -120,6 +121,7 @@ export default function MainScreen() {
     { key: "home",     icon: driverVehicleIcon, label_hi: "राइड्स",  label_en: "Rides",    custom: false },
     { key: "kyc",      icon: "📋",              label_hi: "KYC",      label_en: "KYC",      custom: false },
     { key: "earnings", icon: "💵",              label_hi: "कमाई",    label_en: "Earnings", custom: false },
+    { key: "plans",    icon: "🏆",              label_hi: "प्लान",    label_en: "Plans",    custom: false },
   ];
 
   const isInRideFlow = RIDE_SCREENS.includes(screen);
@@ -129,6 +131,7 @@ export default function MainScreen() {
       switch (activeTab) {
         case "kyc":      return <DriverKYCScreen />;
         case "earnings": return <DriverEarningsScreen />;
+        case "plans":    return <DriverPlansScreen />;
         default:         return <DriverModeScreen />;
       }
     }

@@ -1,0 +1,81 @@
+Himanshu, 2026 latest public data ke हिसाब से **best strategy “zero per-ride commission + low daily/monthly pass”** है. Rapido, Ola, Uber सब धीरे-धीरे इसी model पर shift कर रहे हैं.
+
+## 1. Competitor structure — 2026 comparison
+
+| App | Driver se kya charge | Approx structure | Driver ke liye impact |
+| ----------------------------------- | ----------------------------------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| **Rapido** | 0% per-ride commission | SaaS/subscription model. पुराने public data में auto daily fee ₹5–₹29 और cab ₹500/month after ₹10,000 earning बताया गया; 2026 में Rapido nationwide fixed subscription model पर focus कर रहा है. ([Business Standard][1]) | Driver fare ka ज़्यादा हिस्सा रखता है |
+| **Ola** | 0% commission | 2025 से India-wide zero commission; reports में ₹67/day pass mention है. ([The Economic Times][2]) | Driver पूरा fare रखता है, fixed pass देता है |
+| **Uber Auto India** | 0% commission on auto in some model | Uber ने India auto rides में subscription/zero-commission style adopt किया. ([Reuters][3]) | Fare driver-customer के बीच, Uber connector जैसा |
+| **Uber Cab** | अक्सर 20–30% range | Public official page exact India % नहीं देता; industry reports typical 20–30% बताती हैं. ([Mobisoft Infotech][4]) | Driver income से बड़ा cut |
+| **Namma Yatri** | Zero commission | Driver subscription/open-network style; rivals Rapido/Uber/Ola इसी model से compete कर रहे हैं. ([Reuters][3]) | Driver-friendly |
+| **Bharat Taxi / govt-backed model** | profit-heavy model नहीं | 2026 में govt-backed cooperative taxi service की planning reported हुई, aim Ola/Uber जैसा लेकिन profit tycoon को नहीं. ([Reuters][5]) | Future competitor बन सकता है |
+
+## 2. Customer charges में क्या-क्या लगता है
+
+Customer fare generally ऐसे बनता है:
+
+**Base fare + per km charge + per minute/waiting + demand/surge + platform/booking fee + GST/taxes**
+
+Uber official help के अनुसार booking fee एक flat fee होती है जो trip में add होती है और safety/operating cost support करती है. ([Uber][6])
+Rapido भी fare estimate, cashless payment और ride options देता है, but exact public rate city-wise app के अंदर dynamic दिखता है. ([Rapido][7])
+
+## 3. RaftaarRide ke liye best low-price model
+
+### Launch phase: पहले 3–6 महीने
+
+| Vehicle | Driver commission | Driver pass | Customer platform fee |
+| ------- | ----------------: | ---------------------------------------: | --------------------: |
+| Bike | **0%** | ₹0 पहले 30 दिन, फिर ₹9/day या ₹199/month | ₹3–₹5/ride |
+| Auto | **0%** | ₹15/day या ₹299/month | ₹5–₹7/ride |
+| Cab | **0%** | ₹39/day या ₹799/month | ₹10–₹15/ride |
+
+यह Rapido/Ola से attractive रहेगा क्योंकि Ola reported ₹67/day तक pass model दिखा रहा है, और Rapido auto range पुराने public data में ₹5–₹29/day थी. ([Outlook Business][8])
+
+## 4. Recommended fare positioning
+
+### Bike taxi
+
+**RaftaarRide target:** Rapido/Ola से 5–10% cheaper
+Example: अगर competitor ₹60 दिखाए, तुम ₹54–₹57 दिखाओ.
+
+### Auto
+
+**Target:** same या ₹5–₹10 cheaper
+Auto drivers को bolo: “0% commission, बस low pass.”
+
+### Cab
+
+**Target:** Uber/Ola से 8–12% cheaper
+Cab में ज्यादा margin होता है, लेकिन शुरुआत में low price रखो.
+
+## 5. Final commission plan jo main recommend karta hoon
+
+**RaftaarRide Driver Model:**
+
+1. **Per ride commission: 0%**
+2. **Bike pass:** ₹199/month या ₹9/day
+3. **Auto pass:** ₹299/month या ₹15/day
+4. **Cab pass:** ₹799/month या ₹39/day
+5. **First 30 days free for drivers**
+6. **Customer platform fee:** Bike ₹3–₹5, Auto ₹5–₹7, Cab ₹10–₹15
+7. **No surge launch phase में**, सिर्फ high-demand में max 1.2x
+
+## 6. Simple winning offer
+
+**Driver ke liye line:**
+“RaftaarRide par 0% commission — jo customer dega, woh pura driver ka.”
+
+**Customer ke liye line:**
+“Rapido/Ola/Uber se sasti ride, transparent price, no hidden surge.”
+
+मेरी सलाह: **commission मत लगाओ।** Rapido/Ola के खिलाफ जीतने के लिए **low subscription + small customer platform fee** model सबसे strong रहेगा.
+
+[1]: https://www.business-standard.com/companies/start-ups/after-cabs-rapido-extends-saas-based-zero-commission-model-to-auto-drivers-124021300846_1.html?utm_source=chatgpt.com "After cabs, Rapido extends SaaS-based zero-commission ..."
+[2]: https://m.economictimes.com/tech/technology/ola-launches-zero-percent-commission-model-across-india-drivers-to-keep-entire-fare-earnings/articleshow/121924682.cms?utm_source=chatgpt.com "Ola launches zero percent commission model across India"
+[3]: https://www.reuters.com/world/india/uber-adopts-smaller-rivals-model-india-autorickshaw-rides-weather-competition-2025-02-18/?utm_source=chatgpt.com "Uber adopts smaller rivals' model for India autorickshaw rides to weather competition"
+[4]: https://mobisoftinfotech.com/resources/blog/uber-business-model-explained-2026?utm_source=chatgpt.com "Uber Business Model Explained: How It Works & Makes ..."
+[5]: https://www.reuters.com/world/india/india-backs-new-ride-hailing-service-challenge-likes-uber-2026-02-24/?utm_source=chatgpt.com "India backs new ride-hailing service to challenge likes of ..."
+[6]: https://help.uber.com/hi-IN/riders/article/booking-fee-explanation?nodeId=04828111-5540-4f04-8b22-7fee7feb2b3e&utm_source=chatgpt.com "Booking Fee explanation | राइडर | Uber मदद"
+[7]: https://rapido.bike/delhi/transit-hubs/metro/New_Delhi?utm_source=chatgpt.com "New Delhi | Rapido Bike Taxi, Auto, & Cabs"
+[8]: https://www.outlookbusiness.com/news/ola-extends-zero-commission-model-to-cab-drivers-after-autos?utm_source=chatgpt.com "Ola Extends Zero Commission Model to Cab Drivers After Autos"
