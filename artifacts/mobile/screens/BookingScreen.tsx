@@ -433,7 +433,7 @@ export function BookingScreen() {
                 <View style={[styles.priceRow, { backgroundColor: "#22c55e12", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, marginTop: 4 }]}>
                   <View style={styles.priceLabelRow}>
                     <Text style={styles.priceIcon}>📉</Text>
-                    <Text style={[styles.priceLabel, { color: "#22c55e" }]}>Rapido se sasta</Text>
+                    <Text style={[styles.priceLabel, { color: "#22c55e" }]}>Market se sasta</Text>
                   </View>
                   <Text style={[styles.priceValue, { color: "#22c55e" }]}>
                     ₹{fare.savings} ({fare.savingsPct}%) saved
