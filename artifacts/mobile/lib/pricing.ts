@@ -40,8 +40,8 @@ export const DRIVER_PLANS: DriverPlan[] = [
     vehicleType: "auto",
     label: "Auto",
     emoji: "🛺",
-    dailyPrice: 7,
-    monthlyPrice: 149,
+    dailyPrice: 10,
+    monthlyPrice: 199,
     firstMonthFree: true,
     color: "#22c55e",
     perks: [
@@ -55,8 +55,8 @@ export const DRIVER_PLANS: DriverPlan[] = [
     vehicleType: "cab",
     label: "Cab / SUV",
     emoji: "🚗",
-    dailyPrice: 19,
-    monthlyPrice: 399,
+    dailyPrice: 30,
+    monthlyPrice: 499,
     firstMonthFree: true,
     color: "#3b82f6",
     perks: [
