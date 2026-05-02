@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { ridesTable, driversTable, usersTable, walletTransactionsTable } from "@workspace/db/schema";
+import { ridesTable, driversTable, usersTable, walletTransactionsTable, promoCodesTable } from "@workspace/db/schema";
 import { eq, desc, and, inArray, avg, isNotNull } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { emitRideUpdate, emitAdminUpdate, emitToDriver } from "../lib/socket";
@@ -54,12 +54,13 @@ async function assignNearestDriver(vehicleType: string, pickupLat?: number, pick
 
 router.post("/rides", userAuth, async (req: Request, res: Response) => {
   const userId = (req as any).userId;
-  const { pickup, drop, destination, vehicleType, rideType, rideMode, price, fare, distanceKm } = req.body as {
+  const { pickup, drop, destination, vehicleType, rideType, rideMode, price, fare, distanceKm, promoCode, discountAmount, originalPrice } = req.body as {
     pickup: GeoPoint | string;
     drop?: GeoPoint | string;
     destination?: GeoPoint | string;
     vehicleType?: string; rideType?: string;
     rideMode?: string; price?: number; fare?: number; distanceKm?: number;
+    promoCode?: string; discountAmount?: number; originalPrice?: number;
   };
 
   const dropPoint = drop ?? destination;
@@ -102,7 +103,23 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       status: matchedDriver ? "accepted" : "searching",
       driverId: matchedDriver?.id ?? undefined,
       paymentMethod: finalPaymentMethod,
+      promoCode: promoCode?.toUpperCase().trim() ?? null,
+      discountAmount: discountAmount ? String(discountAmount) : "0",
+      originalPrice: originalPrice ? String(originalPrice) : String(finalPrice),
     }).returning();
+
+    /* Increment promo usedCount if a valid code was applied */
+    if (promoCode) {
+      const cleanCode = promoCode.toUpperCase().trim();
+      const [existingPromo] = await db.select({ id: promoCodesTable.id, usedCount: promoCodesTable.usedCount })
+        .from(promoCodesTable).where(eq(promoCodesTable.code, cleanCode)).limit(1);
+      if (existingPromo) {
+        await db.update(promoCodesTable)
+          .set({ usedCount: existingPromo.usedCount + 1 })
+          .where(eq(promoCodesTable.id, existingPromo.id))
+          .catch(() => {});
+      }
+    }
 
     if (matchedDriver) {
       await db.update(driversTable).set({ isOnline: false }).where(eq(driversTable.id, matchedDriver.id));
