@@ -391,7 +391,7 @@ export function BookingScreen() {
               <View style={styles.priceRow}>
                 <View style={styles.priceLabelRow}>
                   <Text style={styles.priceIcon}>🔧</Text>
-                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Platform Fee</Text>
+                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Service Charge</Text>
                 </View>
                 <Text style={[styles.priceValue, { color: colors.mutedForeground }]}>
                   +₹{fare.platformFee}

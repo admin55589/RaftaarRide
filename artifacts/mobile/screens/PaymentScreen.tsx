@@ -319,7 +319,7 @@ export function PaymentScreen() {
                 <View style={s.amountRow}>
                   <View style={s.amountLabelRow}>
                     <Text style={s.amountIcon}>🔧</Text>
-                    <Text style={[s.amountDetailLabel, { color: colors.mutedForeground }]}>Platform Fee</Text>
+                    <Text style={[s.amountDetailLabel, { color: colors.mutedForeground }]}>Service Charge</Text>
                   </View>
                   <Text style={[s.amountDetailValue, { color: colors.foreground }]}>+₹{fareBreakdown?.platformFee ?? fare.platformFee}</Text>
                 </View>
