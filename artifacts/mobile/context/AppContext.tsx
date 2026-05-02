@@ -140,6 +140,10 @@ interface AppContextType {
   setUserName: (n: string) => void;
   currentRideId: number | null;
   setCurrentRideId: (id: number | null) => void;
+  finalPaymentPrice: number;
+  setFinalPaymentPrice: (p: number) => void;
+  fareBreakdown: { rideFare: number; platformFee: number; promoDiscount: number; promoCode: string } | null;
+  setFareBreakdown: (b: { rideFare: number; platformFee: number; promoDiscount: number; promoCode: string } | null) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -178,6 +182,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [paymentMethod, setPaymentMethod] = useState("UPI");
   const [userName, setUserName] = useState("Aarav");
   const [currentRideId, setCurrentRideId] = useState<number | null>(null);
+  const [finalPaymentPrice, setFinalPaymentPrice] = useState<number>(0);
+  const [fareBreakdown, setFareBreakdown] = useState<{ rideFare: number; platformFee: number; promoDiscount: number; promoCode: string } | null>(null);
 
   useEffect(() => {
     loadCachedHistory();
@@ -239,6 +245,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         savedPlaces: SAVED_PLACES,
         userName, setUserName,
         currentRideId, setCurrentRideId,
+        finalPaymentPrice, setFinalPaymentPrice,
+        fareBreakdown, setFareBreakdown,
       }}
     >
       {children}

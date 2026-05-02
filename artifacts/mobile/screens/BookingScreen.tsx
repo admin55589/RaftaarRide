@@ -58,6 +58,8 @@ export function BookingScreen() {
     setPaymentMethod,
     estimatedDistanceKm,
     setCurrentRideId,
+    setFinalPaymentPrice,
+    setFareBreakdown,
   } = useApp();
 
   const surgeInfo = getSurgeInfo();
@@ -121,6 +123,13 @@ export function BookingScreen() {
   const handleBookRide = useCallback(async () => {
     const driver = MOCK_DRIVERS.find((d) => d.vehicleType === selectedVehicle) ?? MOCK_DRIVERS[2];
     setAssignedDriver(driver);
+    setFinalPaymentPrice(finalPrice);
+    setFareBreakdown({
+      rideFare: fare.total - fare.platformFee,
+      platformFee: fare.platformFee,
+      promoDiscount: promoApplied?.discountAmount ?? 0,
+      promoCode: promoApplied?.code ?? "",
+    });
     setScreen("searching");
 
     if (token) {

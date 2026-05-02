@@ -108,6 +108,7 @@ export function PaymentScreen() {
     setScreen, selectedVehicle, rideMode, estimatedTime, estimatedDistanceKm,
     paymentMethod, assignedDriver, destination, pickup,
     addRideToHistory, refreshHistoryFromServer, currentRideId, setCurrentRideId,
+    finalPaymentPrice, fareBreakdown,
   } = useApp();
 
   const [paid, setPaid] = useState(false);
@@ -122,7 +123,7 @@ export function PaymentScreen() {
 
   const distanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
   const fare = calculateFare(selectedVehicle, distanceKm, 0, getRideModeMultiplier(rideMode));
-  const price = fare.total;
+  const price = finalPaymentPrice > 0 ? finalPaymentPrice : fare.total;
   const duration = Math.round(estimatedTime * (selectedVehicle === "bike" ? 0.7 : selectedVehicle === "auto" ? 0.9 : 1));
 
   useEffect(() => {
@@ -259,8 +260,7 @@ export function PaymentScreen() {
                   💵 Cash Payment Confirmed
                 </Text>
                 <Text style={{ color: "#86EFAC", fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18 }}>
-                  Aapne ₹{price} driver ko seedha diye hain. Yeh digital receipt aapke payment ka proof hai.{"\n"}
-                  Platform commission (6.7% = ₹{(price * 0.067).toFixed(2)}) driver ki earning se kategi.
+                  Aapne ₹{price} driver ko seedha diye hain. Yeh digital receipt aapke payment ka proof hai.
                 </Text>
                 <Text style={{ color: "#4ADE80", fontFamily: "Inter_600SemiBold", fontSize: 11, marginTop: 6 }}>
                   Proof ID: RR-{completedRideId ?? Date.now().toString().slice(-8)} · {new Date().toLocaleString("en-IN")}
@@ -270,18 +270,17 @@ export function PaymentScreen() {
 
             <Animated.View entering={FadeInDown.delay(500).springify()} style={[s.receiptCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {[
-                { icon: "🏷️", label: "Amount Paid",    value: `₹${price}` },
-                { icon: "🕐", label: "Duration",        value: `${duration} min` },
-                { icon: "📍", label: "Distance",        value: `${distanceKm} km` },
-                { icon: "💳", label: "Payment",         value: selectedMethod === "RaftaarWallet" ? "RaftaarRide Wallet 👛" : selectedMethod === "Cash" ? "💵 Cash (Driver ko diya)" : selectedMethod },
-                ...(selectedMethod === "Cash" ? [{ icon: "🏦", label: "Platform Commission", value: `₹${(price * 0.067).toFixed(2)} (6.7%)` }] : []),
+                { icon: "🏷️", label: "Amount Paid", value: `₹${price}` },
+                { icon: "🕐", label: "Duration",     value: `${duration} min` },
+                { icon: "📍", label: "Distance",     value: `${distanceKm} km` },
+                { icon: "💳", label: "Payment",      value: selectedMethod === "RaftaarWallet" ? "RaftaarRide Wallet 👛" : selectedMethod === "Cash" ? "💵 Cash (Driver ko diya)" : selectedMethod },
               ].map(({ icon, label, value }) => (
                 <View key={label} style={[s.receiptRow, { borderColor: colors.border }]}>
                   <View style={s.receiptLabelRow}>
                     <Text style={s.receiptIcon}>{icon}</Text>
                     <Text style={[s.receiptLabel, { color: colors.mutedForeground }]}>{label}</Text>
                   </View>
-                  <Text style={[s.receiptValue, { color: label === "Platform Commission" ? "#F87171" : colors.foreground }]}>{value}</Text>
+                  <Text style={[s.receiptValue, { color: colors.foreground }]}>{value}</Text>
                 </View>
               ))}
             </Animated.View>
@@ -303,21 +302,36 @@ export function PaymentScreen() {
             <GlassCard style={s.amountCard} padding={24}>
               <Text style={[s.amountLabel, { color: colors.mutedForeground }]}>Total Fare</Text>
               <Text style={[s.amount, { color: colors.primary }]}>₹{price}</Text>
+              {fareBreakdown && fareBreakdown.promoDiscount > 0 && (
+                <Text style={{ fontSize: 13, color: colors.mutedForeground, textDecorationLine: "line-through", fontFamily: "Inter_400Regular", marginTop: -4, marginBottom: 4 }}>
+                  ₹{fareBreakdown.rideFare + fareBreakdown.platformFee}
+                </Text>
+              )}
               <View style={[s.amountDivider, { backgroundColor: colors.border }]} />
               <View style={s.amountDetails}>
-                {[
-                  { icon: "🏷️", label: "Base Fare",       value: Math.round(price * 0.7) },
-                  { icon: "📍", label: "Distance",         value: Math.round(price * 0.25) },
-                  { icon: "%",  label: "Convenience Fee",  value: Math.round(price * 0.05) },
-                ].map(({ icon, label, value }) => (
-                  <View key={label} style={s.amountRow}>
-                    <View style={s.amountLabelRow}>
-                      <Text style={s.amountIcon}>{icon}</Text>
-                      <Text style={[s.amountDetailLabel, { color: colors.mutedForeground }]}>{label}</Text>
-                    </View>
-                    <Text style={[s.amountDetailValue, { color: colors.foreground }]}>₹{value}</Text>
+                <View style={s.amountRow}>
+                  <View style={s.amountLabelRow}>
+                    <Text style={s.amountIcon}>🏷️</Text>
+                    <Text style={[s.amountDetailLabel, { color: colors.mutedForeground }]}>Ride Fare</Text>
                   </View>
-                ))}
+                  <Text style={[s.amountDetailValue, { color: colors.foreground }]}>₹{fareBreakdown?.rideFare ?? Math.round(price - (fareBreakdown?.platformFee ?? 0))}</Text>
+                </View>
+                <View style={s.amountRow}>
+                  <View style={s.amountLabelRow}>
+                    <Text style={s.amountIcon}>🔧</Text>
+                    <Text style={[s.amountDetailLabel, { color: colors.mutedForeground }]}>Platform Fee</Text>
+                  </View>
+                  <Text style={[s.amountDetailValue, { color: colors.foreground }]}>+₹{fareBreakdown?.platformFee ?? fare.platformFee}</Text>
+                </View>
+                {fareBreakdown && fareBreakdown.promoDiscount > 0 && (
+                  <View style={s.amountRow}>
+                    <View style={s.amountLabelRow}>
+                      <Text style={s.amountIcon}>🎁</Text>
+                      <Text style={[s.amountDetailLabel, { color: "#22c55e" }]}>Promo ({fareBreakdown.promoCode})</Text>
+                    </View>
+                    <Text style={[s.amountDetailValue, { color: "#22c55e" }]}>-₹{fareBreakdown.promoDiscount}</Text>
+                  </View>
+                )}
               </View>
             </GlassCard>
 
