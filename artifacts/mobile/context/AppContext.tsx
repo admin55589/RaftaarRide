@@ -142,8 +142,8 @@ interface AppContextType {
   setCurrentRideId: (id: number | null) => void;
   finalPaymentPrice: number;
   setFinalPaymentPrice: (p: number) => void;
-  fareBreakdown: { rideFare: number; platformFee: number; promoDiscount: number; promoCode: string } | null;
-  setFareBreakdown: (b: { rideFare: number; platformFee: number; promoDiscount: number; promoCode: string } | null) => void;
+  fareBreakdown: { rideFare: number; platformFee: number; promoDiscount: number; promoCode: string; distanceKm: number; distanceCharge: number; waitingCharge: number } | null;
+  setFareBreakdown: (b: { rideFare: number; platformFee: number; promoDiscount: number; promoCode: string; distanceKm: number; distanceCharge: number; waitingCharge: number } | null) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);

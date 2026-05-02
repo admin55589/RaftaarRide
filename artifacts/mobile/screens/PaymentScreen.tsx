@@ -316,6 +316,26 @@ export function PaymentScreen() {
                   </View>
                   <Text style={[s.amountDetailValue, { color: colors.foreground }]}>₹{fareBreakdown?.rideFare ?? Math.round(price - (fareBreakdown?.platformFee ?? 0))}</Text>
                 </View>
+                {fareBreakdown && (
+                  <View style={s.amountRow}>
+                    <View style={s.amountLabelRow}>
+                      <Text style={s.amountIcon}>📍</Text>
+                      <Text style={[s.amountDetailLabel, { color: colors.mutedForeground }]}>Distance</Text>
+                    </View>
+                    <Text style={[s.amountDetailValue, { color: colors.mutedForeground }]}>{fareBreakdown.distanceKm.toFixed(1)} km</Text>
+                  </View>
+                )}
+                {fareBreakdown && (
+                  <View style={s.amountRow}>
+                    <View style={s.amountLabelRow}>
+                      <Text style={s.amountIcon}>⏱️</Text>
+                      <Text style={[s.amountDetailLabel, { color: colors.mutedForeground }]}>Waiting Charge</Text>
+                    </View>
+                    <Text style={[s.amountDetailValue, { color: colors.mutedForeground }]}>
+                      {fareBreakdown.waitingCharge > 0 ? `₹${fareBreakdown.waitingCharge}` : "₹0.50/min"}
+                    </Text>
+                  </View>
+                )}
                 <View style={s.amountRow}>
                   <View style={s.amountLabelRow}>
                     <Text style={s.amountIcon}>🔧</Text>

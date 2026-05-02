@@ -129,6 +129,9 @@ export function BookingScreen() {
       platformFee: fare.platformFee,
       promoDiscount: promoApplied?.discountAmount ?? 0,
       promoCode: promoApplied?.code ?? "",
+      distanceKm,
+      distanceCharge: fare.distanceCharge,
+      waitingCharge: fare.waitingCharge,
     });
     setScreen("searching");
 
@@ -385,6 +388,26 @@ export function BookingScreen() {
                 </View>
                 <Text style={[styles.priceValue, { color: colors.foreground }]}>
                   ₹{fare.total - fare.platformFee}
+                </Text>
+              </View>
+
+              <View style={styles.priceRow}>
+                <View style={styles.priceLabelRow}>
+                  <Text style={styles.priceIcon}>📍</Text>
+                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Distance</Text>
+                </View>
+                <Text style={[styles.priceValue, { color: colors.mutedForeground }]}>
+                  {distanceKm.toFixed(1)} km
+                </Text>
+              </View>
+
+              <View style={styles.priceRow}>
+                <View style={styles.priceLabelRow}>
+                  <Text style={styles.priceIcon}>⏱️</Text>
+                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Waiting Charge</Text>
+                </View>
+                <Text style={[styles.priceValue, { color: colors.mutedForeground }]}>
+                  {fare.waitingCharge > 0 ? `₹${fare.waitingCharge}` : "₹0.50/min"}
                 </Text>
               </View>
 
