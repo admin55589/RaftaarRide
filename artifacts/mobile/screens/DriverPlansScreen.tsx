@@ -101,7 +101,7 @@ export function DriverPlansScreen() {
         <Animated.View entering={FadeInDown.delay(50)} style={styles.header}>
           <Text style={[styles.title, { color: colors.foreground }]}>📋 Driver Plans</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            0% commission — jo customer dega, woh poora aapka
+            0% commission — jo graaahak dega, woh poora aapka
           </Text>
         </Animated.View>
 
