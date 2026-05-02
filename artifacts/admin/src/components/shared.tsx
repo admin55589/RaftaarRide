@@ -33,7 +33,9 @@ export function formatCurrency(amount: number) {
   return `₹${amount.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-export function formatDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+export function formatDate(iso: string | Date | null | undefined) {
+  if (!iso) return "—";
+  const d = new Date(iso as string);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" });
 }
