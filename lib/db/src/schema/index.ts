@@ -51,6 +51,12 @@ export const driversTable = pgTable("drivers", {
   preferredLanguage: text("preferred_language").notNull().default("hi"),
   pushToken: text("push_token"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  planType: text("plan_type"),
+  planBilling: text("plan_billing"),
+  planStartAt: timestamp("plan_start_at"),
+  planEndAt: timestamp("plan_end_at"),
+  isTrial: boolean("is_trial").default(false),
+  trialUsed: boolean("trial_used").notNull().default(false),
 });
 
 export type InsertDriver = typeof driversTable.$inferInsert;

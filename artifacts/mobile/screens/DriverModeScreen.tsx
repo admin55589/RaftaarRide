@@ -366,7 +366,7 @@ function DriverChatModal({
   );
 }
 
-export function DriverModeScreen() {
+export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: () => void }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { setScreen, driverEarnings, setDriverEarnings } = useApp();
@@ -538,7 +538,7 @@ export function DriverModeScreen() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${driverToken}` },
         body: JSON.stringify({ isOnline: newStatus }),
       });
-      const data = await res.json() as { success: boolean; isOnline: boolean; message: string };
+      const data = await res.json() as { success: boolean; isOnline: boolean; message: string; planExpired?: boolean };
       if (data.success) {
         setIsOnline(data.isOnline);
         updateDriver({ ...driver, isOnline: data.isOnline });
@@ -550,6 +550,15 @@ export function DriverModeScreen() {
           duration: 3000,
         });
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } else if (data.planExpired) {
+        Alert.alert(
+          "📋 Plan Zaroori Hai",
+          data.message ?? "Online hone ke liye plan lena hoga.",
+          [
+            { text: "Plans Dekho", style: "default", onPress: () => onNavigateToPlans?.() },
+            { text: "Baad Mein", style: "cancel" },
+          ]
+        );
       } else {
         showNotification({ title: "Error", body: data.message ?? "Status update failed", type: "error", icon: "❌", duration: 3000 });
       }

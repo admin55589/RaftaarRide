@@ -132,7 +132,7 @@ export default function MainScreen() {
         case "kyc":      return <DriverKYCScreen />;
         case "earnings": return <DriverEarningsScreen />;
         case "plans":    return <DriverPlansScreen />;
-        default:         return <DriverModeScreen />;
+        default:         return <DriverModeScreen onNavigateToPlans={() => setActiveTab("plans")} />;
       }
     }
 
