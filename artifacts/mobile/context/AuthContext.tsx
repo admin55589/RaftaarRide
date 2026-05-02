@@ -68,15 +68,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    try {
-      await authApi.firebaseLogout();
-    } catch {}
-    await Promise.all([
-      AsyncStorage.removeItem(AUTH_TOKEN_KEY),
-      AsyncStorage.removeItem(AUTH_USER_KEY),
-    ]);
     setToken(null);
     setUser(null);
+    Promise.all([
+      AsyncStorage.removeItem(AUTH_TOKEN_KEY),
+      AsyncStorage.removeItem(AUTH_USER_KEY),
+      authApi.firebaseLogout().catch(() => {}),
+    ]);
   };
 
   const updateUser = (updated: AuthUser) => {
