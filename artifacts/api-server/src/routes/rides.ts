@@ -11,11 +11,15 @@ const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024"
 
 interface JwtPayload { userId: number; phone: string; role: string; }
 
-function userAuth(req: Request, res: Response, next: NextFunction) {
+async function userAuth(req: Request, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) { res.status(401).json({ success: false, error: "Unauthorized" }); return; }
   try {
     const payload = jwt.verify(auth.slice(7), JWT_SECRET) as JwtPayload;
+    const [user] = await db.select({ id: usersTable.id, status: usersTable.status }).from(usersTable).where(eq(usersTable.id, payload.userId)).limit(1);
+    if (!user) { res.status(401).json({ success: false, error: "User not found" }); return; }
+    if (user.status === "blocked") { res.status(403).json({ success: false, error: "Aapka account block kar diya gaya hai. Support se contact karein." }); return; }
+    if (user.status === "suspended") { res.status(403).json({ success: false, error: "Aapka account suspend hai. Support se contact karein." }); return; }
     (req as any).userId = payload.userId;
     next();
   } catch { res.status(401).json({ success: false, error: "Invalid token" }); }
@@ -318,22 +322,33 @@ router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) 
       const [driver] = await db.select().from(driversTable).where(eq(driversTable.id, updated.driverId)).limit(1);
       if (driver) {
         const price = parseFloat(String(updated.price));
-        const commission = parseFloat((price * 0.067).toFixed(2));
-        const earning = parseFloat((price * 0.933).toFixed(2));
         const isCash = updated.paymentMethod === "Cash";
 
         /*
-         * CASH: Driver physically collected full fare from user.
-         * Platform needs its commission (6.7%) back → DEBIT from walletBalance.
-         * Driver ke haath mein pehle se ₹price hai; sirf commission kaata jaata hai.
+         * Business Model: 0% commission — driver earns full Ride Fare.
+         * Platform earns via fixed Platform Fee (already included in total price):
+         *   Bike ₹4 | Auto ₹6 | Cab/Prime ₹12 | SUV ₹15
          *
-         * ONLINE (UPI/Card/Wallet): Platform collected fare.
-         * Driver ko 93.3% credit karo walletBalance mein.
+         * CASH: Driver physically collected full amount (rideFare + platformFee) from rider.
+         *   → Debit platformFee from driver wallet so admin can collect it.
+         *   → Driver's net earning = price - platformFee (already in hand as cash).
+         *
+         * ONLINE: Platform collected full amount from rider.
+         *   → Credit rideFare (price - platformFee) to driver wallet.
+         *   → Platform keeps platformFee.
          */
+        const vt = String(updated.vehicleType ?? "cab").toLowerCase();
+        const PLATFORM_FEE_MAP: Record<string, number> = {
+          bike: 4, auto: 6, cab: 12, prime: 12, suv: 15,
+        };
+        const platformFee = PLATFORM_FEE_MAP[vt] ?? 12;
+        const commission = 0;
+        const earning = parseFloat((price - platformFee).toFixed(2));
+
         const currentBalance = parseFloat(String(driver.walletBalance ?? "0"));
         const newWalletBalance = isCash
-          ? currentBalance - commission          // debit: commission platform ko milta hai
-          : currentBalance + earning;            // credit: driver ko 93.3% milta hai
+          ? currentBalance - platformFee       // debit: driver owes platform fee to admin
+          : currentBalance + earning;          // credit: driver gets ride fare (excl. platform fee)
 
         const totalEarningsNew = parseFloat(String(driver.totalEarnings ?? "0")) + earning;
 
@@ -352,10 +367,10 @@ router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) 
         await db.insert(walletTransactionsTable).values({
           driverId: updated.driverId,
           type: isCash ? "commission_debit" : "earning",
-          amount: String(isCash ? -commission : earning),
+          amount: String(isCash ? -platformFee : earning),
           description: isCash
-            ? `Ride #${rideId} — Cash collection: user ne ₹${price.toFixed(2)} diye. Platform commission ₹${commission.toFixed(2)} kaat liya.`
-            : `Ride #${rideId} earning — ₹${earning.toFixed(2)} credit (6.7% commission deducted)`,
+            ? `Ride #${rideId} — Cash: aapne ₹${price.toFixed(2)} collect kiye. Platform fee ₹${platformFee} admin ko dena hai.`
+            : `Ride #${rideId} — Ride fare ₹${earning.toFixed(2)} credit (0% commission, platform fee ₹${platformFee} admin ka).`,
         });
       }
     }
@@ -394,16 +409,24 @@ router.post("/rides/:id/verify-pin", async (req: Request, res: Response) => {
     /* Mark ride as completed */
     const [updated] = await db.update(ridesTable).set({ status: "completed" }).where(eq(ridesTable.id, rideId)).returning();
 
-    /* Calculate earnings — same Cash vs Online logic */
+    /* Calculate earnings — 0% commission, platform fee model */
     const [driver] = await db.select().from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
     if (driver) {
       const price = parseFloat(String(updated.price));
-      const commission = parseFloat((price * 0.067).toFixed(2));
-      const earning = parseFloat((price * 0.933).toFixed(2));
       const isCash = updated.paymentMethod === "Cash";
 
+      const vt = String(updated.vehicleType ?? "cab").toLowerCase();
+      const PLATFORM_FEE_MAP: Record<string, number> = {
+        bike: 4, auto: 6, cab: 12, prime: 12, suv: 15,
+      };
+      const platformFee = PLATFORM_FEE_MAP[vt] ?? 12;
+      const commission = 0;
+      const earning = parseFloat((price - platformFee).toFixed(2));
+
       const currentBalance = parseFloat(String(driver.walletBalance ?? "0"));
-      const newWalletBalance = isCash ? currentBalance - commission : currentBalance + earning;
+      const newWalletBalance = isCash
+        ? currentBalance - platformFee
+        : currentBalance + earning;
 
       await db.update(driversTable).set({
         totalEarnings: String((parseFloat(String(driver.totalEarnings ?? "0")) + earning).toFixed(2)),
@@ -418,10 +441,10 @@ router.post("/rides/:id/verify-pin", async (req: Request, res: Response) => {
       await db.insert(walletTransactionsTable).values({
         driverId,
         type: isCash ? "commission_debit" : "earning",
-        amount: String(isCash ? -commission : earning),
+        amount: String(isCash ? -platformFee : earning),
         description: isCash
-          ? `Ride #${rideId} — Cash ride: user ne ₹${price.toFixed(2)} diye. Commission ₹${commission.toFixed(2)} deducted.`
-          : `Ride #${rideId} earning — ₹${earning.toFixed(2)} credit (6.7% commission deducted)`,
+          ? `Ride #${rideId} — Cash: aapne ₹${price.toFixed(2)} collect kiye. Platform fee ₹${platformFee} admin ko dena hai.`
+          : `Ride #${rideId} — Ride fare ₹${earning.toFixed(2)} credit (0% commission, platform fee ₹${platformFee} admin ka).`,
       });
     }
 
