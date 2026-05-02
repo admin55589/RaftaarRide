@@ -952,4 +952,65 @@ router.get("/admin/drivers/export", authMiddleware, async (_req: Request, res: R
   } catch { res.status(500).json({ message: "Server error" }); }
 });
 
+/* ─── DRIVER PLANS ─── */
+
+/* GET /api/admin/driver-plans — all drivers with plan status */
+router.get("/admin/driver-plans", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const drivers = await db.select({
+      id: driversTable.id,
+      name: driversTable.name,
+      phone: driversTable.phone,
+      email: driversTable.email,
+      vehicleType: driversTable.vehicleType,
+      vehicleNumber: driversTable.vehicleNumber,
+      status: driversTable.status,
+      planType: driversTable.planType,
+      planBilling: driversTable.planBilling,
+      planStartAt: driversTable.planStartAt,
+      planEndAt: driversTable.planEndAt,
+      isTrial: driversTable.isTrial,
+      trialUsed: driversTable.trialUsed,
+    }).from(driversTable).orderBy(desc(driversTable.createdAt));
+
+    const now = new Date();
+    const result = drivers.map((d) => {
+      const endAt = d.planEndAt ? new Date(d.planEndAt) : null;
+      const isActive = !!endAt && endAt > now;
+      const daysLeft = isActive ? Math.ceil((endAt!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+      const planStatus = !d.planType ? "no_plan" : isActive ? (d.isTrial ? "trial" : "active") : "expired";
+      return { ...d, isActive, daysLeft, planStatus };
+    });
+
+    res.json(result);
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+/* PATCH /api/admin/driver-plans/:id/extend — manually extend driver plan */
+router.patch("/admin/driver-plans/:id/extend", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const driverId = parseInt(req.params.id);
+    const { days } = req.body as { days: number };
+    if (!days || days < 1 || days > 365) {
+      res.status(400).json({ message: "days must be 1–365" }); return;
+    }
+    const [driver] = await db.select({ planEndAt: driversTable.planEndAt, planType: driversTable.planType })
+      .from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
+    if (!driver) { res.status(404).json({ message: "Driver not found" }); return; }
+
+    const now = new Date();
+    const currentEnd = driver.planEndAt ? new Date(driver.planEndAt) : null;
+    const base = currentEnd && currentEnd > now ? currentEnd : now;
+    const newEnd = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+
+    await db.update(driversTable).set({
+      planEndAt: newEnd,
+      planType: driver.planType ?? "cab",
+      planStartAt: driver.planEndAt ? undefined : now,
+    }).where(eq(driversTable.id, driverId));
+
+    res.json({ success: true, newEndAt: newEnd.toISOString() });
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
 export default router;

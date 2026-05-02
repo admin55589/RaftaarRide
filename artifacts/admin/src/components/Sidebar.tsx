@@ -12,6 +12,7 @@ import {
   Map,
   MessageSquare,
   Bell,
+  CreditCard,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
@@ -84,6 +85,7 @@ export function Sidebar({ isLive = false }: SidebarProps) {
     { label: "KYC Verification", href: "/kyc", icon: FileCheck, badge: kycPending },
     { label: "Withdrawals", href: "/withdrawals", icon: Wallet, badge: withdrawalPending },
     { label: "Promo Codes", href: "/promo-codes", icon: Tag, badge: 0 },
+    { label: "Driver Plans", href: "/driver-plans", icon: CreditCard, badge: 0 },
     { label: "Live Map", href: "/live-map", icon: Map, badge: 0 },
     { label: "Chat History", href: "/chat-history", icon: MessageSquare, badge: 0 },
     { label: "Broadcast", href: "/broadcast", icon: Bell, badge: 0 },

@@ -16,6 +16,7 @@ import { PromoCodesPage } from "@/pages/PromoCodesPage";
 import { LiveMapPage } from "@/pages/LiveMapPage";
 import { ChatHistoryPage } from "@/pages/ChatHistoryPage";
 import { BroadcastPage } from "@/pages/BroadcastPage";
+import { DriverPlansPage } from "@/pages/DriverPlansPage";
 import { TermsPage } from "@/pages/TermsPage";
 import { PrivacyPage } from "@/pages/PrivacyPage";
 import NotFound from "@/pages/not-found";
@@ -66,6 +67,7 @@ function AppLayout() {
           <Route path="/live-map" component={LiveMapPage} />
           <Route path="/chat-history" component={ChatHistoryPage} />
           <Route path="/broadcast" component={BroadcastPage} />
+          <Route path="/driver-plans" component={DriverPlansPage} />
           <Route component={NotFound} />
         </Switch>
       </main>
