@@ -139,7 +139,7 @@ export function RidesPage() {
                         <VehicleBadge type={ride.vehicleType} />
                       </td>
                       <td className="px-5 py-3.5 font-semibold text-foreground">{formatCurrency(ride.price)}</td>
-                      <td className="px-5 py-3.5 hidden xl:table-cell">
+                      <td className="px-5 py-3.5 hidden lg:table-cell">
                         <div className="flex flex-col gap-1">
                           {(ride as any).commissionAmount && parseFloat((ride as any).commissionAmount) > 0 ? (
                             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
@@ -171,7 +171,7 @@ export function RidesPage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-5 py-3.5 text-muted-foreground hidden xl:table-cell">{formatDate(ride.createdAt)}</td>
+                      <td className="px-5 py-3.5 text-muted-foreground hidden lg:table-cell">{formatDate(ride.createdAt)}</td>
                     </tr>
                   ))}
             </tbody>
