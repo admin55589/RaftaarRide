@@ -3,6 +3,9 @@ import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { firebaseAdminLogout } from "@/lib/firebase";
 import { setGlobalLogout } from "./logout";
 
+// Module-level ref so we can access it before React effects run
+let _moduleTokenRef: { current: string | null } | null = null;
+
 interface AuthContextType {
   token: string | null;
   login: (token: string) => void;
@@ -42,11 +45,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const tokenRef = useRef<string | null>(token);
   tokenRef.current = token;
 
+  // Set synchronously during render (before any children mount and fire queries)
+  // so React Query hooks always have the auth token on first request.
+  _moduleTokenRef = tokenRef;
+  setAuthTokenGetter(() => _moduleTokenRef?.current ?? null);
+
   const tokenExpiresAt = token ? getJwtExpiry(token) : null;
 
   useEffect(() => {
-    setAuthTokenGetter(() => tokenRef.current);
-    return () => setAuthTokenGetter(null);
+    return () => { setAuthTokenGetter(null); _moduleTokenRef = null; };
   }, []);
 
   const logout = async () => {
