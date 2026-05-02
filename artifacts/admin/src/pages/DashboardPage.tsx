@@ -123,7 +123,7 @@ export function DashboardPage() {
             iconBg="bg-green-500/10"
           />
           <StatCard
-            label="Total Earnings"
+            label="Total Ride Revenue"
             value={formatCurrency(stats?.totalEarnings ?? 0)}
             icon={IndianRupee}
             sub={`${formatCurrency(stats?.earningsThisMonth ?? 0)} this month`}
@@ -145,7 +145,7 @@ export function DashboardPage() {
             iconBg="bg-purple-500/10"
           />
           <StatCard
-            label="Monthly Earnings"
+            label="Monthly Ride Revenue"
             value={formatCurrency(stats?.earningsThisMonth ?? 0)}
             icon={IndianRupee}
           />
