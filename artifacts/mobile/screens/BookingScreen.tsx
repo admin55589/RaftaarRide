@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState, useRef } from "react";
 import {
   Pressable,
   ScrollView,
@@ -6,8 +6,11 @@ import {
   Text,
   View,
   Platform,
+  TextInput,
+  ActivityIndicator,
+  Keyboard,
 } from "react-native";
-import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInUp, FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp, MOCK_DRIVERS } from "@/context/AppContext";
@@ -20,6 +23,21 @@ import { RideModeSelector } from "@/components/RideModeSelector";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { MapView } from "@/components/MapView";
 import { useLanguage } from "@/context/LanguageContext";
+
+const BASE_URL = (() => {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  if (domain) return `https://${domain}/api`;
+  return "https://workspaceapi-server-production-2e22.up.railway.app/api";
+})();
+
+interface PromoResult {
+  code: string;
+  discountPct: number;
+  discountAmount: number;
+  originalFare: number;
+  finalFare: number;
+  message: string;
+}
 
 export function BookingScreen() {
   const colors = useColors();
@@ -45,11 +63,60 @@ export function BookingScreen() {
   const surgeInfo = getSurgeInfo();
   const distanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
   const fare = calculateFare(selectedVehicle, distanceKm, 0, getRideModeMultiplier(rideMode) * surgeInfo.multiplier);
-  const price = fare.total;
+  const basePrice = fare.total;
   const timeMultiplier = selectedVehicle === "bike" ? 0.7 : selectedVehicle === "auto" ? 0.9 : 1;
   const duration = Math.round(estimatedTime * timeMultiplier);
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+
+  /* ---- Promo Code State ---- */
+  const [promoInput, setPromoInput] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoApplied, setPromoApplied] = useState<PromoResult | null>(null);
+  const [promoError, setPromoError] = useState("");
+  const [promoExpanded, setPromoExpanded] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+
+  const finalPrice = promoApplied ? promoApplied.finalFare : basePrice;
+
+  const handleApplyPromo = async () => {
+    const code = promoInput.trim().toUpperCase();
+    if (!code) { setPromoError("Promo code daalo"); return; }
+    if (!token) { setPromoError("Login karein pehle"); return; }
+
+    setPromoLoading(true);
+    setPromoError("");
+    Keyboard.dismiss();
+
+    try {
+      const res = await fetch(`${BASE_URL}/promo/validate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ code, fareAmount: basePrice }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPromoError(data.error || "Invalid promo code");
+        setPromoApplied(null);
+      } else {
+        setPromoApplied(data as PromoResult);
+        setPromoError("");
+      }
+    } catch {
+      setPromoError("Network error. Dobara koshish karo.");
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setPromoApplied(null);
+    setPromoInput("");
+    setPromoError("");
+  };
 
   const handleBookRide = useCallback(async () => {
     const driver = MOCK_DRIVERS.find((d) => d.vehicleType === selectedVehicle) ?? MOCK_DRIVERS[2];
@@ -71,15 +138,18 @@ export function BookingScreen() {
           },
           vehicleType: selectedVehicle,
           rideMode,
-          price,
+          price: finalPrice,
           distanceKm,
+          promoCode: promoApplied?.code,
+          discountAmount: promoApplied?.discountAmount,
+          originalPrice: promoApplied ? basePrice : undefined,
         });
         setCurrentRideId(result.rideId);
       } catch (err) {
         console.warn("[booking] ride save failed:", err);
       }
     }
-  }, [selectedVehicle, token, pickup, destination, pickupCoords, dropCoords, rideMode, price, distanceKm]);
+  }, [selectedVehicle, token, pickup, destination, pickupCoords, dropCoords, rideMode, finalPrice, distanceKm, promoApplied, basePrice]);
 
   const PAYMENT_METHODS = [
     { label: "UPI", icon: "📱" },
@@ -195,6 +265,99 @@ export function BookingScreen() {
               </ScrollView>
             </View>
 
+            {/* ---- PROMO CODE SECTION ---- */}
+            <View style={styles.section}>
+              <Pressable
+                onPress={() => {
+                  if (!promoApplied) {
+                    setPromoExpanded((v) => !v);
+                    if (!promoExpanded) setTimeout(() => inputRef.current?.focus(), 200);
+                  }
+                }}
+                style={[
+                  styles.promoToggle,
+                  {
+                    backgroundColor: promoApplied
+                      ? "rgba(34,197,94,0.1)"
+                      : colors.secondary,
+                    borderColor: promoApplied ? "#22c55e" : promoExpanded ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Text style={{ fontSize: 16 }}>{promoApplied ? "🎉" : "🏷️"}</Text>
+                <View style={{ flex: 1 }}>
+                  {promoApplied ? (
+                    <Text style={{ fontSize: 13, fontWeight: "700", color: "#22c55e", fontFamily: "Inter_700Bold" }}>
+                      {promoApplied.code} applied — {promoApplied.discountPct}% off!
+                    </Text>
+                  ) : (
+                    <Text style={{ fontSize: 13, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
+                      {lang === "hi" ? "Promo code hai? Lagao" : "Have a promo code?"}
+                    </Text>
+                  )}
+                </View>
+                {promoApplied ? (
+                  <Pressable onPress={handleRemovePromo} hitSlop={8} style={{ padding: 4 }}>
+                    <Text style={{ fontSize: 16, color: "#ef4444" }}>✕</Text>
+                  </Pressable>
+                ) : (
+                  <Text style={{ fontSize: 14, color: colors.mutedForeground }}>{promoExpanded ? "▲" : "▼"}</Text>
+                )}
+              </Pressable>
+
+              {promoExpanded && !promoApplied && (
+                <Animated.View entering={FadeIn.duration(200)} style={styles.promoInputRow}>
+                  <TextInput
+                    ref={inputRef}
+                    value={promoInput}
+                    onChangeText={(t) => { setPromoInput(t.toUpperCase()); setPromoError(""); }}
+                    placeholder={lang === "hi" ? "जैसे: SAVE20" : "e.g. SAVE20"}
+                    placeholderTextColor={colors.mutedForeground}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    onSubmitEditing={handleApplyPromo}
+                    style={[
+                      styles.promoInput,
+                      {
+                        color: colors.foreground,
+                        backgroundColor: colors.card,
+                        borderColor: promoError ? "#ef4444" : colors.border,
+                      },
+                    ]}
+                  />
+                  <Pressable
+                    onPress={handleApplyPromo}
+                    disabled={promoLoading || !promoInput.trim()}
+                    style={[
+                      styles.promoApplyBtn,
+                      {
+                        backgroundColor: promoInput.trim() ? colors.primary : colors.secondary,
+                        opacity: promoLoading ? 0.7 : 1,
+                      },
+                    ]}
+                  >
+                    {promoLoading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13, fontFamily: "Inter_700Bold" }}>
+                        {lang === "hi" ? "लगाओ" : "Apply"}
+                      </Text>
+                    )}
+                  </Pressable>
+                </Animated.View>
+              )}
+
+              {promoError ? (
+                <Animated.View entering={FadeIn.duration(150)} style={styles.promoErrorRow}>
+                  <Text style={{ fontSize: 12 }}>❌</Text>
+                  <Text style={{ fontSize: 12, color: "#ef4444", fontFamily: "Inter_400Regular", flex: 1 }}>
+                    {promoError}
+                  </Text>
+                </Animated.View>
+              ) : null}
+            </View>
+
             {surgeInfo.isActive && (
               <View style={[styles.surgeBanner, { backgroundColor: "rgba(245,158,11,0.13)", borderColor: "rgba(245,158,11,0.33)" }]}>
                 <Text style={{ fontSize: 14 }}>⚡</Text>
@@ -211,8 +374,32 @@ export function BookingScreen() {
                   <Text style={styles.priceIcon}>🏷️</Text>
                   <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>RaftaarRide Fare</Text>
                 </View>
-                <Text style={[styles.priceValue, { color: colors.primary }]}>₹{price}</Text>
+                <View style={{ alignItems: "flex-end" }}>
+                  {promoApplied && (
+                    <Text style={{ fontSize: 12, color: colors.mutedForeground, textDecorationLine: "line-through", fontFamily: "Inter_400Regular" }}>
+                      ₹{basePrice}
+                    </Text>
+                  )}
+                  <Text style={[styles.priceValue, { color: promoApplied ? "#22c55e" : colors.primary }]}>
+                    ₹{finalPrice}
+                  </Text>
+                </View>
               </View>
+
+              {promoApplied && (
+                <Animated.View entering={FadeIn.duration(300)} style={styles.priceRow}>
+                  <View style={styles.priceLabelRow}>
+                    <Text style={styles.priceIcon}>🎁</Text>
+                    <Text style={[styles.priceLabel, { color: "#22c55e" }]}>
+                      Promo ({promoApplied.code})
+                    </Text>
+                  </View>
+                  <Text style={[styles.priceValue, { color: "#22c55e" }]}>
+                    -₹{promoApplied.discountAmount}
+                  </Text>
+                </Animated.View>
+              )}
+
               <View style={styles.priceRow}>
                 <View style={styles.priceLabelRow}>
                   <Text style={styles.priceIcon}>📉</Text>
@@ -246,7 +433,10 @@ export function BookingScreen() {
             </View>
 
             <View style={styles.bookBtnContainer}>
-              <PrimaryButton label={`Book ${selectedVehicle.charAt(0).toUpperCase() + selectedVehicle.slice(1)} — ₹${price}`} onPress={handleBookRide} />
+              <PrimaryButton
+                label={`Book ${selectedVehicle.charAt(0).toUpperCase() + selectedVehicle.slice(1)} — ₹${finalPrice}${promoApplied ? ` (Save ₹${promoApplied.discountAmount})` : ""}`}
+                onPress={handleBookRide}
+              />
             </View>
           </ScrollView>
         </GlassCard>
@@ -280,7 +470,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-    maxHeight: 540,
+    maxHeight: 560,
   },
   handle: {
     width: 36,
@@ -374,7 +564,7 @@ const styles = StyleSheet.create({
   },
   section: {
     paddingTop: 12,
-    gap: 10,
+    gap: 8,
   },
   sectionTitle: {
     fontFamily: "Inter_500Medium",
@@ -401,6 +591,45 @@ const styles = StyleSheet.create({
   paymentLabel: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 13,
+  },
+  promoToggle: {
+    marginHorizontal: 20,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  promoInputRow: {
+    marginHorizontal: 20,
+    flexDirection: "row",
+    gap: 8,
+  },
+  promoInput: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1.5,
+  },
+  promoApplyBtn: {
+    height: 44,
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 72,
+  },
+  promoErrorRow: {
+    marginHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   priceSummary: {
     marginHorizontal: 20,
