@@ -148,7 +148,7 @@ export const TRANSLATIONS = {
     total_earned: "कुल कमाई",
     commission_label: "0% कमीशन",
     withdrawable_balance: "निकासी योग्य बैलेंस",
-    commission_note: "0% कमीशन — जो customer देगा, वो पूरा आपका 🎉",
+    commission_note: "0% कमीशन — जो ग्राहक देगा, वो पूरा आपका 🎉",
     request_withdrawal: "निकासी अनुरोध करें",
     withdrawal_details: "निकासी विवरण",
     choose_amount: "राशि चुनें:",
