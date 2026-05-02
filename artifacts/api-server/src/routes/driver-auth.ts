@@ -30,7 +30,7 @@ router.post("/driver-auth/register", async (req: Request, res: Response) => {
     return;
   }
 
-  const validVehicles = ["bike", "auto", "prime", "suv"];
+  const validVehicles = ["bike", "auto", "cab", "prime", "suv"];
   if (!validVehicles.includes(vehicleType)) {
     res.status(400).json({ message: "Invalid vehicle type" });
     return;
@@ -129,6 +129,19 @@ router.post("/driver-auth/login", async (req: Request, res: Response) => {
       return;
     }
 
+    if (driver.status === "blocked") {
+      res.status(403).json({ message: "Aapka driver account block kar diya gaya hai. Support se contact karein." });
+      return;
+    }
+    if (driver.status === "suspended") {
+      res.status(403).json({ message: "Aapka driver account suspend hai. Support se contact karein." });
+      return;
+    }
+    if (driver.status === "pending") {
+      res.status(403).json({ message: "Aapka account abhi review mein hai. KYC approve hone ka intezaar karein." });
+      return;
+    }
+
     const token = jwt.sign(
       { driverId: driver.id, phone: driver.phone, role: "driver" },
       JWT_SECRET,
@@ -199,6 +212,15 @@ router.get("/driver-auth/me", async (req: Request, res: Response) => {
 
     if (!driver) {
       res.status(404).json({ message: "Driver not found" });
+      return;
+    }
+
+    if (driver.status === "blocked") {
+      res.status(403).json({ message: "Aapka driver account block kar diya gaya hai. Support se contact karein." });
+      return;
+    }
+    if (driver.status === "suspended") {
+      res.status(403).json({ message: "Aapka driver account suspend hai. Support se contact karein." });
       return;
     }
 
@@ -345,6 +367,15 @@ router.patch("/driver-auth/online-status", async (req: Request, res: Response) =
     const { isOnline } = req.body as { isOnline: boolean };
     if (typeof isOnline !== "boolean") {
       res.status(400).json({ success: false, message: "isOnline (boolean) required hai" });
+      return;
+    }
+    const [currentDriver] = await db.select({ status: driversTable.status }).from(driversTable).where(eq(driversTable.id, payload.driverId)).limit(1);
+    if (currentDriver?.status === "blocked") {
+      res.status(403).json({ success: false, message: "Aapka account block hai. Online nahi ho sakte." });
+      return;
+    }
+    if (currentDriver?.status === "suspended") {
+      res.status(403).json({ success: false, message: "Aapka account suspend hai. Online nahi ho sakte." });
       return;
     }
     const [updated] = await db
