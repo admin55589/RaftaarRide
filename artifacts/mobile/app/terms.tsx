@@ -197,7 +197,7 @@ export default function TermsScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 8, borderBottomColor: colors.border, backgroundColor: colors.card }]}>
         <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-          <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: "700", lineHeight: 16, textAlign: "center", textAlignVertical: "center", includeFontPadding: false }}>←</Text>
+          <View style={{ width: 10, height: 10, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: colors.foreground, transform: [{ rotate: "45deg" }], marginLeft: 3 }} />
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>Legal</Text>

@@ -145,7 +145,7 @@ export default function OtpScreen() {
         <View style={[styles.inner, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}>
           <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
             <Pressable onPress={() => router.back()} style={styles.backBtn}>
-              <Text style={{ fontSize: 20, color: "#FFFFFF", lineHeight: 20, textAlign: "center", textAlignVertical: "center", includeFontPadding: false }}>←</Text>
+              <View style={{ width: 10, height: 10, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: "#FFFFFF", transform: [{ rotate: "45deg" }], marginLeft: 3 }} />
             </Pressable>
           </Animated.View>
 

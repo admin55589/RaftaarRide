@@ -157,7 +157,7 @@ export function RazorpayWebView({
             style={[styles.sideBtn, { backgroundColor: canGoBack ? DARK_CARD : "transparent", borderColor: canGoBack ? DARK_BORDER : "transparent" }]}
             activeOpacity={0.7}
           >
-            <Text style={{ color: canGoBack ? "#FFFFFF" : "transparent", fontSize: 20, lineHeight: 20, textAlign: "center", textAlignVertical: "center", includeFontPadding: false }}>←</Text>
+            <View style={{ width: 10, height: 10, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: canGoBack ? "#FFFFFF" : "transparent", transform: [{ rotate: "45deg" }], marginLeft: 3 }} />
           </TouchableOpacity>
 
           {/* Title — absolutely centered */}

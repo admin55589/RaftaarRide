@@ -176,7 +176,7 @@ export function BookingScreen() {
           onPress={() => setScreen("home")}
           style={[styles.back, { backgroundColor: colors.card, borderColor: colors.border }]}
         >
-          <Text style={[styles.backArrow, { color: colors.foreground }]}>←</Text>
+          <View style={{ width: 10, height: 10, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: colors.foreground, transform: [{ rotate: "45deg" }], marginLeft: 3 }} />
         </Pressable>
       </View>
 
