@@ -10,14 +10,14 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap } from "lucide-react";
+import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet } from "lucide-react";
 import { StatusBadge, VehicleBadge, formatCurrency, formatDate } from "@/components/shared";
 
 function getSurgeInfo() {
   const hour = new Date().getHours();
-  if (hour >= 8 && hour < 10) return { multiplier: 1.5, label: "1.5x", reason: "Morning peak hours", isActive: true };
-  if (hour >= 18 && hour < 21) return { multiplier: 1.6, label: "1.6x", reason: "Evening peak hours", isActive: true };
-  if (hour >= 22 || hour < 5) return { multiplier: 1.2, label: "1.2x", reason: "Late night charges", isActive: true };
+  if (hour >= 8 && hour < 10) return { multiplier: 1.2, label: "1.2x", reason: "Morning peak hours", isActive: true };
+  if (hour >= 18 && hour < 21) return { multiplier: 1.2, label: "1.2x", reason: "Evening peak hours", isActive: true };
+  if (hour >= 22 || hour < 5) return { multiplier: 1.1, label: "1.1x", reason: "Late night charges", isActive: true };
   return { multiplier: 1.0, label: "Normal", reason: "No surge", isActive: false };
 }
 
@@ -100,64 +100,94 @@ export function DashboardPage() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            label="Total Rides"
-            value={stats?.totalRides.toLocaleString() ?? "0"}
-            icon={MapPin}
-            sub={`${stats?.ridesThisMonth ?? 0} this month`}
-          />
-          <StatCard
-            label="Total Users"
-            value={stats?.totalUsers.toLocaleString() ?? "0"}
-            icon={Users}
-            iconColor="text-blue-400"
-            iconBg="bg-blue-500/10"
-          />
-          <StatCard
-            label="Total Drivers"
-            value={stats?.totalDrivers.toLocaleString() ?? "0"}
-            icon={Car}
-            sub={`${stats?.activeDrivers ?? 0} active`}
-            iconColor="text-green-400"
-            iconBg="bg-green-500/10"
-          />
-          <StatCard
-            label="Total Earnings"
-            value={formatCurrency(stats?.totalEarnings ?? 0)}
-            icon={IndianRupee}
-            sub={`${formatCurrency(stats?.earningsThisMonth ?? 0)} this month`}
-            iconColor="text-primary"
-            iconBg="bg-primary/10"
-          />
-          <StatCard
-            label="Active Drivers"
-            value={stats?.activeDrivers ?? 0}
-            icon={TrendingUp}
-            iconColor="text-green-400"
-            iconBg="bg-green-500/10"
-          />
-          <StatCard
-            label="This Month Rides"
-            value={stats?.ridesThisMonth ?? 0}
-            icon={MapPin}
-            iconColor="text-purple-400"
-            iconBg="bg-purple-500/10"
-          />
-          <StatCard
-            label="Monthly Earnings"
-            value={formatCurrency(stats?.earningsThisMonth ?? 0)}
-            icon={IndianRupee}
-          />
-          <StatCard
-            label="Avg Driver Rating"
-            value={`${stats?.avgRating?.toFixed(1) ?? "0.0"} ★`}
-            icon={Star}
-            iconColor="text-yellow-400"
-            iconBg="bg-yellow-500/10"
-          />
-        </div>
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              label="Total Rides"
+              value={stats?.totalRides.toLocaleString() ?? "0"}
+              icon={MapPin}
+              sub={`${stats?.ridesThisMonth ?? 0} this month`}
+            />
+            <StatCard
+              label="Total Users"
+              value={stats?.totalUsers.toLocaleString() ?? "0"}
+              icon={Users}
+              iconColor="text-blue-400"
+              iconBg="bg-blue-500/10"
+            />
+            <StatCard
+              label="Total Drivers"
+              value={stats?.totalDrivers.toLocaleString() ?? "0"}
+              icon={Car}
+              sub={`${stats?.activeDrivers ?? 0} active`}
+              iconColor="text-green-400"
+              iconBg="bg-green-500/10"
+            />
+            <StatCard
+              label="Active Drivers"
+              value={stats?.activeDrivers ?? 0}
+              icon={TrendingUp}
+              iconColor="text-green-400"
+              iconBg="bg-green-500/10"
+            />
+            <StatCard
+              label="Completed Rides"
+              value={(stats as any)?.completedRides ?? 0}
+              icon={MapPin}
+              sub={`${(stats as any)?.cancelledRides ?? 0} cancelled`}
+              iconColor="text-emerald-400"
+              iconBg="bg-emerald-500/10"
+            />
+            <StatCard
+              label="This Month Rides"
+              value={stats?.ridesThisMonth ?? 0}
+              icon={MapPin}
+              iconColor="text-purple-400"
+              iconBg="bg-purple-500/10"
+            />
+            <StatCard
+              label="Total Fare Collected"
+              value={formatCurrency((stats as any)?.totalFareAll ?? stats?.totalEarnings ?? 0)}
+              icon={IndianRupee}
+              sub={`${formatCurrency((stats as any)?.totalFareThisMonth ?? stats?.earningsThisMonth ?? 0)} this month`}
+              iconColor="text-primary"
+              iconBg="bg-primary/10"
+            />
+            <StatCard
+              label="Avg Driver Rating"
+              value={`${stats?.avgRating?.toFixed(1) ?? "0.0"} ★`}
+              icon={Star}
+              iconColor="text-yellow-400"
+              iconBg="bg-yellow-500/10"
+            />
+          </div>
+        </>
       )}
+
+      {/* Convenience Fee Section */}
+      <div>
+        <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <Wallet className="w-4 h-4 text-emerald-400" />
+          Convenience Fee Collected (Admin Revenue)
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5">
+            <p className="text-xs font-medium text-emerald-400 uppercase tracking-wide">Aaj Ka</p>
+            <p className="text-2xl font-bold text-emerald-400 mt-1">{formatCurrency(stats?.convenienceFeeToday ?? 0)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Today's convenience fee</p>
+          </div>
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5">
+            <p className="text-xs font-medium text-emerald-400 uppercase tracking-wide">Is Mahine Ka</p>
+            <p className="text-2xl font-bold text-emerald-400 mt-1">{formatCurrency(stats?.convenienceFeeThisMonth ?? 0)}</p>
+            <p className="text-xs text-muted-foreground mt-1">This month's convenience fee</p>
+          </div>
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5">
+            <p className="text-xs font-medium text-emerald-400 uppercase tracking-wide">Kul Collected</p>
+            <p className="text-2xl font-bold text-emerald-400 mt-1">{formatCurrency(stats?.convenienceFeeTotal ?? 0)}</p>
+            <p className="text-xs text-muted-foreground mt-1">All-time convenience fee</p>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-card border border-card-border rounded-2xl p-5">
