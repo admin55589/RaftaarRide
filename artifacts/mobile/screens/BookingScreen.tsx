@@ -684,9 +684,12 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   backArrow: {
-    fontSize: 22,
-    lineHeight: 24,
+    fontSize: 20,
+    lineHeight: 20,
     fontWeight: "300",
+    textAlign: "center",
+    textAlignVertical: "center",
+    includeFontPadding: false,
   },
   priceLabel: {
     fontFamily: "Inter_400Regular",

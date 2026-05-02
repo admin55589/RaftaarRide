@@ -91,7 +91,7 @@ export default function SignupScreen() {
         >
           <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
             <Pressable onPress={() => router.back()} android_ripple={null} style={({ pressed }) => [styles.backBtn, pressed && { backgroundColor: "#1F1F2E" }]}>
-              <Text style={{ fontSize: 20, color: "#FFFFFF", lineHeight: 24 }}>←</Text>
+              <Text style={{ fontSize: 20, color: "#FFFFFF", lineHeight: 20, textAlign: "center", textAlignVertical: "center", includeFontPadding: false }}>←</Text>
             </Pressable>
             <View style={styles.logoRow}>
               <Image
