@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Send, Users, Car, Globe } from "lucide-react";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
+import { API_BASE } from "@/lib/apiBase";
 
 const QUICK_TEMPLATES = [
   { title: "🎉 Special Offer!", body: "Aaj ke liye 20% discount! SAVE20 code use karo." },

@@ -18,7 +18,7 @@ import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { useRef, useState, useEffect } from "react";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
+import { API_BASE } from "@/lib/apiBase";
 
 interface SidebarProps {
   isLive?: boolean;

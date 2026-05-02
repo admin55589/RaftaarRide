@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
+import { API_BASE } from "@/lib/apiBase";
 
 /* ── Ripple Button ──────────────────────────────────────────────────────── */
 interface RippleButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

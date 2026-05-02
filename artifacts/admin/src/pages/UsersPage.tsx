@@ -5,7 +5,7 @@ import { StatusBadge, formatDate } from "@/components/shared";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
+import { API_BASE } from "@/lib/apiBase";
 
 function downloadCsv(data: object[], filename: string) {
   if (!data.length) return;
