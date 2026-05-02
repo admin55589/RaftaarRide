@@ -81,36 +81,41 @@ router.post("/admin/firebase-verify", async (req: Request, res: Response) => {
 });
 
 router.get("/admin/stats", authMiddleware, async (_req: Request, res: Response) => {
-  const [totalUsersResult] = await db.select({ count: sql<number>`count(*)` }).from(usersTable);
-  const [totalDriversResult] = await db.select({ count: sql<number>`count(*)` }).from(driversTable);
-  const [totalRidesResult] = await db.select({ count: sql<number>`count(*)` }).from(ridesTable);
-  const [earningsResult] = await db.select({
-    total: sql<number>`coalesce(sum(price::numeric), 0)`,
-  }).from(ridesTable).where(eq(ridesTable.status, "completed"));
-
-  const [activeDriversResult] = await db.select({ count: sql<number>`count(*)` })
-    .from(driversTable)
-    .where(eq(driversTable.status, "active"));
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
 
   const thisMonthStart = new Date();
   thisMonthStart.setDate(1);
   thisMonthStart.setHours(0, 0, 0, 0);
 
-  const [ridesThisMonthResult] = await db.select({ count: sql<number>`count(*)` })
-    .from(ridesTable)
-    .where(gte(ridesTable.createdAt, thisMonthStart));
+  const [
+    totalUsersResult,
+    totalDriversResult,
+    totalRidesResult,
+    completedRidesResult,
+    cancelledRidesResult,
+    earningsResult,
+    earningsThisMonthResult,
+    activeDriversResult,
+    ridesThisMonthResult,
+    avgRatingResult,
+    totalFareAllResult,
+    totalFareMonthResult,
+  ] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(usersTable).then(r => r[0]),
+    db.select({ count: sql<number>`count(*)` }).from(driversTable).then(r => r[0]),
+    db.select({ count: sql<number>`count(*)` }).from(ridesTable).then(r => r[0]),
+    db.select({ count: sql<number>`count(*)` }).from(ridesTable).where(eq(ridesTable.status, "completed")).then(r => r[0]),
+    db.select({ count: sql<number>`count(*)` }).from(ridesTable).where(eq(ridesTable.status, "cancelled")).then(r => r[0]),
+    db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(eq(ridesTable.status, "completed")).then(r => r[0]),
+    db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, thisMonthStart))).then(r => r[0]),
+    db.select({ count: sql<number>`count(*)` }).from(driversTable).where(eq(driversTable.status, "active")).then(r => r[0]),
+    db.select({ count: sql<number>`count(*)` }).from(ridesTable).where(gte(ridesTable.createdAt, thisMonthStart)).then(r => r[0]),
+    db.select({ avg: sql<number>`coalesce(avg(rating::numeric), 0)` }).from(driversTable).then(r => r[0]),
+    db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(ne(ridesTable.status, "cancelled")).then(r => r[0]),
+    db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(and(ne(ridesTable.status, "cancelled"), gte(ridesTable.createdAt, thisMonthStart))).then(r => r[0]),
+  ]);
 
-  const [earningsThisMonthResult] = await db.select({
-    total: sql<number>`coalesce(sum(price::numeric), 0)`,
-  }).from(ridesTable).where(
-    and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, thisMonthStart))
-  );
-
-  const [avgRatingResult] = await db.select({
-    avg: sql<number>`coalesce(avg(rating::numeric), 0)`,
-  }).from(driversTable);
-
-  // Convenience fee = fixed per vehicle type, summed over completed rides
   const convFeeExpr = sql<number>`coalesce(sum(
     CASE vehicle_type
       WHEN 'bike'  THEN 4
@@ -122,27 +127,25 @@ router.get("/admin/stats", authMiddleware, async (_req: Request, res: Response) 
     END
   ), 0)`;
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const [convFeeTotalResult] = await db.select({ total: convFeeExpr })
-    .from(ridesTable).where(eq(ridesTable.status, "completed"));
-
-  const [convFeeTodayResult] = await db.select({ total: convFeeExpr })
-    .from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, todayStart)));
-
-  const [convFeeMonthResult] = await db.select({ total: convFeeExpr })
-    .from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, thisMonthStart)));
+  const [convFeeTotalResult, convFeeTodayResult, convFeeMonthResult] = await Promise.all([
+    db.select({ total: convFeeExpr }).from(ridesTable).where(eq(ridesTable.status, "completed")).then(r => r[0]),
+    db.select({ total: convFeeExpr }).from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, todayStart))).then(r => r[0]),
+    db.select({ total: convFeeExpr }).from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, thisMonthStart))).then(r => r[0]),
+  ]);
 
   res.json({
     totalRides: Number(totalRidesResult?.count ?? 0),
     totalUsers: Number(totalUsersResult?.count ?? 0),
     totalDrivers: Number(totalDriversResult?.count ?? 0),
+    completedRides: Number(completedRidesResult?.count ?? 0),
+    cancelledRides: Number(cancelledRidesResult?.count ?? 0),
     totalEarnings: Number(earningsResult?.total ?? 0),
     activeDrivers: Number(activeDriversResult?.count ?? 0),
     ridesThisMonth: Number(ridesThisMonthResult?.count ?? 0),
     earningsThisMonth: Number(earningsThisMonthResult?.total ?? 0),
     avgRating: Number(Number(avgRatingResult?.avg ?? 0).toFixed(1)),
+    totalFareAll: Number(totalFareAllResult?.total ?? 0),
+    totalFareThisMonth: Number(totalFareMonthResult?.total ?? 0),
     convenienceFeeTotal: Number(convFeeTotalResult?.total ?? 0),
     convenienceFeeToday: Number(convFeeTodayResult?.total ?? 0),
     convenienceFeeThisMonth: Number(convFeeMonthResult?.total ?? 0),

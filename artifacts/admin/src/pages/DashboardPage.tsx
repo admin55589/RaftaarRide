@@ -100,63 +100,74 @@ export function DashboardPage() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            label="Total Rides"
-            value={stats?.totalRides.toLocaleString() ?? "0"}
-            icon={MapPin}
-            sub={`${stats?.ridesThisMonth ?? 0} this month`}
-          />
-          <StatCard
-            label="Total Users"
-            value={stats?.totalUsers.toLocaleString() ?? "0"}
-            icon={Users}
-            iconColor="text-blue-400"
-            iconBg="bg-blue-500/10"
-          />
-          <StatCard
-            label="Total Drivers"
-            value={stats?.totalDrivers.toLocaleString() ?? "0"}
-            icon={Car}
-            sub={`${stats?.activeDrivers ?? 0} active`}
-            iconColor="text-green-400"
-            iconBg="bg-green-500/10"
-          />
-          <StatCard
-            label="Total Ride Revenue"
-            value={formatCurrency(stats?.totalEarnings ?? 0)}
-            icon={IndianRupee}
-            sub={`${formatCurrency(stats?.earningsThisMonth ?? 0)} this month`}
-            iconColor="text-primary"
-            iconBg="bg-primary/10"
-          />
-          <StatCard
-            label="Active Drivers"
-            value={stats?.activeDrivers ?? 0}
-            icon={TrendingUp}
-            iconColor="text-green-400"
-            iconBg="bg-green-500/10"
-          />
-          <StatCard
-            label="This Month Rides"
-            value={stats?.ridesThisMonth ?? 0}
-            icon={MapPin}
-            iconColor="text-purple-400"
-            iconBg="bg-purple-500/10"
-          />
-          <StatCard
-            label="Monthly Ride Revenue"
-            value={formatCurrency(stats?.earningsThisMonth ?? 0)}
-            icon={IndianRupee}
-          />
-          <StatCard
-            label="Avg Driver Rating"
-            value={`${stats?.avgRating?.toFixed(1) ?? "0.0"} ★`}
-            icon={Star}
-            iconColor="text-yellow-400"
-            iconBg="bg-yellow-500/10"
-          />
-        </div>
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              label="Total Rides"
+              value={stats?.totalRides.toLocaleString() ?? "0"}
+              icon={MapPin}
+              sub={`${stats?.ridesThisMonth ?? 0} this month`}
+            />
+            <StatCard
+              label="Total Users"
+              value={stats?.totalUsers.toLocaleString() ?? "0"}
+              icon={Users}
+              iconColor="text-blue-400"
+              iconBg="bg-blue-500/10"
+            />
+            <StatCard
+              label="Total Drivers"
+              value={stats?.totalDrivers.toLocaleString() ?? "0"}
+              icon={Car}
+              sub={`${stats?.activeDrivers ?? 0} active`}
+              iconColor="text-green-400"
+              iconBg="bg-green-500/10"
+            />
+            <StatCard
+              label="Active Drivers"
+              value={stats?.activeDrivers ?? 0}
+              icon={TrendingUp}
+              iconColor="text-green-400"
+              iconBg="bg-green-500/10"
+            />
+            <StatCard
+              label="Completed Rides"
+              value={(stats as any)?.completedRides ?? 0}
+              icon={MapPin}
+              sub={`${(stats as any)?.cancelledRides ?? 0} cancelled`}
+              iconColor="text-emerald-400"
+              iconBg="bg-emerald-500/10"
+            />
+            <StatCard
+              label="This Month Rides"
+              value={stats?.ridesThisMonth ?? 0}
+              icon={MapPin}
+              iconColor="text-purple-400"
+              iconBg="bg-purple-500/10"
+            />
+            <StatCard
+              label="Total Fare Collected"
+              value={formatCurrency((stats as any)?.totalFareAll ?? stats?.totalEarnings ?? 0)}
+              icon={IndianRupee}
+              sub={`${formatCurrency((stats as any)?.totalFareThisMonth ?? stats?.earningsThisMonth ?? 0)} this month`}
+              iconColor="text-primary"
+              iconBg="bg-primary/10"
+            />
+            <StatCard
+              label="Avg Driver Rating"
+              value={`${stats?.avgRating?.toFixed(1) ?? "0.0"} ★`}
+              icon={Star}
+              iconColor="text-yellow-400"
+              iconBg="bg-yellow-500/10"
+            />
+          </div>
+          {((stats as any)?.completedRides ?? 0) === 0 && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-5 py-3 flex items-center gap-3 text-sm">
+              <span className="text-amber-400 text-lg">⚠️</span>
+              <span className="text-amber-300">Abhi tak koi ride complete nahi hui — jab driver ride complete karega tab earnings show hogi. Ride Revenue tab count hota hai jab status "completed" hota hai.</span>
+            </div>
+          )}
+        </>
       )}
 
       {/* Convenience Fee Section */}

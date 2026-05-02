@@ -37,7 +37,8 @@ const queryClient = new QueryClient({
         if ((error as any)?.status === 401) return false;
         return failureCount < 1;
       },
-      staleTime: 30000,
+      staleTime: 0,
+      refetchOnWindowFocus: true,
     },
   },
 });
