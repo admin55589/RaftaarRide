@@ -112,7 +112,7 @@ export function DriverPlansScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.heroTitle}>India ka Sabse Sasta Platform</Text>
                 <Text style={styles.heroSubtitle}>
-                  Har ride mein poori kamai — RaftaarRide sirf aapke liye bana hai
+                  Jo aap kamate ho, woh poora aapka — hamesha, bina katoti ke
                 </Text>
               </View>
             </View>
