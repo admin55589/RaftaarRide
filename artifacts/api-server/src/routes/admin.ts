@@ -954,7 +954,7 @@ router.get("/admin/drivers/export", authMiddleware, async (_req: Request, res: R
 
 /* ─── DRIVER PLANS ─── */
 
-/* GET /api/admin/driver-plans — all drivers with plan status */
+/* GET /api/admin/driver-plans — all drivers with plan status + earnings */
 router.get("/admin/driver-plans", authMiddleware, async (_req: Request, res: Response) => {
   try {
     const drivers = await db.select({
@@ -971,6 +971,9 @@ router.get("/admin/driver-plans", authMiddleware, async (_req: Request, res: Res
       planEndAt: driversTable.planEndAt,
       isTrial: driversTable.isTrial,
       trialUsed: driversTable.trialUsed,
+      totalEarnings: driversTable.totalEarnings,
+      walletBalance: driversTable.walletBalance,
+      totalRides: driversTable.totalRides,
     }).from(driversTable).orderBy(desc(driversTable.createdAt));
 
     const now = new Date();
