@@ -51,6 +51,12 @@ export const driversTable = pgTable("drivers", {
   preferredLanguage: text("preferred_language").notNull().default("hi"),
   pushToken: text("push_token"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  planType: text("plan_type"),
+  planBilling: text("plan_billing"),
+  planStartAt: timestamp("plan_start_at"),
+  planEndAt: timestamp("plan_end_at"),
+  isTrial: boolean("is_trial").default(false),
+  trialUsed: boolean("trial_used").notNull().default(false),
 });
 
 export type InsertDriver = typeof driversTable.$inferInsert;
@@ -165,6 +171,18 @@ export const withdrawalRequestsTable = pgTable("withdrawal_requests", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 export type WithdrawalRequest = typeof withdrawalRequestsTable.$inferSelect;
+
+export const planTransactionsTable = pgTable("plan_transactions", {
+  id: serial("id").primaryKey(),
+  driverId: integer("driver_id").notNull().references(() => driversTable.id),
+  razorpayOrderId: text("razorpay_order_id").notNull(),
+  razorpayPaymentId: text("razorpay_payment_id").notNull(),
+  vehicleType: text("vehicle_type").notNull(),
+  billing: text("billing").notNull(),
+  amountRupees: numeric("amount_rupees", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type PlanTransaction = typeof planTransactionsTable.$inferSelect;
 
 export const chatMessagesTable = pgTable("chat_messages", {
   id: serial("id").primaryKey(),
