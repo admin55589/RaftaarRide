@@ -1105,18 +1105,20 @@ router.get("/admin/plan-revenue", authMiddleware, async (_req: Request, res: Res
 });
 
 /* GET /api/admin/sms-balance — Fast2SMS wallet balance */
-router.get("/admin/sms-balance", authMiddleware, async (_req: Request, res: Response) => {
+router.get("/admin/sms-balance", authMiddleware, async (req: Request, res: Response) => {
   const apiKey = process.env.FAST2SMS_API_KEY;
   if (!apiKey) { res.json({ balance: null, error: "API key not configured" }); return; }
   try {
     const r = await fetch("https://www.fast2sms.com/dev/wallet", {
       headers: { authorization: apiKey },
     });
-    const data = (await r.json()) as { return: boolean; wallet?: string; message?: string[] };
+    const data = (await r.json()) as { return: boolean; wallet?: string; message?: string[] | string; status_code?: number };
     if (data.return === true) {
       res.json({ balance: Number(data.wallet ?? 0) });
     } else {
-      res.json({ balance: null, error: data.message?.[0] ?? "Unknown error" });
+      const errMsg = Array.isArray(data.message) ? data.message[0] : (data.message ?? "Unknown error");
+      req.log.warn({ statusCode: data.status_code, errMsg }, "[Fast2SMS] wallet fetch failed");
+      res.json({ balance: null, error: errMsg, status_code: data.status_code });
     }
   } catch (err: any) {
     res.json({ balance: null, error: err?.message });
