@@ -993,7 +993,7 @@ router.get("/admin/driver-plans", authMiddleware, async (_req: Request, res: Res
 /* PATCH /api/admin/driver-plans/:id/extend — manually extend driver plan */
 router.patch("/admin/driver-plans/:id/extend", authMiddleware, async (req: Request, res: Response) => {
   try {
-    const driverId = parseInt(req.params.id);
+    const driverId = parseInt(String(req.params.id));
     const { days } = req.body as { days: number };
     if (!days || days < 1 || days > 365) {
       res.status(400).json({ message: "days must be 1–365" }); return;
