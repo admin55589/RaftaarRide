@@ -67,13 +67,48 @@ async function firebaseVerifyOtp(sessionInfo: string, code: string): Promise<boo
   return false;
 }
 
-// Sirf Firebase Blaze plan — koi Fast2SMS/MSG91 nahi
+// Fast2SMS se OTP SMS bhejo
+async function fast2SmsSendOtp(phone: string, otp: string): Promise<boolean> {
+  const apiKey = process.env.FAST2SMS_API_KEY;
+  if (!apiKey) return false;
+  const cleanPhone = phone.replace(/\D/g, "").slice(-10);
+  try {
+    const res = await fetch("https://www.fast2sms.com/dev/bulkV2", {
+      method: "POST",
+      headers: {
+        authorization: apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        route: "otp",
+        variables_values: otp,
+        flash: "0",
+        numbers: cleanPhone,
+      }),
+    });
+    const data = (await res.json()) as { return: boolean; message?: string[] };
+    if (data.return === true) {
+      console.log(`[OTP][Fast2SMS] SMS sent to ${cleanPhone}`);
+      return true;
+    }
+    console.error("[OTP][Fast2SMS] Failed:", data.message);
+  } catch (err) {
+    console.error("[OTP][Fast2SMS] Error:", err);
+  }
+  return false;
+}
+
+// OTP bhejo — Fast2SMS primary, Firebase fallback, dev last resort
 async function sendSmsOtp(phone: string, otp: string): Promise<{ sent: boolean; dev: boolean; sessionInfo?: string }> {
-  // Firebase Phone Auth (Blaze plan)
+  // 1. Fast2SMS (primary — API key available)
+  const fast2Sent = await fast2SmsSendOtp(phone, otp);
+  if (fast2Sent) return { sent: true, dev: false };
+
+  // 2. Firebase Phone Auth fallback
   const sessionInfo = await firebaseSendOtp(phone);
   if (sessionInfo) return { sent: true, dev: false, sessionInfo };
 
-  // Dev fallback (jab tak Firebase configure nahi)
+  // 3. Dev fallback — OTP console mein dikhao
   console.log(`[OTP][DEV] Phone: ${phone} → OTP: ${otp}`);
   return { sent: false, dev: true };
 }
