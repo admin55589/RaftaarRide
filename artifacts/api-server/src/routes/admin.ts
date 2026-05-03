@@ -9,6 +9,7 @@ import {
   walletTransactionsTable,
   promoCodesTable,
   chatMessagesTable,
+  planTransactionsTable,
 } from "@workspace/db/schema";
 import { eq, desc, sql, and, gte, isNotNull, ne } from "drizzle-orm";
 import jwt from "jsonwebtoken";
@@ -81,44 +82,74 @@ router.post("/admin/firebase-verify", async (req: Request, res: Response) => {
 });
 
 router.get("/admin/stats", authMiddleware, async (_req: Request, res: Response) => {
-  const [totalUsersResult] = await db.select({ count: sql<number>`count(*)` }).from(usersTable);
-  const [totalDriversResult] = await db.select({ count: sql<number>`count(*)` }).from(driversTable);
-  const [totalRidesResult] = await db.select({ count: sql<number>`count(*)` }).from(ridesTable);
-  const [earningsResult] = await db.select({
-    total: sql<number>`coalesce(sum(price::numeric), 0)`,
-  }).from(ridesTable).where(eq(ridesTable.status, "completed"));
-
-  const [activeDriversResult] = await db.select({ count: sql<number>`count(*)` })
-    .from(driversTable)
-    .where(eq(driversTable.status, "active"));
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
 
   const thisMonthStart = new Date();
   thisMonthStart.setDate(1);
   thisMonthStart.setHours(0, 0, 0, 0);
 
-  const [ridesThisMonthResult] = await db.select({ count: sql<number>`count(*)` })
-    .from(ridesTable)
-    .where(gte(ridesTable.createdAt, thisMonthStart));
+  const [
+    totalUsersResult,
+    totalDriversResult,
+    totalRidesResult,
+    completedRidesResult,
+    cancelledRidesResult,
+    earningsResult,
+    earningsThisMonthResult,
+    activeDriversResult,
+    ridesThisMonthResult,
+    avgRatingResult,
+    totalFareAllResult,
+    totalFareMonthResult,
+  ] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` }).from(usersTable).then(r => r[0]),
+    db.select({ count: sql<number>`count(*)` }).from(driversTable).then(r => r[0]),
+    db.select({ count: sql<number>`count(*)` }).from(ridesTable).then(r => r[0]),
+    db.select({ count: sql<number>`count(*)` }).from(ridesTable).where(eq(ridesTable.status, "completed")).then(r => r[0]),
+    db.select({ count: sql<number>`count(*)` }).from(ridesTable).where(eq(ridesTable.status, "cancelled")).then(r => r[0]),
+    db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(eq(ridesTable.status, "completed")).then(r => r[0]),
+    db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, thisMonthStart))).then(r => r[0]),
+    db.select({ count: sql<number>`count(*)` }).from(driversTable).where(eq(driversTable.status, "active")).then(r => r[0]),
+    db.select({ count: sql<number>`count(*)` }).from(ridesTable).where(gte(ridesTable.createdAt, thisMonthStart)).then(r => r[0]),
+    db.select({ avg: sql<number>`coalesce(avg(rating::numeric), 0)` }).from(driversTable).then(r => r[0]),
+    db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(ne(ridesTable.status, "cancelled")).then(r => r[0]),
+    db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(and(ne(ridesTable.status, "cancelled"), gte(ridesTable.createdAt, thisMonthStart))).then(r => r[0]),
+  ]);
 
-  const [earningsThisMonthResult] = await db.select({
-    total: sql<number>`coalesce(sum(price::numeric), 0)`,
-  }).from(ridesTable).where(
-    and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, thisMonthStart))
-  );
+  const convFeeExpr = sql<number>`coalesce(sum(
+    CASE vehicle_type
+      WHEN 'bike'  THEN 4
+      WHEN 'auto'  THEN 6
+      WHEN 'cab'   THEN 12
+      WHEN 'prime' THEN 12
+      WHEN 'suv'   THEN 15
+      ELSE 12
+    END
+  ), 0)`;
 
-  const [avgRatingResult] = await db.select({
-    avg: sql<number>`coalesce(avg(rating::numeric), 0)`,
-  }).from(driversTable);
+  const [convFeeTotalResult, convFeeTodayResult, convFeeMonthResult] = await Promise.all([
+    db.select({ total: convFeeExpr }).from(ridesTable).where(eq(ridesTable.status, "completed")).then(r => r[0]),
+    db.select({ total: convFeeExpr }).from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, todayStart))).then(r => r[0]),
+    db.select({ total: convFeeExpr }).from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, thisMonthStart))).then(r => r[0]),
+  ]);
 
   res.json({
     totalRides: Number(totalRidesResult?.count ?? 0),
     totalUsers: Number(totalUsersResult?.count ?? 0),
     totalDrivers: Number(totalDriversResult?.count ?? 0),
+    completedRides: Number(completedRidesResult?.count ?? 0),
+    cancelledRides: Number(cancelledRidesResult?.count ?? 0),
     totalEarnings: Number(earningsResult?.total ?? 0),
     activeDrivers: Number(activeDriversResult?.count ?? 0),
     ridesThisMonth: Number(ridesThisMonthResult?.count ?? 0),
     earningsThisMonth: Number(earningsThisMonthResult?.total ?? 0),
     avgRating: Number(Number(avgRatingResult?.avg ?? 0).toFixed(1)),
+    totalFareAll: Number(totalFareAllResult?.total ?? 0),
+    totalFareThisMonth: Number(totalFareMonthResult?.total ?? 0),
+    convenienceFeeTotal: Number(convFeeTotalResult?.total ?? 0),
+    convenienceFeeToday: Number(convFeeTodayResult?.total ?? 0),
+    convenienceFeeThisMonth: Number(convFeeMonthResult?.total ?? 0),
   });
 });
 
@@ -920,6 +951,176 @@ router.get("/admin/drivers/export", authMiddleware, async (_req: Request, res: R
     }).from(driversTable).orderBy(desc(driversTable.createdAt));
     res.json(drivers);
   } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+/* ─── DRIVER PLANS ─── */
+
+/* GET /api/admin/driver-plans — all drivers with plan status + earnings */
+router.get("/admin/driver-plans", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const drivers = await db.select({
+      id: driversTable.id,
+      name: driversTable.name,
+      phone: driversTable.phone,
+      email: driversTable.email,
+      vehicleType: driversTable.vehicleType,
+      vehicleNumber: driversTable.vehicleNumber,
+      status: driversTable.status,
+      planType: driversTable.planType,
+      planBilling: driversTable.planBilling,
+      planStartAt: driversTable.planStartAt,
+      planEndAt: driversTable.planEndAt,
+      isTrial: driversTable.isTrial,
+      trialUsed: driversTable.trialUsed,
+      totalEarnings: driversTable.totalEarnings,
+      walletBalance: driversTable.walletBalance,
+      totalRides: driversTable.totalRides,
+    }).from(driversTable).orderBy(desc(driversTable.createdAt));
+
+    const now = new Date();
+    const result = drivers.map((d) => {
+      const endAt = d.planEndAt ? new Date(d.planEndAt) : null;
+      const isActive = !!endAt && endAt > now;
+      const daysLeft = isActive ? Math.ceil((endAt!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+      const planStatus = !d.planType ? "no_plan" : isActive ? (d.isTrial ? "trial" : "active") : "expired";
+      return { ...d, isActive, daysLeft, planStatus };
+    });
+
+    res.json(result);
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+/* PATCH /api/admin/driver-plans/:id/extend — manually extend driver plan */
+router.patch("/admin/driver-plans/:id/extend", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const driverId = parseInt(req.params.id);
+    const { days } = req.body as { days: number };
+    if (!days || days < 1 || days > 365) {
+      res.status(400).json({ message: "days must be 1–365" }); return;
+    }
+    const [driver] = await db.select({ planEndAt: driversTable.planEndAt, planType: driversTable.planType })
+      .from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
+    if (!driver) { res.status(404).json({ message: "Driver not found" }); return; }
+
+    const now = new Date();
+    const currentEnd = driver.planEndAt ? new Date(driver.planEndAt) : null;
+    const base = currentEnd && currentEnd > now ? currentEnd : now;
+    const newEnd = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+
+    await db.update(driversTable).set({
+      planEndAt: newEnd,
+      planType: driver.planType ?? "cab",
+      planStartAt: driver.planEndAt ? undefined : now,
+    }).where(eq(driversTable.id, driverId));
+
+    res.json({ success: true, newEndAt: newEnd.toISOString() });
+  } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+/* GET /api/admin/plan-revenue — plan purchase revenue stats + transactions */
+router.get("/admin/plan-revenue", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOf6Months = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+    const [totalRow] = await db
+      .select({ total: sql<string>`coalesce(sum(amount_rupees), 0)`, count: sql<string>`count(*)` })
+      .from(planTransactionsTable);
+
+    const [todayRow] = await db
+      .select({ total: sql<string>`coalesce(sum(amount_rupees), 0)`, count: sql<string>`count(*)` })
+      .from(planTransactionsTable)
+      .where(gte(planTransactionsTable.createdAt, startOfToday));
+
+    const [monthRow] = await db
+      .select({ total: sql<string>`coalesce(sum(amount_rupees), 0)`, count: sql<string>`count(*)` })
+      .from(planTransactionsTable)
+      .where(gte(planTransactionsTable.createdAt, startOfMonth));
+
+    const byVehicle = await db
+      .select({
+        vehicleType: planTransactionsTable.vehicleType,
+        total: sql<string>`coalesce(sum(amount_rupees), 0)`,
+        count: sql<string>`count(*)`,
+      })
+      .from(planTransactionsTable)
+      .groupBy(planTransactionsTable.vehicleType);
+
+    const byBilling = await db
+      .select({
+        billing: planTransactionsTable.billing,
+        total: sql<string>`coalesce(sum(amount_rupees), 0)`,
+        count: sql<string>`count(*)`,
+      })
+      .from(planTransactionsTable)
+      .groupBy(planTransactionsTable.billing);
+
+    const monthly = await db
+      .select({
+        month: sql<string>`to_char(created_at, 'YYYY-MM')`,
+        total: sql<string>`coalesce(sum(amount_rupees), 0)`,
+        count: sql<string>`count(*)`,
+      })
+      .from(planTransactionsTable)
+      .where(gte(planTransactionsTable.createdAt, startOf6Months))
+      .groupBy(sql`to_char(created_at, 'YYYY-MM')`)
+      .orderBy(sql`to_char(created_at, 'YYYY-MM')`);
+
+    const recent = await db
+      .select({
+        id: planTransactionsTable.id,
+        driverId: planTransactionsTable.driverId,
+        driverName: driversTable.name,
+        driverPhone: driversTable.phone,
+        vehicleType: driversTable.vehicleType,
+        vehicleNumber: driversTable.vehicleNumber,
+        planVehicleType: planTransactionsTable.vehicleType,
+        billing: planTransactionsTable.billing,
+        amountRupees: planTransactionsTable.amountRupees,
+        razorpayPaymentId: planTransactionsTable.razorpayPaymentId,
+        createdAt: planTransactionsTable.createdAt,
+      })
+      .from(planTransactionsTable)
+      .innerJoin(driversTable, eq(planTransactionsTable.driverId, driversTable.id))
+      .orderBy(desc(planTransactionsTable.createdAt))
+      .limit(100);
+
+    res.json({
+      summary: {
+        totalRevenue: Number(totalRow?.total ?? 0),
+        totalTransactions: Number(totalRow?.count ?? 0),
+        todayRevenue: Number(todayRow?.total ?? 0),
+        todayTransactions: Number(todayRow?.count ?? 0),
+        monthRevenue: Number(monthRow?.total ?? 0),
+        monthTransactions: Number(monthRow?.count ?? 0),
+      },
+      byVehicle: byVehicle.map((r) => ({ vehicleType: r.vehicleType, total: Number(r.total), count: Number(r.count) })),
+      byBilling: byBilling.map((r) => ({ billing: r.billing, total: Number(r.total), count: Number(r.count) })),
+      monthly: monthly.map((r) => ({ month: r.month, total: Number(r.total), count: Number(r.count) })),
+      recent: recent.map((r) => ({ ...r, amountRupees: Number(r.amountRupees) })),
+    });
+  } catch (err: any) { res.status(500).json({ message: "Server error", error: err?.message }); }
+});
+
+/* GET /api/admin/sms-balance — Fast2SMS wallet balance */
+router.get("/admin/sms-balance", authMiddleware, async (req: Request, res: Response) => {
+  const apiKey = process.env.FAST2SMS_API_KEY;
+  if (!apiKey) { res.json({ balance: null, error: "API key not configured" }); return; }
+  try {
+    const r = await fetch(`https://www.fast2sms.com/dev/wallet?authorization=${encodeURIComponent(apiKey)}`);
+    const data = (await r.json()) as { return: boolean; wallet?: string; message?: string[] | string; status_code?: number };
+    if (data.return === true) {
+      res.json({ balance: Number(data.wallet ?? 0) });
+    } else {
+      const errMsg = Array.isArray(data.message) ? data.message[0] : (data.message ?? "Unknown error");
+      req.log.warn({ statusCode: data.status_code, errMsg }, "[Fast2SMS] wallet fetch failed");
+      res.json({ balance: null, error: errMsg, status_code: data.status_code });
+    }
+  } catch (err: any) {
+    res.json({ balance: null, error: err?.message });
+  }
 });
 
 export default router;
