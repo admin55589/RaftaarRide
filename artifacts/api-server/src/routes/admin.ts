@@ -1104,22 +1104,21 @@ router.get("/admin/plan-revenue", authMiddleware, async (_req: Request, res: Res
   } catch (err: any) { res.status(500).json({ message: "Server error", error: err?.message }); }
 });
 
-/* GET /api/admin/sms-balance — Fast2SMS wallet balance */
+/* GET /api/admin/sms-balance — 2Factor.in SMS credits balance */
 router.get("/admin/sms-balance", authMiddleware, async (req: Request, res: Response) => {
-  const apiKey = process.env.FAST2SMS_API_KEY;
-  if (!apiKey) { res.json({ balance: null, error: "API key not configured" }); return; }
+  const apiKey = process.env.TWOFACTOR_API_KEY;
+  if (!apiKey) { res.json({ credits: null, error: "API key not configured" }); return; }
   try {
-    const r = await fetch(`https://www.fast2sms.com/dev/wallet?authorization=${encodeURIComponent(apiKey)}`);
-    const data = (await r.json()) as { return: boolean; wallet?: string; message?: string[] | string; status_code?: number };
-    if (data.return === true) {
-      res.json({ balance: Number(data.wallet ?? 0) });
+    const r = await fetch(`https://2factor.in/API/V1/${apiKey}/BAL/SMS`);
+    const data = (await r.json()) as { Status: string; Details: string };
+    if (data.Status === "Success") {
+      res.json({ credits: Number(data.Details ?? 0) });
     } else {
-      const errMsg = Array.isArray(data.message) ? data.message[0] : (data.message ?? "Unknown error");
-      req.log.warn({ statusCode: data.status_code, errMsg }, "[Fast2SMS] wallet fetch failed");
-      res.json({ balance: null, error: errMsg, status_code: data.status_code });
+      req.log.warn({ details: data.Details }, "[2Factor] balance fetch failed");
+      res.json({ credits: null, error: data.Details ?? "Unknown error" });
     }
   } catch (err: any) {
-    res.json({ balance: null, error: err?.message });
+    res.json({ credits: null, error: err?.message });
   }
 });
 
