@@ -1,4 +1,5 @@
 import { useGetAdminStats, useGetRecentRides, useGetDailyAnalytics } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import {
   AreaChart,
   Area,
@@ -10,8 +11,10 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet } from "lucide-react";
+import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet, MessageSquare, AlertTriangle, RefreshCw } from "lucide-react";
 import { StatusBadge, VehicleBadge, formatCurrency, formatDate } from "@/components/shared";
+import { useAuth } from "@/context/AuthContext";
+import { API_BASE } from "@/lib/apiBase";
 
 function getSurgeInfo() {
   const hour = new Date().getHours();
@@ -48,6 +51,68 @@ function StatCard({
           <Icon className={`w-5 h-5 ${iconColor}`} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function SmsBalanceCard() {
+  const { token } = useAuth();
+  const { data, isLoading, refetch, isFetching } = useQuery<{ credits: number | null; error?: string }>({
+    queryKey: ["sms-balance"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/admin/sms-balance`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.json();
+    },
+    enabled: !!token,
+    refetchInterval: 2 * 60 * 1000,
+  });
+
+  const credits: number | null = data == null ? null : (data.credits ?? null);
+  const hasCredits = credits !== null && !Number.isNaN(credits);
+  const isLow = hasCredits && credits! < 50;
+  const isCritical = hasCredits && credits! < 10;
+
+  return (
+    <div className={`rounded-2xl border p-5 flex items-center gap-4 ${
+      isCritical ? "bg-red-500/10 border-red-500/40" :
+      isLow     ? "bg-amber-500/10 border-amber-500/40" :
+                  "bg-blue-500/10 border-blue-500/20"
+    }`}>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+        isCritical ? "bg-red-500/20" : isLow ? "bg-amber-500/20" : "bg-blue-500/20"
+      }`}>
+        {isCritical || isLow
+          ? <AlertTriangle className={`w-5 h-5 ${isCritical ? "text-red-400" : "text-amber-400"}`} />
+          : <MessageSquare className="w-5 h-5 text-blue-400" />
+        }
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">2Factor SMS Credits</p>
+        {isLoading ? (
+          <p className="text-lg font-bold text-muted-foreground mt-0.5">Loading...</p>
+        ) : !hasCredits ? (
+          <p className="text-sm text-muted-foreground mt-0.5">{data?.error ?? "Credits fetch nahi hua"}</p>
+        ) : (
+          <>
+            <p className={`text-2xl font-bold mt-0.5 ${isCritical ? "text-red-400" : isLow ? "text-amber-400" : "text-blue-400"}`}>
+              {credits!} SMS
+            </p>
+            {isCritical && <p className="text-xs text-red-400 mt-0.5 font-medium">⚠️ Critical! Recharge karo — OTP fail ho sakta hai</p>}
+            {isLow && !isCritical && <p className="text-xs text-amber-400 mt-0.5 font-medium">⚠️ Low credits — jald recharge karo</p>}
+            {!isLow && <p className="text-xs text-muted-foreground mt-0.5">SMS credits sufficient hain</p>}
+          </>
+        )}
+      </div>
+      <button
+        onClick={() => refetch()}
+        disabled={isFetching}
+        className="shrink-0 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+        title="Refresh credits"
+      >
+        <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isFetching ? "animate-spin" : ""}`} />
+      </button>
     </div>
   );
 }
@@ -163,6 +228,9 @@ export function DashboardPage() {
           </div>
         </>
       )}
+
+      {/* Fast2SMS Balance */}
+      <SmsBalanceCard />
 
       {/* Convenience Fee Section */}
       <div>
