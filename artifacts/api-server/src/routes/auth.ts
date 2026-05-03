@@ -19,7 +19,7 @@ async function twoFactorSendOtp(phone: string, otp: string): Promise<boolean> {
   if (!apiKey) return false;
   const cleanPhone = phone.replace(/\D/g, "").slice(-10);
   try {
-    const url = `https://2factor.in/API/V1/${apiKey}/SMS/${cleanPhone}/${otp}/RaftaarRide`;
+    const url = `https://2factor.in/API/V1/${apiKey}/SMS/${cleanPhone}/${otp}`;
     const res = await fetch(url);
     const data = (await res.json()) as { Status: string; Details: string };
     if (data.Status === "Success") {
