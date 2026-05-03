@@ -13,27 +13,22 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Fast2SMS se OTP SMS bhejo (Quick route — no DLT/website verification required)
+// Fast2SMS se OTP SMS bhejo (Quick route — GET with query params)
 async function fast2SmsSendOtp(phone: string, otp: string): Promise<boolean> {
   const apiKey = process.env.FAST2SMS_API_KEY;
   if (!apiKey) return false;
   const cleanPhone = phone.replace(/\D/g, "").slice(-10);
   const message = `${otp} is your RaftaarRide OTP. Valid for 10 minutes. Do not share with anyone.`;
   try {
-    const res = await fetch("https://www.fast2sms.com/dev/bulkV2", {
-      method: "POST",
-      headers: {
-        authorization: apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        route: "q",
-        message,
-        language: "english",
-        flash: "0",
-        numbers: cleanPhone,
-      }),
+    const params = new URLSearchParams({
+      authorization: apiKey,
+      route: "q",
+      message,
+      language: "english",
+      flash: "0",
+      numbers: cleanPhone,
     });
+    const res = await fetch(`https://www.fast2sms.com/dev/bulkV2?${params.toString()}`);
     const data = (await res.json()) as { return: boolean; message?: string[] | string; status_code?: number };
     if (data.return === true) {
       console.log(`[OTP][Fast2SMS] SMS sent to ${cleanPhone}`);

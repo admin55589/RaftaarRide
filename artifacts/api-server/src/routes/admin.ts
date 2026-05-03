@@ -1109,9 +1109,7 @@ router.get("/admin/sms-balance", authMiddleware, async (req: Request, res: Respo
   const apiKey = process.env.FAST2SMS_API_KEY;
   if (!apiKey) { res.json({ balance: null, error: "API key not configured" }); return; }
   try {
-    const r = await fetch("https://www.fast2sms.com/dev/wallet", {
-      headers: { authorization: apiKey },
-    });
+    const r = await fetch(`https://www.fast2sms.com/dev/wallet?authorization=${encodeURIComponent(apiKey)}`);
     const data = (await r.json()) as { return: boolean; wallet?: string; message?: string[] | string; status_code?: number };
     if (data.return === true) {
       res.json({ balance: Number(data.wallet ?? 0) });
