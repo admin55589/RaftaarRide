@@ -13,67 +13,40 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Firebase Blaze plan — Phone Auth via REST API
-const FIREBASE_API_KEY = "AIzaSyBE3Uy6XvWjtpccm92bPDVNK0YFRKmV4fI";
-
-// Send OTP via Firebase Phone Auth REST API — returns sessionInfo on success
-async function firebaseSendOtp(phone: string): Promise<string | null> {
-  // E.164 format ensure karo
-  const e164 = phone.startsWith("+") ? phone : `+91${phone.replace(/\D/g, "")}`;
-
-  // App Check token optional hai — agar set hai toh use karo
-  const appCheckToken = process.env.FIREBASE_APP_CHECK_TOKEN;
-  const body: Record<string, string> = { phoneNumber: e164 };
-  if (appCheckToken) body.appCheckToken = appCheckToken;
-
+// Fast2SMS se OTP SMS bhejo (Quick route — GET with query params)
+async function fast2SmsSendOtp(phone: string, otp: string): Promise<boolean> {
+  const apiKey = process.env.FAST2SMS_API_KEY;
+  if (!apiKey) return false;
+  const cleanPhone = phone.replace(/\D/g, "").slice(-10);
+  const message = `${otp} is your RaftaarRide OTP. Valid for 10 minutes. Do not share with anyone.`;
   try {
-    const res = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key=${FIREBASE_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }
-    );
-    const data = (await res.json()) as { sessionInfo?: string; error?: { message: string } };
-    if (data.sessionInfo) {
-      console.log(`[OTP][Firebase] SMS sent to ${e164}`);
-      return data.sessionInfo;
+    const params = new URLSearchParams({
+      authorization: apiKey,
+      route: "q",
+      message,
+      language: "english",
+      flash: "0",
+      numbers: cleanPhone,
+    });
+    const res = await fetch(`https://www.fast2sms.com/dev/bulkV2?${params.toString()}`);
+    const data = (await res.json()) as { return: boolean; message?: string[] | string; status_code?: number };
+    if (data.return === true) {
+      console.log(`[OTP][Fast2SMS] SMS sent to ${cleanPhone}`);
+      return true;
     }
-    console.error("[OTP][Firebase] Failed:", data.error?.message);
+    console.error("[OTP][Fast2SMS] Failed:", JSON.stringify(data));
   } catch (err) {
-    console.error("[OTP][Firebase] Error:", err);
-  }
-  return null;
-}
-
-// Verify OTP via Firebase Phone Auth REST API
-async function firebaseVerifyOtp(sessionInfo: string, code: string): Promise<boolean> {
-  try {
-    const res = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPhoneNumber?key=${FIREBASE_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionInfo, code }),
-      }
-    );
-    const data = (await res.json()) as { idToken?: string; error?: { message: string } };
-    if (data.idToken) return true;
-    console.error("[OTP][Firebase] Verify failed:", data.error?.message);
-  } catch (err) {
-    console.error("[OTP][Firebase] Verify error:", err);
+    console.error("[OTP][Fast2SMS] Error:", err);
   }
   return false;
 }
 
-// Sirf Firebase Blaze plan — koi Fast2SMS/MSG91 nahi
-async function sendSmsOtp(phone: string, otp: string): Promise<{ sent: boolean; dev: boolean; sessionInfo?: string }> {
-  // Firebase Phone Auth (Blaze plan)
-  const sessionInfo = await firebaseSendOtp(phone);
-  if (sessionInfo) return { sent: true, dev: false, sessionInfo };
+// OTP bhejo — Fast2SMS primary, dev console fallback
+async function sendSmsOtp(phone: string, otp: string): Promise<{ sent: boolean; dev: boolean }> {
+  const fast2Sent = await fast2SmsSendOtp(phone, otp);
+  if (fast2Sent) return { sent: true, dev: false };
 
-  // Dev fallback (jab tak Firebase configure nahi)
+  // Dev fallback — OTP console mein dikhao
   console.log(`[OTP][DEV] Phone: ${phone} → OTP: ${otp}`);
   return { sent: false, dev: true };
 }
@@ -260,14 +233,7 @@ router.post("/auth/send-otp", async (req: Request, res: Response) => {
       });
     }
 
-    const { sent, dev, sessionInfo } = await sendSmsOtp(phone, otp);
-
-    // If Firebase sent SMS, overwrite otpCode with sessionInfo prefix
-    if (sessionInfo) {
-      await db.update(usersTable)
-        .set({ otpCode: `firebase:${sessionInfo}`, otpExpiresAt: expiresAt })
-        .where(eq(usersTable.phone, phone));
-    }
+    const { sent, dev } = await sendSmsOtp(phone, otp);
 
     res.json({
       message: sent ? "OTP aapke phone pe bhej diya gaya" : "OTP ready (dev mode)",
@@ -319,20 +285,9 @@ router.post("/auth/verify-otp", async (req: Request, res: Response) => {
       return;
     }
 
-    // Firebase sessionInfo verification
-    if (user.otpCode.startsWith("firebase:")) {
-      const sessionInfo = user.otpCode.slice("firebase:".length);
-      const valid = await firebaseVerifyOtp(sessionInfo, otp);
-      if (!valid) {
-        res.status(400).json({ message: "OTP galat hai" });
-        return;
-      }
-    } else {
-      // Custom OTP verification
-      if (user.otpCode !== otp) {
-        res.status(400).json({ message: "OTP galat hai" });
-        return;
-      }
+    if (user.otpCode !== otp) {
+      res.status(400).json({ message: "OTP galat hai" });
+      return;
     }
 
     await db
