@@ -13,38 +13,30 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Fast2SMS se OTP SMS bhejo (Quick route — GET with query params)
-async function fast2SmsSendOtp(phone: string, otp: string): Promise<boolean> {
-  const apiKey = process.env.FAST2SMS_API_KEY;
+// 2Factor.in se OTP SMS bhejo (cheapest — ₹0.12-0.18/SMS)
+async function twoFactorSendOtp(phone: string, otp: string): Promise<boolean> {
+  const apiKey = process.env.TWOFACTOR_API_KEY;
   if (!apiKey) return false;
   const cleanPhone = phone.replace(/\D/g, "").slice(-10);
-  const message = `${otp} is your RaftaarRide OTP. Valid for 10 minutes. Do not share with anyone.`;
   try {
-    const params = new URLSearchParams({
-      authorization: apiKey,
-      route: "q",
-      message,
-      language: "english",
-      flash: "0",
-      numbers: cleanPhone,
-    });
-    const res = await fetch(`https://www.fast2sms.com/dev/bulkV2?${params.toString()}`);
-    const data = (await res.json()) as { return: boolean; message?: string[] | string; status_code?: number };
-    if (data.return === true) {
-      console.log(`[OTP][Fast2SMS] SMS sent to ${cleanPhone}`);
+    const url = `https://2factor.in/API/V1/${apiKey}/SMS/${cleanPhone}/${otp}/RaftaarRide`;
+    const res = await fetch(url);
+    const data = (await res.json()) as { Status: string; Details: string };
+    if (data.Status === "Success") {
+      console.log(`[OTP][2Factor] SMS sent to ${cleanPhone}, SessionId: ${data.Details}`);
       return true;
     }
-    console.error("[OTP][Fast2SMS] Failed:", JSON.stringify(data));
+    console.error("[OTP][2Factor] Failed:", JSON.stringify(data));
   } catch (err) {
-    console.error("[OTP][Fast2SMS] Error:", err);
+    console.error("[OTP][2Factor] Error:", err);
   }
   return false;
 }
 
-// OTP bhejo — Fast2SMS primary, dev console fallback
+// OTP bhejo — 2Factor.in primary, dev console fallback
 async function sendSmsOtp(phone: string, otp: string): Promise<{ sent: boolean; dev: boolean }> {
-  const fast2Sent = await fast2SmsSendOtp(phone, otp);
-  if (fast2Sent) return { sent: true, dev: false };
+  const sent = await twoFactorSendOtp(phone, otp);
+  if (sent) return { sent: true, dev: false };
 
   // Dev fallback — OTP console mein dikhao
   console.log(`[OTP][DEV] Phone: ${phone} → OTP: ${otp}`);
