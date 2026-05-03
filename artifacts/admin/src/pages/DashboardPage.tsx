@@ -57,7 +57,7 @@ function StatCard({
 
 function SmsBalanceCard() {
   const { token } = useAuth();
-  const { data, isLoading, refetch, isFetching } = useQuery<{ balance: number | null; error?: string }>({
+  const { data, isLoading, refetch, isFetching } = useQuery<{ credits: number | null; error?: string }>({
     queryKey: ["sms-balance"],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/admin/sms-balance`, {
@@ -66,13 +66,13 @@ function SmsBalanceCard() {
       return res.json();
     },
     enabled: !!token,
-    refetchInterval: 5 * 60 * 1000,
+    refetchInterval: 2 * 60 * 1000,
   });
 
-  const balance: number | null = data == null ? null : (data.balance ?? null);
-  const hasBalance = balance !== null && !Number.isNaN(balance);
-  const isLow = hasBalance && balance! < 50;
-  const isCritical = hasBalance && balance! < 10;
+  const credits: number | null = data == null ? null : (data.credits ?? null);
+  const hasCredits = credits !== null && !Number.isNaN(credits);
+  const isLow = hasCredits && credits! < 50;
+  const isCritical = hasCredits && credits! < 10;
 
   return (
     <div className={`rounded-2xl border p-5 flex items-center gap-4 ${
@@ -89,19 +89,19 @@ function SmsBalanceCard() {
         }
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Fast2SMS Balance</p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">2Factor SMS Credits</p>
         {isLoading ? (
           <p className="text-lg font-bold text-muted-foreground mt-0.5">Loading...</p>
-        ) : !hasBalance ? (
-          <p className="text-sm text-muted-foreground mt-0.5">{data?.error ?? "Balance fetch nahi hua"}</p>
+        ) : !hasCredits ? (
+          <p className="text-sm text-muted-foreground mt-0.5">{data?.error ?? "Credits fetch nahi hua"}</p>
         ) : (
           <>
             <p className={`text-2xl font-bold mt-0.5 ${isCritical ? "text-red-400" : isLow ? "text-amber-400" : "text-blue-400"}`}>
-              ₹{balance!.toFixed(2)}
+              {credits!} SMS
             </p>
             {isCritical && <p className="text-xs text-red-400 mt-0.5 font-medium">⚠️ Critical! Recharge karo — OTP fail ho sakta hai</p>}
-            {isLow && !isCritical && <p className="text-xs text-amber-400 mt-0.5 font-medium">⚠️ Low balance — jald recharge karo</p>}
-            {!isLow && <p className="text-xs text-muted-foreground mt-0.5">SMS balance sufficient hai</p>}
+            {isLow && !isCritical && <p className="text-xs text-amber-400 mt-0.5 font-medium">⚠️ Low credits — jald recharge karo</p>}
+            {!isLow && <p className="text-xs text-muted-foreground mt-0.5">SMS credits sufficient hain</p>}
           </>
         )}
       </div>
@@ -109,7 +109,7 @@ function SmsBalanceCard() {
         onClick={() => refetch()}
         disabled={isFetching}
         className="shrink-0 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
-        title="Refresh balance"
+        title="Refresh credits"
       >
         <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isFetching ? "animate-spin" : ""}`} />
       </button>
