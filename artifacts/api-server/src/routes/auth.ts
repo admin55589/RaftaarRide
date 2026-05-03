@@ -13,11 +13,12 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Fast2SMS se OTP SMS bhejo
+// Fast2SMS se OTP SMS bhejo (Quick route — no DLT/website verification required)
 async function fast2SmsSendOtp(phone: string, otp: string): Promise<boolean> {
   const apiKey = process.env.FAST2SMS_API_KEY;
   if (!apiKey) return false;
   const cleanPhone = phone.replace(/\D/g, "").slice(-10);
+  const message = `${otp} is your RaftaarRide OTP. Valid for 10 minutes. Do not share with anyone.`;
   try {
     const res = await fetch("https://www.fast2sms.com/dev/bulkV2", {
       method: "POST",
@@ -26,18 +27,19 @@ async function fast2SmsSendOtp(phone: string, otp: string): Promise<boolean> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        route: "otp",
-        variables_values: otp,
+        route: "q",
+        message,
+        language: "english",
         flash: "0",
         numbers: cleanPhone,
       }),
     });
-    const data = (await res.json()) as { return: boolean; message?: string[] };
+    const data = (await res.json()) as { return: boolean; message?: string[] | string; status_code?: number };
     if (data.return === true) {
       console.log(`[OTP][Fast2SMS] SMS sent to ${cleanPhone}`);
       return true;
     }
-    console.error("[OTP][Fast2SMS] Failed:", data.message);
+    console.error("[OTP][Fast2SMS] Failed:", JSON.stringify(data));
   } catch (err) {
     console.error("[OTP][Fast2SMS] Error:", err);
   }
