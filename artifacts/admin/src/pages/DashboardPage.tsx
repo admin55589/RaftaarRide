@@ -1,4 +1,5 @@
 import { useGetAdminStats, useGetRecentRides, useGetDailyAnalytics } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import {
   AreaChart,
   Area,
@@ -10,8 +11,10 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet } from "lucide-react";
+import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet, MessageSquare, AlertTriangle, RefreshCw } from "lucide-react";
 import { StatusBadge, VehicleBadge, formatCurrency, formatDate } from "@/components/shared";
+import { useAuth } from "@/context/AuthContext";
+import { API_BASE } from "@/lib/apiBase";
 
 function getSurgeInfo() {
   const hour = new Date().getHours();
@@ -48,6 +51,68 @@ function StatCard({
           <Icon className={`w-5 h-5 ${iconColor}`} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function SmsBalanceCard() {
+  const { token } = useAuth();
+  const { data, isLoading, refetch, isFetching } = useQuery<{ balance: number | null; error?: string }>({
+    queryKey: ["sms-balance"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/admin/sms-balance`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.json();
+    },
+    enabled: !!token,
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  const balance: number | null = data == null ? null : (data.balance ?? null);
+  const hasBalance = balance !== null && !Number.isNaN(balance);
+  const isLow = hasBalance && balance! < 50;
+  const isCritical = hasBalance && balance! < 10;
+
+  return (
+    <div className={`rounded-2xl border p-5 flex items-center gap-4 ${
+      isCritical ? "bg-red-500/10 border-red-500/40" :
+      isLow     ? "bg-amber-500/10 border-amber-500/40" :
+                  "bg-blue-500/10 border-blue-500/20"
+    }`}>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+        isCritical ? "bg-red-500/20" : isLow ? "bg-amber-500/20" : "bg-blue-500/20"
+      }`}>
+        {isCritical || isLow
+          ? <AlertTriangle className={`w-5 h-5 ${isCritical ? "text-red-400" : "text-amber-400"}`} />
+          : <MessageSquare className="w-5 h-5 text-blue-400" />
+        }
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Fast2SMS Balance</p>
+        {isLoading ? (
+          <p className="text-lg font-bold text-muted-foreground mt-0.5">Loading...</p>
+        ) : !hasBalance ? (
+          <p className="text-sm text-muted-foreground mt-0.5">{data?.error ?? "Balance fetch nahi hua"}</p>
+        ) : (
+          <>
+            <p className={`text-2xl font-bold mt-0.5 ${isCritical ? "text-red-400" : isLow ? "text-amber-400" : "text-blue-400"}`}>
+              ₹{balance!.toFixed(2)}
+            </p>
+            {isCritical && <p className="text-xs text-red-400 mt-0.5 font-medium">⚠️ Critical! Recharge karo — OTP fail ho sakta hai</p>}
+            {isLow && !isCritical && <p className="text-xs text-amber-400 mt-0.5 font-medium">⚠️ Low balance — jald recharge karo</p>}
+            {!isLow && <p className="text-xs text-muted-foreground mt-0.5">SMS balance sufficient hai</p>}
+          </>
+        )}
+      </div>
+      <button
+        onClick={() => refetch()}
+        disabled={isFetching}
+        className="shrink-0 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+        title="Refresh balance"
+      >
+        <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isFetching ? "animate-spin" : ""}`} />
+      </button>
     </div>
   );
 }
@@ -163,6 +228,9 @@ export function DashboardPage() {
           </div>
         </>
       )}
+
+      {/* Fast2SMS Balance */}
+      <SmsBalanceCard />
 
       {/* Convenience Fee Section */}
       <div>
