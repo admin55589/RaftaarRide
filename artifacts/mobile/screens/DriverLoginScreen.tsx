@@ -180,9 +180,18 @@ export default function DriverLoginScreen() {
 
           <Pressable
             onPress={() => router.replace("/auth/login")}
-            style={styles.backLink}
+            android_ripple={null}
+            style={({ pressed }) => [styles.backLink, pressed && { opacity: 0.75 }]}
           >
-            <Text style={styles.backLinkText}>← Passenger login pe wapas jao</Text>
+            <View style={styles.backLinkInner}>
+              <View style={styles.backLinkIconBox}>
+                <Text style={{ fontSize: 16 }}>🚶</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.backLinkLabel}>Passenger hain aap?</Text>
+                <Text style={styles.backLinkSub}>User login pe wapas jaayein →</Text>
+              </View>
+            </View>
           </Pressable>
         </ScrollView>
       </LinearGradient>
@@ -232,6 +241,19 @@ const styles = StyleSheet.create({
   loginBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   registerLink: { marginTop: 16, alignItems: "center" },
   registerLinkText: { color: "rgba(255,255,255,0.5)", fontSize: 14 },
-  backLink: { marginTop: 28, alignItems: "center" },
-  backLinkText: { color: "rgba(255,255,255,0.35)", fontSize: 13 },
+  backLink: { marginTop: 20 },
+  backLinkInner: {
+    flexDirection: "row", alignItems: "center", gap: 14,
+    backgroundColor: "#16161E", borderRadius: 16,
+    borderWidth: 1, borderColor: "#2A2A38",
+    paddingVertical: 14, paddingHorizontal: 16,
+  },
+  backLinkIconBox: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "#2A2A38",
+  },
+  backLinkLabel: { color: "#FFFFFF", fontSize: 13, fontWeight: "700", marginBottom: 2 },
+  backLinkSub: { color: "#8A8A9A", fontSize: 12 },
 });
