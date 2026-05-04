@@ -19,6 +19,8 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import Animated, {
   FadeInDown,
   SlideInUp,
@@ -369,6 +371,7 @@ function DriverChatModal({
 export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: () => void }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { setScreen, driverEarnings, setDriverEarnings } = useApp();
   const { driver, isDriverLoggedIn, driverLogout, driverToken, updateDriver } = useDriverAuth();
   const { showNotification } = useNotification();
@@ -1136,11 +1139,27 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
               </Pressable>
 
               <Pressable
-                onPress={() => { setShowProfileEdit(false); }}
-                style={[styles.driverChangePwdBtn]}
+                onPress={() => { setShowProfileEdit(false); router.push("/driver-auth/forgot-password"); }}
+                android_ripple={null}
+                style={({ pressed }) => [styles.driverChangePwdBtn, { opacity: pressed ? 0.82 : 1 }]}
               >
-                <Text style={{ fontSize: 13 }}>🔑</Text>
-                <Text style={styles.driverChangePwdText}>Password Change Karo</Text>
+                <LinearGradient
+                  colors={["rgba(245,166,35,0.13)", "rgba(245,166,35,0.06)"]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={styles.driverChangePwdGrad}
+                >
+                  <View style={styles.driverChangePwdAccent} />
+                  <View style={styles.driverChangePwdIconBox}>
+                    <Text style={{ fontSize: 18 }}>🔑</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.driverChangePwdText}>Password Change Karo</Text>
+                    <Text style={styles.driverChangePwdSub}>Apna password update karein</Text>
+                  </View>
+                  <View style={styles.driverChangePwdArrow}>
+                    <View style={{ width: 7, height: 7, borderTopWidth: 2, borderRightWidth: 2, borderColor: "#F5A623", transform: [{ rotate: "45deg" }] }} />
+                  </View>
+                </LinearGradient>
               </Pressable>
 
               <Pressable
@@ -1355,17 +1374,37 @@ const styles = StyleSheet.create({
   },
   saveBtnText: { color: "#0A0A0F", fontWeight: "800", fontSize: 15 },
   driverChangePwdBtn: {
+    marginTop: 10,
+    borderRadius: 14,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(245,166,35,0.25)",
+  },
+  driverChangePwdGrad: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    marginTop: 10,
+    gap: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
   },
-  driverChangePwdText: { color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: "500" },
+  driverChangePwdAccent: {
+    position: "absolute", left: 0, top: 0, bottom: 0, width: 3,
+    backgroundColor: "#F5A623", borderTopLeftRadius: 14, borderBottomLeftRadius: 14,
+  },
+  driverChangePwdIconBox: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: "rgba(245,166,35,0.15)",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "rgba(245,166,35,0.3)",
+  },
+  driverChangePwdText: { color: "#F5A623", fontSize: 14, fontWeight: "700", marginBottom: 2 },
+  driverChangePwdSub: { color: "rgba(255,255,255,0.4)", fontSize: 11 },
+  driverChangePwdArrow: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: "rgba(245,166,35,0.1)",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "rgba(245,166,35,0.2)",
+  },
   driverLogoutBtnInModal: {
     flexDirection: "row",
     alignItems: "center",
