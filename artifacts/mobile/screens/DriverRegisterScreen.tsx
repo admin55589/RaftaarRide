@@ -302,12 +302,22 @@ export default function DriverRegisterScreen() {
             </Pressable>
           </Animated.View>
 
-          <Pressable
-            onPress={() => router.replace("/auth/login")}
-            style={styles.backLink}
-          >
-            <Text style={styles.backLinkText}>← Passenger login pe wapas jao</Text>
-          </Pressable>
+          <View style={styles.benefitsRow}>
+            <View style={styles.benefitItem}>
+              <View style={styles.benefitIcon}><Text style={{ fontSize: 16 }}>🔒</Text></View>
+              <Text style={styles.benefitText}>100% Secure</Text>
+            </View>
+            <View style={styles.benefitDivider} />
+            <View style={styles.benefitItem}>
+              <View style={styles.benefitIcon}><Text style={{ fontSize: 16 }}>⚡</Text></View>
+              <Text style={styles.benefitText}>Instant Rides</Text>
+            </View>
+            <View style={styles.benefitDivider} />
+            <View style={styles.benefitItem}>
+              <View style={styles.benefitIcon}><Text style={{ fontSize: 16 }}>💰</Text></View>
+              <Text style={styles.benefitText}>No Hidden Fee</Text>
+            </View>
+          </View>
         </ScrollView>
       </LinearGradient>
     </KeyboardAvoidingView>
@@ -421,6 +431,16 @@ const styles = StyleSheet.create({
   btnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   loginLink: { marginTop: 16, alignItems: "center" },
   loginLinkText: { color: "rgba(255,255,255,0.5)", fontSize: 14 },
-  backLink: { marginTop: 28, alignItems: "center" },
-  backLinkText: { color: "rgba(255,255,255,0.35)", fontSize: 13 },
+  benefitsRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    marginTop: 20, backgroundColor: "#16161E", borderRadius: 16,
+    borderWidth: 1, borderColor: "#2A2A38", paddingVertical: 14, paddingHorizontal: 8,
+  },
+  benefitItem: { flex: 1, alignItems: "center", gap: 6 },
+  benefitIcon: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: "rgba(245,166,35,0.12)", alignItems: "center", justifyContent: "center",
+  },
+  benefitText: { color: "#CCCCCC", fontSize: 11, fontWeight: "600", textAlign: "center" },
+  benefitDivider: { width: 1, height: 40, backgroundColor: "#2A2A38" },
 });
