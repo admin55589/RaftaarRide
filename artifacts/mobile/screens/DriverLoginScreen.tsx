@@ -81,10 +81,11 @@ export default function DriverLoginScreen() {
       >
         <Pressable
           onPress={() => router.back()}
+          android_ripple={null}
           hitSlop={8}
-          style={{ position: "absolute", top: insets.top + 12, left: 16, zIndex: 100, width: 40, height: 40, borderRadius: 20, borderWidth: 1, backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" }}
+          style={({ pressed }) => [{ position: "absolute", top: insets.top + 12, left: 16, zIndex: 100, width: 40, height: 40, borderRadius: 12, borderWidth: 1, backgroundColor: pressed ? "#1F1F2E" : "#16161E", borderColor: "#2A2A38", alignItems: "center", justifyContent: "center" }]}
         >
-          <Text style={{ color: "#fff", fontSize: 20, lineHeight: 24 }}>‹</Text>
+          <View style={{ width: 10, height: 10, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: "#FFFFFF", transform: [{ rotate: "45deg" }], marginLeft: 3 }} />
         </Pressable>
         <Pressable
           onPress={toggleLanguage}
