@@ -247,12 +247,21 @@ export default function SignupScreen() {
               </Text>
             </Pressable>
 
-            <View style={styles.termsRow}>
-              <Text style={styles.termsText}>Account banake aap humare </Text>
-              <Pressable onPress={() => router.push("/terms")} android_ripple={null}>
-                <Text style={styles.termsLink}>Terms & Privacy Policy</Text>
-              </Pressable>
-              <Text style={styles.termsText}> se agree karte hain</Text>
+            <View style={styles.benefitsRow}>
+              <View style={styles.benefitItem}>
+                <View style={styles.benefitIcon}><Text style={{ fontSize: 16 }}>🔒</Text></View>
+                <Text style={styles.benefitText}>100% Secure</Text>
+              </View>
+              <View style={styles.benefitDivider} />
+              <View style={styles.benefitItem}>
+                <View style={styles.benefitIcon}><Text style={{ fontSize: 16 }}>⚡</Text></View>
+                <Text style={styles.benefitText}>Instant Rides</Text>
+              </View>
+              <View style={styles.benefitDivider} />
+              <View style={styles.benefitItem}>
+                <View style={styles.benefitIcon}><Text style={{ fontSize: 16 }}>💰</Text></View>
+                <Text style={styles.benefitText}>No Hidden Fee</Text>
+              </View>
             </View>
           </Animated.View>
         </ScrollView>
@@ -311,9 +320,18 @@ const styles = StyleSheet.create({
   loginLink: { marginTop: 20, alignItems: "center", paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10 },
   loginLinkPressed: { backgroundColor: "rgba(245,166,35,0.1)" },
   loginLinkText: { color: "#8A8A9A", fontSize: 14 },
-  termsRow: { marginTop: 16, flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "center" },
-  termsText: { color: "#8A8A9A", fontSize: 11 },
-  termsLink: { color: "#F5A623", fontSize: 11, textDecorationLine: "underline", fontFamily: "Inter_600SemiBold" },
+  benefitsRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    marginTop: 20, backgroundColor: "#16161E", borderRadius: 16,
+    borderWidth: 1, borderColor: "#2A2A38", paddingVertical: 14, paddingHorizontal: 8,
+  },
+  benefitItem: { flex: 1, alignItems: "center", gap: 6 },
+  benefitIcon: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: "rgba(245,166,35,0.12)", alignItems: "center", justifyContent: "center",
+  },
+  benefitText: { color: "#CCCCCC", fontSize: 11, fontWeight: "600", textAlign: "center" },
+  benefitDivider: { width: 1, height: 40, backgroundColor: "#2A2A38" },
   genderRow: { flexDirection: "row", gap: 8 },
   genderBtn: {
     flex: 1, paddingVertical: 12, borderRadius: 12,
