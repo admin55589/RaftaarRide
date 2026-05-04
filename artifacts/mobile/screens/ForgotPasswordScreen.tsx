@@ -103,8 +103,12 @@ export default function ForgotPasswordScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: "#0A0A0F" }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <ScrollView contentContainerStyle={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 32 }]} keyboardShouldPersistTaps="handled">
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>← Wapas</Text>
+        <Pressable
+          onPress={() => router.back()}
+          android_ripple={null}
+          style={({ pressed }) => [styles.backBtn, pressed && { backgroundColor: "#1F1F2E" }]}
+        >
+          <View style={{ width: 10, height: 10, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: "#FFFFFF", transform: [{ rotate: "45deg" }], marginLeft: 3 }} />
         </Pressable>
 
         <Animated.View entering={FadeInDown.springify()} style={styles.card}>
@@ -201,8 +205,11 @@ export default function ForgotPasswordScreen() {
 
 const styles = StyleSheet.create({
   container: { flexGrow: 1, paddingHorizontal: 20 },
-  backBtn: { marginBottom: 24 },
-  backText: { color: "#F5A623", fontSize: 15, fontWeight: "600" },
+  backBtn: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: "#16161E", alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "#2A2A38", marginBottom: 24,
+  },
   card: {
     backgroundColor: "rgba(255,255,255,0.04)",
     borderRadius: 24,
