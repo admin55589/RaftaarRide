@@ -220,7 +220,9 @@ export default function LoginScreen() {
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>ya</Text>
+              <View style={styles.dividerBadge}>
+                <Text style={styles.dividerText}>ya</Text>
+              </View>
               <View style={styles.dividerLine} />
             </View>
 
@@ -241,9 +243,11 @@ export default function LoginScreen() {
             </Pressable>
 
             <View style={[styles.divider, { marginTop: 20 }]}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>Driver ho?</Text>
-              <View style={styles.dividerLine} />
+              <View style={styles.dividerLineGreen} />
+              <View style={styles.dividerBadgeGreen}>
+                <Text style={styles.dividerTextGreen}>🚗 Driver ho?</Text>
+              </View>
+              <View style={styles.dividerLineGreen} />
             </View>
 
             <Pressable style={({ pressed }) => [styles.driverBtn, pressed && styles.driverBtnPressed]} android_ripple={null} onPress={() => router.push("/driver-auth/login")}>
@@ -353,10 +357,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginVertical: 20,
-    gap: 12,
+    gap: 10,
   },
-  dividerLine: { flex: 1, height: 1, backgroundColor: "#2A2A38" },
-  dividerText: { color: "#8A8A9A", fontSize: 13 },
+  dividerLine: { flex: 1, height: 1.5, backgroundColor: "#252530", borderRadius: 2 },
+  dividerLineGreen: { flex: 1, height: 1.5, backgroundColor: "rgba(34,197,94,0.2)", borderRadius: 2 },
+  dividerBadge: {
+    paddingHorizontal: 14, paddingVertical: 5,
+    backgroundColor: "#1A1A26", borderRadius: 20,
+    borderWidth: 1, borderColor: "#333345",
+  },
+  dividerBadgeGreen: {
+    paddingHorizontal: 12, paddingVertical: 5,
+    backgroundColor: "rgba(34,197,94,0.07)", borderRadius: 20,
+    borderWidth: 1, borderColor: "rgba(34,197,94,0.22)",
+  },
+  dividerText: { color: "#6B7280", fontSize: 12, fontWeight: "600" },
+  dividerTextGreen: { color: "#22c55e", fontSize: 12, fontWeight: "700" },
   secondaryBtn: {
     borderWidth: 1.5,
     borderColor: "#F5A623",
