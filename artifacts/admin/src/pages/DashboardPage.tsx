@@ -354,7 +354,7 @@ function CloudCostCard() {
                 <div key={i} className="bg-white/5 rounded-xl p-3 flex items-center justify-between">
                   <p className="text-xs font-medium text-foreground">{b.name}</p>
                   <p className="text-xs text-purple-400 font-semibold">
-                    Limit: ₹{(b.budgetAmount * 84).toLocaleString()}
+                    Limit: ₹{b.budgetAmount.toLocaleString()}
                   </p>
                 </div>
               ))}
