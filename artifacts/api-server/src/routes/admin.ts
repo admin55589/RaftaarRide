@@ -1160,7 +1160,7 @@ router.get("/admin/cloud-costs", authMiddleware, async (req: Request, res: Respo
   try {
     const accessToken = await getGoogleAccessToken(
       saKey,
-      "https://www.googleapis.com/auth/cloud-billing.readonly"
+      "https://www.googleapis.com/auth/cloud-billing"
     );
 
     /* 1. List billing accounts */
@@ -1205,7 +1205,7 @@ router.get("/admin/cloud-costs", authMiddleware, async (req: Request, res: Respo
 
     /* Budget API disabled or permission error — return account info but flag budget issue */
     if (budgetsData.error) {
-      req.log.warn({ code: budgetsData.error.code, status: budgetsData.error.status, msg: budgetsData.error.message }, "[cloud-costs] budget API error");
+      req.log.warn({ code: budgetsData.error.code, status: budgetsData.error.status, msg: budgetsData.error.message, full: JSON.stringify(budgetsData.error) }, "[cloud-costs] budget API error");
       const isBudgetApiDisabled = budgetsData.error.message?.includes("has not been used") || budgetsData.error.message?.includes("disabled") || budgetsData.error.code === 403 || budgetsData.error.code === 400;
       res.json({
         configured: true,
