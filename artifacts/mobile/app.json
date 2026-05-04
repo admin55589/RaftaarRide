@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.raftaarride.app",
       "config": {
-        "googleMapsApiKey": ""
+        "googleMapsApiKey": "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q"
       }
     },
     "android": {
@@ -34,7 +34,7 @@
       },
       "config": {
         "googleMaps": {
-          "apiKey": ""
+          "apiKey": "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q"
         }
       }
     },
