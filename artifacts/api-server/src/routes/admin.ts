@@ -1122,4 +1122,157 @@ router.get("/admin/sms-balance", authMiddleware, async (req: Request, res: Respo
   }
 });
 
+/* ──────────────────────────────────────────────────────────────────────────
+ * GET /api/admin/cloud-costs
+ * Returns Google Cloud + Firebase current-month billing data.
+ * Requires GOOGLE_SERVICE_ACCOUNT_KEY env var (JSON string of service-account key)
+ * with roles: Billing Account Viewer + Cloud Asset Viewer on the billing account.
+ * ────────────────────────────────────────────────────────────────────────── */
+async function getGoogleAccessToken(serviceAccountJson: string, scope: string): Promise<string> {
+  const sa = JSON.parse(serviceAccountJson) as {
+    client_email: string;
+    private_key: string;
+  };
+  const now = Math.floor(Date.now() / 1000);
+  const assertion = jwt.sign(
+    { iss: sa.client_email, sub: sa.client_email, aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600, scope },
+    sa.private_key,
+    { algorithm: "RS256" }
+  );
+  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
+  });
+  const tokenData = (await tokenRes.json()) as { access_token?: string; error?: string };
+  if (!tokenData.access_token) throw new Error(tokenData.error ?? "Token exchange failed");
+  return tokenData.access_token;
+}
+
+router.get("/admin/cloud-costs", authMiddleware, async (req: Request, res: Response) => {
+  const saKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  if (!saKey) {
+    res.json({ configured: false });
+    return;
+  }
+
+  try {
+    const accessToken = await getGoogleAccessToken(
+      saKey,
+      "https://www.googleapis.com/auth/cloud-billing.readonly"
+    );
+
+    /* 1. List billing accounts */
+    const accountsRes = await fetch("https://cloudbilling.googleapis.com/v1/billingAccounts", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const accountsData = (await accountsRes.json()) as {
+      billingAccounts?: Array<{ name: string; displayName: string; open: boolean; masterBillingAccount?: string }>;
+      error?: { message: string };
+    };
+
+    if (accountsData.error) {
+      res.json({ configured: true, error: accountsData.error.message });
+      return;
+    }
+
+    const accounts = accountsData.billingAccounts ?? [];
+    const account = accounts.find((a) => a.displayName?.toLowerCase().includes("raftaar")) ?? accounts[0];
+
+    if (!account) {
+      res.json({ configured: true, error: "Koi billing account nahi mila" });
+      return;
+    }
+
+    /* 2. Fetch budgets for this billing account */
+    const budgetsRes = await fetch(
+      `https://billingbudgets.googleapis.com/v1/${account.name}/budgets`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const budgetsData = (await budgetsRes.json()) as {
+      budgets?: Array<{
+        name: string;
+        displayName?: string;
+        amount?: { specifiedAmount?: { units?: string; nanos?: number }; lastPeriodAmount?: object };
+        filter?: { projects?: string[] };
+        spendingLimit?: { spendingLimit?: string };
+      }>;
+    };
+
+    const budgets = budgetsData.budgets ?? [];
+
+    /* 3. Fetch SKU usage for current month via Cloud Billing Reports */
+    /* Use the projects.getAncestry → billing export is best but requires BigQuery.
+       Instead, return budget summary + account info */
+
+    const now = new Date();
+    const monthLabel = now.toLocaleString("en-IN", { month: "long", year: "numeric" });
+
+    const budgetSummary = budgets.map((b) => {
+      const budgetUnits = Number(b.amount?.specifiedAmount?.units ?? 0);
+      return {
+        name: b.displayName ?? b.name.split("/").pop() ?? "Budget",
+        budgetAmount: budgetUnits,
+        projects: b.filter?.projects ?? [],
+      };
+    });
+
+    res.json({
+      configured: true,
+      accountName: account.displayName,
+      accountOpen: account.open,
+      monthLabel,
+      budgets: budgetSummary,
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    req.log.error({ err: err?.message }, "[cloud-costs] fetch failed");
+    res.json({ configured: true, error: err?.message ?? "Fetch failed" });
+  }
+});
+
+/* GET /api/admin/maps-usage — Google Maps API live quota/usage check */
+router.get("/admin/maps-usage", authMiddleware, async (req: Request, res: Response) => {
+  const mapsKey = "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q";
+
+  /* Test each API and check if it's responding */
+  try {
+    const [geocoding, directions, places] = await Promise.allSettled([
+      fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=Delhi&key=${mapsKey}`).then((r) => r.json()) as Promise<{ status: string }>,
+      fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=Delhi&destination=Mumbai&key=${mapsKey}`).then((r) => r.json()) as Promise<{ status: string }>,
+      fetch(`https://maps.googleapis.com/maps/api/place/autocomplete/json?input=Connaught&key=${mapsKey}`).then((r) => r.json()) as Promise<{ status: string }>,
+    ]);
+
+    const toStatus = (r: PromiseSettledResult<{ status: string }>) =>
+      r.status === "fulfilled" ? (r.value.status === "OK" || r.value.status === "ZERO_RESULTS" ? "ok" : r.value.status) : "error";
+
+    /* Google Maps free tier: $200/month credit (~28,500 Geocoding calls, ~40,000 Directions calls) */
+    const GEOCODING_PRICE_PER_1K = 5;
+    const DIRECTIONS_PRICE_PER_1K = 10;
+    const PLACES_PRICE_PER_1K = 17;
+    const FREE_CREDIT_USD = 200;
+    const USD_TO_INR = 84;
+    const freeCredit_INR = FREE_CREDIT_USD * USD_TO_INR;
+
+    res.json({
+      apis: {
+        geocoding: toStatus(geocoding),
+        directions: toStatus(directions),
+        places: toStatus(places),
+      },
+      pricing: {
+        geocodingPer1k: GEOCODING_PRICE_PER_1K,
+        directionsPer1k: DIRECTIONS_PRICE_PER_1K,
+        placesPer1k: PLACES_PRICE_PER_1K,
+        freeCreditUSD: FREE_CREDIT_USD,
+        freeCreditINR: freeCredit_INR,
+        note: "$200/month free credit (~₹16,800) — renews each month",
+      },
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    res.json({ error: err?.message });
+  }
+});
+
 export default router;

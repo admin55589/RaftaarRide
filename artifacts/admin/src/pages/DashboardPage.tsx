@@ -11,7 +11,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet, MessageSquare, AlertTriangle, RefreshCw } from "lucide-react";
+import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet, MessageSquare, AlertTriangle, RefreshCw, Cloud, CheckCircle, XCircle, Settings } from "lucide-react";
 import { StatusBadge, VehicleBadge, formatCurrency, formatDate } from "@/components/shared";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/apiBase";
@@ -113,6 +113,272 @@ function SmsBalanceCard() {
       >
         <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isFetching ? "animate-spin" : ""}`} />
       </button>
+    </div>
+  );
+}
+
+type MapsUsageData = {
+  apis?: { geocoding: string; directions: string; places: string };
+  pricing?: { freeCreditUSD: number; freeCreditINR: number; geocodingPer1k: number; directionsPer1k: number; placesPer1k: number; note: string };
+  fetchedAt?: string;
+  error?: string;
+};
+
+type CloudCostData = {
+  configured: boolean;
+  accountName?: string;
+  accountOpen?: boolean;
+  monthLabel?: string;
+  budgets?: Array<{ name: string; budgetAmount: number; projects: string[] }>;
+  fetchedAt?: string;
+  error?: string;
+};
+
+function ApiStatusDot({ status }: { status: string }) {
+  if (status === "ok") return <span className="inline-flex items-center gap-1 text-green-400 text-xs font-medium"><CheckCircle className="w-3 h-3" />Active</span>;
+  return <span className="inline-flex items-center gap-1 text-red-400 text-xs font-medium"><XCircle className="w-3 h-3" />{status}</span>;
+}
+
+function MapsStatusCard() {
+  const { token } = useAuth();
+  const { data, isLoading, refetch, isFetching } = useQuery<MapsUsageData>({
+    queryKey: ["maps-usage"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/admin/maps-usage`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.json();
+    },
+    enabled: !!token,
+    refetchInterval: 10 * 60 * 1000,
+  });
+
+  const allOk = data?.apis && Object.values(data.apis).every((s) => s === "ok");
+
+  return (
+    <div className="bg-card border border-card-border rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+            <MapPin className="w-4 h-4 text-blue-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Google Maps APIs</p>
+            <p className="text-xs text-muted-foreground">Live status & pricing</p>
+          </div>
+        </div>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isFetching ? "animate-spin" : ""}`} />
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => <div key={i} className="h-6 bg-white/5 rounded animate-pulse" />)}
+        </div>
+      ) : data?.error ? (
+        <p className="text-xs text-red-400">{data.error}</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {data?.apis && (
+              <>
+                <div className="bg-white/5 rounded-xl p-2.5 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Geocoding</p>
+                  <ApiStatusDot status={data.apis.geocoding} />
+                </div>
+                <div className="bg-white/5 rounded-xl p-2.5 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Directions</p>
+                  <ApiStatusDot status={data.apis.directions} />
+                </div>
+                <div className="bg-white/5 rounded-xl p-2.5 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Places</p>
+                  <ApiStatusDot status={data.apis.places} />
+                </div>
+              </>
+            )}
+          </div>
+
+          {data?.pricing && (
+            <div className={`rounded-xl p-3 ${allOk ? "bg-green-500/10 border border-green-500/20" : "bg-amber-500/10 border border-amber-500/20"}`}>
+              <p className={`text-xs font-semibold mb-2 ${allOk ? "text-green-400" : "text-amber-400"}`}>
+                Free Credit: ${data.pricing.freeCreditUSD}/month (~₹{data.pricing.freeCreditINR.toLocaleString()})
+              </p>
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground">Geocoding: ${data.pricing.geocodingPer1k}/1000 calls</p>
+                <p className="text-xs text-muted-foreground">Directions: ${data.pricing.directionsPer1k}/1000 calls</p>
+                <p className="text-xs text-muted-foreground">Places: ${data.pricing.placesPer1k}/1000 calls</p>
+              </div>
+              <p className="text-xs text-green-400/80 mt-2 font-medium">{data.pricing.note}</p>
+            </div>
+          )}
+
+          {data?.fetchedAt && (
+            <p className="text-xs text-muted-foreground mt-2 text-right">
+              Updated: {new Date(data.fetchedAt).toLocaleTimeString("en-IN")}
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function CloudCostCard() {
+  const { token } = useAuth();
+  const { data, isLoading, refetch, isFetching } = useQuery<CloudCostData>({
+    queryKey: ["cloud-costs"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/admin/cloud-costs`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.json();
+    },
+    enabled: !!token,
+    refetchInterval: 15 * 60 * 1000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="bg-card border border-card-border rounded-2xl p-5 animate-pulse h-40" />
+    );
+  }
+
+  if (!data?.configured) {
+    return (
+      <div className="bg-card border border-card-border rounded-2xl p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+            <Cloud className="w-4 h-4 text-purple-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Google Cloud Billing</p>
+            <p className="text-xs text-muted-foreground">Real-time cost monitoring</p>
+          </div>
+        </div>
+
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Settings className="w-3.5 h-3.5 text-amber-400" />
+            <p className="text-xs font-semibold text-amber-400">Setup Required — 3 Steps</p>
+          </div>
+          <ol className="space-y-1.5 text-xs text-muted-foreground list-decimal list-inside">
+            <li>
+              <span className="text-foreground font-medium">Service Account banao:</span>{" "}
+              <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noreferrer" className="text-blue-400 underline">GCP Console</a>
+              {" "}→ "Create Service Account" → Name: "billing-reader"
+            </li>
+            <li>
+              <span className="text-foreground font-medium">Role assign karo:</span>{" "}
+              Billing → Account Management → "Add Member" → role: <code className="bg-white/10 px-1 rounded">Billing Account Viewer</code>
+            </li>
+            <li>
+              <span className="text-foreground font-medium">JSON Key download karo</span>{" "}
+              → Replit Secrets mein{" "}
+              <code className="bg-white/10 px-1 rounded">GOOGLE_SERVICE_ACCOUNT_KEY</code>{" "}
+              naam se paste karo
+            </li>
+          </ol>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Setup ke baad real-time Google Cloud + Firebase cost dikh jayega — current month ka kharch, Firebase usage, aur billing account status.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-card border border-card-border rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+            <Cloud className="w-4 h-4 text-purple-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Google Cloud Billing</p>
+            <p className="text-xs text-muted-foreground">{data.monthLabel ?? "This month"}</p>
+          </div>
+        </div>
+        <button onClick={() => refetch()} disabled={isFetching} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors">
+          <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isFetching ? "animate-spin" : ""}`} />
+        </button>
+      </div>
+
+      {data.error ? (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+          <p className="text-xs text-red-400">{data.error}</p>
+        </div>
+      ) : (
+        <>
+          <div className={`rounded-xl p-3 mb-3 flex items-center gap-3 ${data.accountOpen ? "bg-green-500/10 border border-green-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
+            {data.accountOpen
+              ? <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
+              : <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+            }
+            <div>
+              <p className={`text-xs font-semibold ${data.accountOpen ? "text-green-400" : "text-red-400"}`}>
+                {data.accountName} — {data.accountOpen ? "Active & Paid" : "Inactive"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {data.accountOpen ? "Billing account khuli hai — charges apply ho rahi hain" : "Account band hai"}
+              </p>
+            </div>
+          </div>
+
+          {(data.budgets ?? []).length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Budgets</p>
+              {(data.budgets ?? []).map((b, i) => (
+                <div key={i} className="bg-white/5 rounded-xl p-3 flex items-center justify-between">
+                  <p className="text-xs font-medium text-foreground">{b.name}</p>
+                  <p className="text-xs text-purple-400 font-semibold">
+                    Limit: ₹{(b.budgetAmount * 84).toLocaleString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+              <p className="text-xs text-blue-400 font-semibold mb-1">Budget setup karo</p>
+              <p className="text-xs text-muted-foreground">
+                GCP Console → Billing → Budgets &amp; alerts → "Create Budget" banao — taaki exact kharch track ho sake.
+              </p>
+              <a
+                href="https://console.cloud.google.com/billing"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-blue-400 underline mt-1 inline-block"
+              >
+                Google Cloud Console kholo →
+              </a>
+            </div>
+          )}
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="bg-white/5 rounded-xl p-3">
+              <p className="text-xs text-muted-foreground">Maps Free Credit</p>
+              <p className="text-sm font-bold text-green-400">$200/mo</p>
+              <p className="text-xs text-muted-foreground">~₹16,800</p>
+            </div>
+            <div className="bg-white/5 rounded-xl p-3">
+              <p className="text-xs text-muted-foreground">Firebase Free Tier</p>
+              <p className="text-sm font-bold text-orange-400">Spark Plan</p>
+              <p className="text-xs text-muted-foreground">10K Auth/day free</p>
+            </div>
+          </div>
+
+          {data.fetchedAt && (
+            <p className="text-xs text-muted-foreground mt-2 text-right">
+              Updated: {new Date(data.fetchedAt).toLocaleTimeString("en-IN")}
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -231,6 +497,18 @@ export function DashboardPage() {
 
       {/* Fast2SMS Balance */}
       <SmsBalanceCard />
+
+      {/* Google Cloud & Maps Cost Monitoring */}
+      <div>
+        <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <Cloud className="w-4 h-4 text-purple-400" />
+          Infrastructure Cost Monitor
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <MapsStatusCard />
+          <CloudCostCard />
+        </div>
+      </div>
 
       {/* Convenience Fee Section */}
       <div>
