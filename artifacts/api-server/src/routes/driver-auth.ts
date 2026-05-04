@@ -814,6 +814,39 @@ router.post("/driver-auth/reset-password", async (req: Request, res: Response) =
   }
 });
 
+/* ─── CHANGE PASSWORD (logged-in driver) ─────────────────────────────────── */
+
+router.patch("/driver-auth/change-password", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({ success: false, message: "Token required" });
+    return;
+  }
+  const { currentPassword, newPassword } = req.body as { currentPassword: string; newPassword: string };
+  if (!currentPassword || !newPassword) {
+    res.status(400).json({ success: false, message: "Current aur new password dono required hain" });
+    return;
+  }
+  if (newPassword.length < 6) {
+    res.status(400).json({ success: false, message: "Naya password kam se kam 6 characters ka hona chahiye" });
+    return;
+  }
+  try {
+    const payload = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { driverId: number; role: string };
+    if (payload.role !== "driver") { res.status(403).json({ success: false, message: "Driver token required" }); return; }
+    const [driver] = await db.select().from(driversTable).where(eq(driversTable.id, payload.driverId)).limit(1);
+    if (!driver) { res.status(404).json({ success: false, message: "Driver not found" }); return; }
+    const match = await bcrypt.compare(currentPassword, driver.passwordHash ?? "");
+    if (!match) { res.status(400).json({ success: false, message: "Current password galat hai" }); return; }
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.update(driversTable).set({ passwordHash }).where(eq(driversTable.id, payload.driverId));
+    res.json({ success: true, message: "Password successfully change ho gaya! 🎉" });
+  } catch (err) {
+    logger.error({ err }, "driver change-password error");
+    res.status(500).json({ success: false, message: "Password change nahi hua, dobara try karo" });
+  }
+});
+
 /* ─── DELETE ACCOUNT ──────────────────────────────────────────────────────── */
 
 router.delete("/driver-auth/account", async (req: Request, res: Response) => {

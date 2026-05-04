@@ -499,6 +499,42 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
   const [profileError, setProfileError] = useState("");
   const [deletingDriverAccount, setDeletingDriverAccount] = useState(false);
 
+  const [showChangePwd, setShowChangePwd] = useState(false);
+  const [currentPwd, setCurrentPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [showCurPwd, setShowCurPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [changePwdLoading, setChangePwdLoading] = useState(false);
+  const [changePwdError, setChangePwdError] = useState("");
+  const [changePwdSuccess, setChangePwdSuccess] = useState("");
+
+  const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
+    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
+    : "https://workspaceapi-server-production-2e22.up.railway.app";
+
+  const handleChangePwd = async () => {
+    setChangePwdError("");
+    setChangePwdSuccess("");
+    if (!currentPwd) { setChangePwdError("Current password daalo"); return; }
+    if (!newPwd || newPwd.length < 6) { setChangePwdError("Naya password kam se kam 6 characters ka hona chahiye"); return; }
+    if (newPwd !== confirmPwd) { setChangePwdError("Dono passwords match nahi karte"); return; }
+    setChangePwdLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/driver-auth/change-password`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${driverToken}` },
+        body: JSON.stringify({ currentPassword: currentPwd, newPassword: newPwd }),
+      });
+      const data = await res.json() as { success: boolean; message: string };
+      if (!res.ok) { setChangePwdError(data.message || "Password change nahi hua"); return; }
+      setChangePwdSuccess(data.message || "Password change ho gaya! 🎉");
+      setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
+      setTimeout(() => { setShowChangePwd(false); setChangePwdSuccess(""); }, 2000);
+    } catch { setChangePwdError("Network error — dobara try karo"); }
+    finally { setChangePwdLoading(false); }
+  };
+
   const handleDeleteDriverAccount = () => {
     Alert.alert(
       "🗑️ Driver Account Delete Karo",
@@ -1139,7 +1175,7 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
               </Pressable>
 
               <Pressable
-                onPress={() => { setShowProfileEdit(false); setTimeout(() => router.push("/driver-auth/forgot-password"), 300); }}
+                onPress={() => { setShowProfileEdit(false); setTimeout(() => setShowChangePwd(true), 300); }}
                 android_ripple={null}
                 style={({ pressed }) => [styles.driverChangePwdBtn, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}
               >
@@ -1199,6 +1235,95 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
                     <Text style={{ fontSize: 13 }}>🗑️</Text>
                     <Text style={styles.driverDeleteBtnText}>Account Delete Karo</Text>
                   </>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Change Password Modal */}
+      <Modal visible={showChangePwd} transparent animationType="slide" onRequestClose={() => { setShowChangePwd(false); setChangePwdError(""); setChangePwdSuccess(""); }}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "rgba(245,166,35,0.15)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(245,166,35,0.3)" }}>
+                    <Text style={{ fontSize: 18 }}>🔑</Text>
+                  </View>
+                  <Text style={styles.modalTitle}>Password Change Karo</Text>
+                </View>
+                <Pressable onPress={() => { setShowChangePwd(false); setChangePwdError(""); setChangePwdSuccess(""); setCurrentPwd(""); setNewPwd(""); setConfirmPwd(""); }}>
+                  <Text style={{ color: "#8A8A9A", fontSize: 18 }}>✕</Text>
+                </Pressable>
+              </View>
+
+              <Text style={styles.inputLabel}>Current Password</Text>
+              <View style={styles.pwdInputRow}>
+                <TextInput
+                  style={[styles.textInput, { flex: 1, marginBottom: 0, borderWidth: 0 }]}
+                  placeholder="Purana password"
+                  placeholderTextColor="#8A8A9A"
+                  secureTextEntry={!showCurPwd}
+                  value={currentPwd}
+                  onChangeText={(v) => { setCurrentPwd(v); setChangePwdError(""); }}
+                />
+                <Pressable onPress={() => setShowCurPwd(!showCurPwd)} style={{ padding: 6 }}>
+                  <Text style={{ fontSize: 16 }}>{showCurPwd ? "🙈" : "👁️"}</Text>
+                </Pressable>
+              </View>
+
+              <Text style={[styles.inputLabel, { marginTop: 14 }]}>Naya Password</Text>
+              <View style={styles.pwdInputRow}>
+                <TextInput
+                  style={[styles.textInput, { flex: 1, marginBottom: 0, borderWidth: 0 }]}
+                  placeholder="Min 6 characters"
+                  placeholderTextColor="#8A8A9A"
+                  secureTextEntry={!showNewPwd}
+                  value={newPwd}
+                  onChangeText={(v) => { setNewPwd(v); setChangePwdError(""); }}
+                />
+                <Pressable onPress={() => setShowNewPwd(!showNewPwd)} style={{ padding: 6 }}>
+                  <Text style={{ fontSize: 16 }}>{showNewPwd ? "🙈" : "👁️"}</Text>
+                </Pressable>
+              </View>
+
+              <Text style={[styles.inputLabel, { marginTop: 14 }]}>Confirm Password</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Password dobara daalo"
+                placeholderTextColor="#8A8A9A"
+                secureTextEntry
+                value={confirmPwd}
+                onChangeText={(v) => { setConfirmPwd(v); setChangePwdError(""); }}
+                returnKeyType="done"
+                onSubmitEditing={handleChangePwd}
+              />
+
+              {changePwdError ? (
+                <View style={styles.errorBox}>
+                  <Text style={{ fontSize: 13 }}>⚠️</Text>
+                  <Text style={styles.errorText}>{changePwdError}</Text>
+                </View>
+              ) : null}
+
+              {changePwdSuccess ? (
+                <View style={[styles.errorBox, { backgroundColor: "rgba(34,197,94,0.1)", borderColor: "rgba(34,197,94,0.25)" }]}>
+                  <Text style={{ fontSize: 13 }}>✅</Text>
+                  <Text style={[styles.errorText, { color: "#4ade80" }]}>{changePwdSuccess}</Text>
+                </View>
+              ) : null}
+
+              <Pressable
+                onPress={handleChangePwd}
+                disabled={changePwdLoading}
+                style={({ pressed }) => [styles.saveBtn, { marginTop: 16, opacity: changePwdLoading || pressed ? 0.7 : 1 }]}
+              >
+                {changePwdLoading ? (
+                  <ActivityIndicator color="#0A0A0F" size="small" />
+                ) : (
+                  <Text style={styles.saveBtnText}>🔑 Password Update Karo</Text>
                 )}
               </Pressable>
             </View>
@@ -1375,6 +1500,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     color: "#FFFFFF",
     fontSize: 15,
+  },
+  pwdInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#16161E",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#2A2A38",
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    marginBottom: 0,
   },
   errorBox: {
     flexDirection: "row", alignItems: "center", gap: 8,
