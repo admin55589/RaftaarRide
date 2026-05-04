@@ -1139,7 +1139,7 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
               </Pressable>
 
               <Pressable
-                onPress={() => { setShowProfileEdit(false); router.push("/driver-auth/forgot-password"); }}
+                onPress={() => { setShowProfileEdit(false); setTimeout(() => router.push("/driver-auth/forgot-password"), 300); }}
                 android_ripple={null}
                 style={({ pressed }) => [styles.driverChangePwdBtn, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}
               >

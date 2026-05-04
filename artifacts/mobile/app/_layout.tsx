@@ -59,14 +59,18 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     if (anyLoading) return;
 
     if (isDriverLoggedIn) {
-      if (inAuthGroup || inDriverAuthGroup) {
+      // Allow driver to access forgot-password even when logged in (to change password)
+      const isDriverForgotPwd = inDriverAuthGroup && segments[1] === "forgot-password";
+      if (!isDriverForgotPwd && (inAuthGroup || inDriverAuthGroup)) {
         router.replace("/(tabs)");
       }
       return;
     }
 
     if (isLoggedIn) {
-      if (inAuthGroup || inDriverAuthGroup) {
+      // Allow user to access forgot-password even when logged in (to change password)
+      const isUserForgotPwd = inAuthGroup && segments[1] === "forgot-password";
+      if (!isUserForgotPwd && (inAuthGroup || inDriverAuthGroup)) {
         router.replace("/(onboarding)/profile-setup");
       }
       return;
