@@ -1141,23 +1141,40 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
               <Pressable
                 onPress={() => { setShowProfileEdit(false); router.push("/driver-auth/forgot-password"); }}
                 android_ripple={null}
-                style={({ pressed }) => [styles.driverChangePwdBtn, { opacity: pressed ? 0.82 : 1 }]}
+                style={({ pressed }) => [styles.driverChangePwdBtn, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}
               >
                 <LinearGradient
-                  colors={["rgba(245,166,35,0.13)", "rgba(245,166,35,0.06)"]}
+                  colors={["#2A1F00", "#1C1500", "#2A1F00"]}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                   style={styles.driverChangePwdGrad}
                 >
-                  <View style={styles.driverChangePwdAccent} />
-                  <View style={styles.driverChangePwdIconBox}>
-                    <Text style={{ fontSize: 18 }}>🔑</Text>
+                  {/* Glow top strip */}
+                  <LinearGradient
+                    colors={["rgba(245,166,35,0.45)", "rgba(245,166,35,0.0)"]}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={styles.driverChangePwdTopGlow}
+                  />
+                  <View style={styles.driverChangePwdIconWrap}>
+                    <LinearGradient
+                      colors={["#F5A623", "#D4851A"]}
+                      style={styles.driverChangePwdIconBg}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                    >
+                      <Text style={{ fontSize: 20 }}>🔑</Text>
+                    </LinearGradient>
+                    <View style={styles.driverChangePwdIconGlow} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.driverChangePwdText}>Password Change Karo</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 3 }}>
+                      <Text style={styles.driverChangePwdText}>Password Change Karo</Text>
+                      <View style={styles.driverChangePwdBadge}>
+                        <Text style={styles.driverChangePwdBadgeText}>SECURE</Text>
+                      </View>
+                    </View>
                     <Text style={styles.driverChangePwdSub}>Apna password update karein</Text>
                   </View>
                   <View style={styles.driverChangePwdArrow}>
-                    <View style={{ width: 7, height: 7, borderTopWidth: 2, borderRightWidth: 2, borderColor: "#F5A623", transform: [{ rotate: "45deg" }] }} />
+                    <View style={{ width: 8, height: 8, borderTopWidth: 2.5, borderRightWidth: 2.5, borderColor: "#F5A623", transform: [{ rotate: "45deg" }] }} />
                   </View>
                 </LinearGradient>
               </Pressable>
@@ -1374,36 +1391,55 @@ const styles = StyleSheet.create({
   },
   saveBtnText: { color: "#0A0A0F", fontWeight: "800", fontSize: 15 },
   driverChangePwdBtn: {
-    marginTop: 10,
-    borderRadius: 14,
+    marginTop: 12,
+    borderRadius: 16,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(245,166,35,0.25)",
+    borderWidth: 1.5,
+    borderColor: "rgba(245,166,35,0.45)",
+    shadowColor: "#F5A623",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
   },
   driverChangePwdGrad: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 13,
-    paddingHorizontal: 14,
+    gap: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
   },
-  driverChangePwdAccent: {
-    position: "absolute", left: 0, top: 0, bottom: 0, width: 3,
-    backgroundColor: "#F5A623", borderTopLeftRadius: 14, borderBottomLeftRadius: 14,
+  driverChangePwdTopGlow: {
+    position: "absolute", left: 0, right: 0, top: 0, height: 1.5,
   },
-  driverChangePwdIconBox: {
-    width: 38, height: 38, borderRadius: 10,
+  driverChangePwdIconWrap: { position: "relative" },
+  driverChangePwdIconBg: {
+    width: 46, height: 46, borderRadius: 14,
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#F5A623",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+  },
+  driverChangePwdIconGlow: {
+    position: "absolute", inset: -4,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(245,166,35,0.3)",
+  },
+  driverChangePwdText: { color: "#FFFFFF", fontSize: 14, fontWeight: "800" },
+  driverChangePwdBadge: {
+    backgroundColor: "rgba(245,166,35,0.2)",
+    borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2,
+    borderWidth: 1, borderColor: "rgba(245,166,35,0.4)",
+  },
+  driverChangePwdBadgeText: { color: "#F5A623", fontSize: 8, fontWeight: "800", letterSpacing: 0.8 },
+  driverChangePwdSub: { color: "rgba(245,166,35,0.6)", fontSize: 11, fontWeight: "500" },
+  driverChangePwdArrow: {
+    width: 32, height: 32, borderRadius: 10,
     backgroundColor: "rgba(245,166,35,0.15)",
     alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: "rgba(245,166,35,0.3)",
-  },
-  driverChangePwdText: { color: "#F5A623", fontSize: 14, fontWeight: "700", marginBottom: 2 },
-  driverChangePwdSub: { color: "rgba(255,255,255,0.4)", fontSize: 11 },
-  driverChangePwdArrow: {
-    width: 28, height: 28, borderRadius: 8,
-    backgroundColor: "rgba(245,166,35,0.1)",
-    alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: "rgba(245,166,35,0.2)",
+    borderWidth: 1, borderColor: "rgba(245,166,35,0.35)",
   },
   driverLogoutBtnInModal: {
     flexDirection: "row",
