@@ -70,8 +70,50 @@ function buildMapHtml(opts: {
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no"/>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    html,body{width:100%;height:100%;overflow:hidden}
+    html,body{width:100%;height:100%;overflow:hidden;background:#12121A}
     #map{width:100%;height:100%}
+
+    /* Hide ALL Google Maps error overlays */
+    .gm-err-container,.gm-err-content,.gm-err-message,
+    .gm-err-icon,.gm-err-title,.gm-err-autocomplete,
+    div[class*="gm-err"]{display:none!important}
+
+    /* Fallback shown when Maps API fails */
+    #map-fallback{
+      display:none;position:absolute;inset:0;
+      background:linear-gradient(160deg,#12121A 0%,#1a2230 50%,#12121A 100%);
+      flex-direction:column;align-items:center;justify-content:center;
+      font-family:-apple-system,sans-serif;z-index:999;
+    }
+    #map-fallback.show{display:flex}
+    .fb-radar{
+      width:160px;height:160px;border-radius:50%;
+      border:2px solid rgba(245,166,35,0.3);
+      position:relative;display:flex;align-items:center;justify-content:center;
+      margin-bottom:20px;
+    }
+    .fb-radar::before{
+      content:'';position:absolute;
+      width:110px;height:110px;border-radius:50%;
+      border:2px solid rgba(245,166,35,0.2);
+    }
+    .fb-radar::after{
+      content:'';position:absolute;
+      width:60px;height:60px;border-radius:50%;
+      border:2px solid rgba(245,166,35,0.15);
+    }
+    .fb-ping{
+      width:160px;height:160px;border-radius:50%;
+      border:2px solid rgba(245,166,35,0.5);
+      position:absolute;animation:fbPing 2s ease-out infinite;
+    }
+    @keyframes fbPing{
+      0%{transform:scale(0.3);opacity:1}
+      100%{transform:scale(1.1);opacity:0}
+    }
+    .fb-icon{font-size:36px;z-index:1}
+    .fb-title{color:#F5A623;font-size:15px;font-weight:700;margin-bottom:6px;letter-spacing:0.3px}
+    .fb-sub{color:rgba(255,255,255,0.4);font-size:12px;text-align:center;max-width:200px;line-height:1.5}
 
     .user-dot-wrap{position:relative;width:22px;height:22px}
     .user-dot{
@@ -124,7 +166,20 @@ function buildMapHtml(opts: {
 </head>
 <body>
   <div id="map"></div>
+  <div id="map-fallback">
+    <div class="fb-radar">
+      <div class="fb-ping"></div>
+      <div class="fb-icon">📍</div>
+    </div>
+    <div class="fb-title">Location Tracking Active</div>
+    <div class="fb-sub">GPS signal lock ho raha hai…</div>
+  </div>
   <script>
+    /* Override Google's auth failure to show our fallback instead of error banner */
+    window.gm_authFailure = function() {
+      document.getElementById('map-fallback').classList.add('show');
+      document.getElementById('map').style.display = 'none';
+    };
     var map, directionsRenderer, driverMarker, userMarker;
     var DARK = ${isDark};
     var SHOW_ROUTE = ${showRoute};
