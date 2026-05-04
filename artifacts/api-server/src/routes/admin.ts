@@ -1133,10 +1133,11 @@ async function getGoogleAccessToken(serviceAccountJson: string, scope: string): 
     client_email: string;
     private_key: string;
   };
+  const privateKey = sa.private_key.replace(/\\n/g, "\n");
   const now = Math.floor(Date.now() / 1000);
   const assertion = jwt.sign(
     { iss: sa.client_email, sub: sa.client_email, aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600, scope },
-    sa.private_key,
+    privateKey,
     { algorithm: "RS256" }
   );
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
