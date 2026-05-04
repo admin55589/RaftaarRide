@@ -29,7 +29,7 @@ export default function LoginScreen() {
   const { login } = useAuth();
   const { announceWelcome } = useVoiceAI();
 
-  const [tab, setTab] = useState<Tab>("otp");
+  const [tab, setTab] = useState<Tab>("email");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -118,21 +118,21 @@ export default function LoginScreen() {
 
           <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.tabRow}>
             <Pressable
-              style={({ pressed }) => [styles.tabBtn, tab === "otp" && styles.tabBtnActive, pressed && tab !== "otp" && styles.tabBtnPressed]}
-              android_ripple={null}
-              onPress={() => { setTab("otp"); setError(""); }}
-            >
-              <Text style={[styles.tabText, tab === "otp" && styles.tabTextActive]}>
-                📱 Phone OTP
-              </Text>
-            </Pressable>
-            <Pressable
               style={({ pressed }) => [styles.tabBtn, tab === "email" && styles.tabBtnActive, pressed && tab !== "email" && styles.tabBtnPressed]}
               android_ripple={null}
               onPress={() => { setTab("email"); setError(""); }}
             >
               <Text style={[styles.tabText, tab === "email" && styles.tabTextActive]}>
                 ✉️ Email
+              </Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.tabBtn, tab === "otp" && styles.tabBtnActive, pressed && tab !== "otp" && styles.tabBtnPressed]}
+              android_ripple={null}
+              onPress={() => { setTab("otp"); setError(""); }}
+            >
+              <Text style={[styles.tabText, tab === "otp" && styles.tabTextActive]}>
+                📱 Phone OTP
               </Text>
             </Pressable>
           </Animated.View>
