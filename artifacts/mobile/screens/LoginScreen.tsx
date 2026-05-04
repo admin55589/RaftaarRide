@@ -219,11 +219,11 @@ export default function LoginScreen() {
             </Pressable>
 
             <View style={styles.divider}>
-              <LinearGradient colors={["transparent", "#2A2A38"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.dividerLine} />
+              <Text style={styles.dividerDot}>· · ·</Text>
               <View style={styles.dividerPill}>
                 <Text style={styles.dividerText}>ya</Text>
               </View>
-              <LinearGradient colors={["#2A2A38", "transparent"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.dividerLine} />
+              <Text style={styles.dividerDot}>· · ·</Text>
             </View>
 
             <Pressable style={({ pressed }) => [styles.secondaryBtn, pressed && styles.secondaryBtnPressed]} android_ripple={null} onPress={() => router.push("/auth/signup")}>
@@ -243,11 +243,11 @@ export default function LoginScreen() {
             </Pressable>
 
             <View style={[styles.divider, { marginTop: 20 }]}>
-              <LinearGradient colors={["transparent", "#22c55e30"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.dividerLine} />
+              <Text style={styles.dividerDotGreen}>· · ·</Text>
               <View style={styles.dividerPillGreen}>
                 <Text style={styles.dividerTextGreen}>🚗 Driver ho?</Text>
               </View>
-              <LinearGradient colors={["#22c55e30", "transparent"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.dividerLine} />
+              <Text style={styles.dividerDotGreen}>· · ·</Text>
             </View>
 
             <Pressable style={({ pressed }) => [styles.driverBtn, pressed && styles.driverBtnPressed]} android_ripple={null} onPress={() => router.push("/driver-auth/login")}>
@@ -356,12 +356,14 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     marginVertical: 20,
     gap: 10,
   },
-  dividerLine: { flex: 1, height: 1 },
+  dividerDot: { color: "#2A2A38", fontSize: 16, letterSpacing: 2, fontWeight: "900" },
+  dividerDotGreen: { color: "rgba(34,197,94,0.35)", fontSize: 16, letterSpacing: 2, fontWeight: "900" },
   dividerPill: {
-    paddingHorizontal: 14, paddingVertical: 5,
+    paddingHorizontal: 16, paddingVertical: 5,
     backgroundColor: "#16161E", borderRadius: 20,
     borderWidth: 1, borderColor: "#2A2A38",
   },
