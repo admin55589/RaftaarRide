@@ -15,18 +15,19 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useDriverAuth } from "@/context/DriverAuthContext";
-import { useColors } from "@/hooks/useColors";
 import { useLanguage } from "@/context/LanguageContext";
 
 const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
   : "https://workspaceapi-server-production-2e22.up.railway.app";
 
-async function driverLogin(phone: string, password: string) {
+type Tab = "email" | "phone";
+
+async function driverLoginApi(payload: { phone?: string; email?: string; password: string }) {
   const res = await fetch(`${BASE_URL}/api/driver-auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, password }),
+    body: JSON.stringify(payload),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || "Login failed");
@@ -38,9 +39,10 @@ export default function DriverLoginScreen() {
   const { lang, toggleLanguage, t } = useLanguage();
   const router = useRouter();
   const { driverLogin: saveDriverLogin } = useDriverAuth();
-  const colors = useColors();
 
+  const [tab, setTab] = useState<Tab>("email");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -48,19 +50,29 @@ export default function DriverLoginScreen() {
 
   const handleLogin = async () => {
     setError("");
-    const cleanPhone = phone.trim();
-    if (!cleanPhone || cleanPhone.length < 10) {
-      setError("Valid phone number daalo (10 digits)");
-      return;
-    }
     if (!password || password.length < 6) {
       setError("Password kam se kam 6 characters ka hona chahiye");
       return;
     }
+    if (tab === "email") {
+      if (!email.trim() || !email.includes("@")) {
+        setError("Valid email daalo");
+        return;
+      }
+    } else {
+      const cleanPhone = phone.trim();
+      if (!cleanPhone || cleanPhone.length < 10) {
+        setError("Valid phone number daalo (10 digits)");
+        return;
+      }
+    }
     setLoading(true);
     try {
-      const formatted = cleanPhone.startsWith("+91") ? cleanPhone : `+91${cleanPhone}`;
-      const res = await driverLogin(formatted, password);
+      const payload =
+        tab === "email"
+          ? { email: email.trim(), password }
+          : { phone: phone.startsWith("+91") ? phone : `+91${phone}`, password };
+      const res = await driverLoginApi(payload);
       await saveDriverLogin(res.token, res.driver);
       router.replace("/(tabs)");
     } catch (err: any) {
@@ -94,6 +106,7 @@ export default function DriverLoginScreen() {
         >
           <Text style={{ color: "#F5A623", fontSize: 12, fontWeight: "700" }}>{lang === "hi" ? "हिं" : "EN"}</Text>
         </Pressable>
+
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
@@ -105,20 +118,58 @@ export default function DriverLoginScreen() {
             <Text style={styles.subtitle}>{t("driver_login_sub")}</Text>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.card}>
-            <Text style={styles.label}>Phone Number</Text>
-            <View style={styles.inputRow}>
-              <Text style={styles.prefix}>+91</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="10-digit number"
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                keyboardType="phone-pad"
-                value={phone}
-                onChangeText={setPhone}
-                maxLength={10}
-              />
-            </View>
+          <Animated.View entering={FadeInDown.delay(150).duration(500)} style={styles.tabRow}>
+            <Pressable
+              style={[styles.tabBtn, tab === "email" && styles.tabBtnActive]}
+              android_ripple={null}
+              onPress={() => { setTab("email"); setError(""); }}
+            >
+              <Text style={[styles.tabText, tab === "email" && styles.tabTextActive]}>✉️ Email</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.tabBtn, tab === "phone" && styles.tabBtnActive]}
+              android_ripple={null}
+              onPress={() => { setTab("phone"); setError(""); }}
+            >
+              <Text style={[styles.tabText, tab === "phone" && styles.tabTextActive]}>📱 Phone</Text>
+            </Pressable>
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(250).duration(500)} style={styles.card}>
+            {tab === "email" ? (
+              <>
+                <Text style={styles.label}>Email</Text>
+                <View style={styles.inputRow}>
+                  <Text style={styles.prefix}>✉️</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="aapka@email.com"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={email}
+                    onChangeText={setEmail}
+                    returnKeyType="next"
+                  />
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.label}>Phone Number</Text>
+                <View style={styles.inputRow}>
+                  <Text style={styles.prefix}>+91</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="10-digit number"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    keyboardType="phone-pad"
+                    value={phone}
+                    onChangeText={setPhone}
+                    maxLength={10}
+                  />
+                </View>
+              </>
+            )}
 
             <Text style={[styles.label, { marginTop: 16 }]}>Password</Text>
             <View style={styles.inputRow}>
@@ -129,6 +180,8 @@ export default function DriverLoginScreen() {
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
               />
               <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
                 <Text style={{ fontSize: 18 }}>{showPassword ? "🙈" : "👁️"}</Text>
@@ -172,9 +225,11 @@ export default function DriverLoginScreen() {
 
             <Pressable
               onPress={() => router.push("/driver-auth/forgot-password")}
-              style={{ alignSelf: "center", marginTop: 12, padding: 4 }}
+              style={{ alignSelf: "center", marginTop: 12, padding: 4, opacity: 0.9 }}
             >
-              <Text style={{ color: "#F5A623", fontSize: 13, fontWeight: "500" }}>🔑 Password bhool gaye?</Text>
+              <Text style={{ color: "#F5A623", fontSize: 13, fontWeight: "600", textDecorationLine: "underline", textDecorationColor: "rgba(245,166,35,0.45)" }}>
+                Password bhool gaye?
+              </Text>
             </Pressable>
           </Animated.View>
 
@@ -216,10 +271,28 @@ export default function DriverLoginScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { flexGrow: 1, padding: 24 },
-  header: { alignItems: "center", marginBottom: 32 },
-  emoji: { fontSize: 56, marginBottom: 12 },
+  header: { alignItems: "center", marginBottom: 24 },
+  emoji: { fontSize: 52, marginBottom: 10 },
   title: { fontSize: 28, fontWeight: "700", color: "#fff", marginBottom: 6 },
   subtitle: { fontSize: 15, color: "rgba(255,255,255,0.5)" },
+  tabRow: {
+    flexDirection: "row",
+    backgroundColor: "#16161E",
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#2A2A38",
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 10,
+  },
+  tabBtnActive: { backgroundColor: "#22c55e" },
+  tabText: { color: "#8A8A9A", fontWeight: "600", fontSize: 14 },
+  tabTextActive: { color: "#fff" },
   card: {
     backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: 20,
