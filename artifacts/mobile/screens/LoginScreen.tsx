@@ -245,7 +245,7 @@ export default function LoginScreen() {
             </View>
 
             <Pressable style={({ pressed }) => [styles.driverBtn, pressed && styles.driverBtnPressed]} android_ripple={null} onPress={() => router.push("/driver-auth/login")}>
-              <Text style={styles.driverBtnText}>🚗  Driver Login / Register</Text>
+              <Text style={styles.driverBtnText}>Driver Login / Register</Text>
             </Pressable>
           </Animated.View>
 
