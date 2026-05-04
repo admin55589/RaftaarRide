@@ -181,17 +181,31 @@ export default function DriverLoginScreen() {
           <Pressable
             onPress={() => router.replace("/auth/login")}
             android_ripple={null}
-            style={({ pressed }) => [styles.backLink, pressed && { opacity: 0.75 }]}
+            style={({ pressed }) => [{ marginTop: 20, borderRadius: 18, overflow: "hidden", opacity: pressed ? 0.82 : 1 }]}
           >
-            <View style={styles.backLinkInner}>
+            <LinearGradient
+              colors={["#0f2027", "#1a3a2a", "#0f2027"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.backLinkGrad}
+            >
+              <View style={styles.backLinkAccent} />
               <View style={styles.backLinkIconBox}>
-                <Text style={{ fontSize: 16 }}>🚶</Text>
+                <Text style={{ fontSize: 20 }}>🧍</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.backLinkLabel}>Passenger hain aap?</Text>
-                <Text style={styles.backLinkSub}>User login pe wapas jaayein →</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                  <Text style={styles.backLinkLabel}>Passenger hain aap?</Text>
+                  <View style={styles.backLinkBadge}>
+                    <Text style={styles.backLinkBadgeText}>USER</Text>
+                  </View>
+                </View>
+                <Text style={styles.backLinkSub}>User login pe switch karein</Text>
               </View>
-            </View>
+              <View style={styles.backLinkArrow}>
+                <View style={{ width: 8, height: 8, borderTopWidth: 2, borderRightWidth: 2, borderColor: "#22c55e", transform: [{ rotate: "45deg" }] }} />
+              </View>
+            </LinearGradient>
           </Pressable>
         </ScrollView>
       </LinearGradient>
@@ -241,19 +255,33 @@ const styles = StyleSheet.create({
   loginBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
   registerLink: { marginTop: 16, alignItems: "center" },
   registerLinkText: { color: "rgba(255,255,255,0.5)", fontSize: 14 },
-  backLink: { marginTop: 20 },
-  backLinkInner: {
+  backLinkGrad: {
     flexDirection: "row", alignItems: "center", gap: 14,
-    backgroundColor: "#16161E", borderRadius: 16,
-    borderWidth: 1, borderColor: "#2A2A38",
-    paddingVertical: 14, paddingHorizontal: 16,
+    paddingVertical: 16, paddingHorizontal: 16,
+    borderRadius: 18, borderWidth: 1, borderColor: "rgba(34,197,94,0.25)",
+  },
+  backLinkAccent: {
+    position: "absolute", left: 0, top: 0, bottom: 0, width: 4,
+    backgroundColor: "#22c55e", borderTopLeftRadius: 18, borderBottomLeftRadius: 18,
   },
   backLinkIconBox: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    width: 44, height: 44, borderRadius: 14,
+    backgroundColor: "rgba(34,197,94,0.12)",
     alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: "#2A2A38",
+    borderWidth: 1, borderColor: "rgba(34,197,94,0.3)",
   },
-  backLinkLabel: { color: "#FFFFFF", fontSize: 13, fontWeight: "700", marginBottom: 2 },
-  backLinkSub: { color: "#8A8A9A", fontSize: 12 },
+  backLinkLabel: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
+  backLinkBadge: {
+    backgroundColor: "rgba(34,197,94,0.18)", borderRadius: 6,
+    paddingHorizontal: 6, paddingVertical: 2,
+    borderWidth: 1, borderColor: "rgba(34,197,94,0.35)",
+  },
+  backLinkBadgeText: { color: "#22c55e", fontSize: 9, fontWeight: "800", letterSpacing: 0.5 },
+  backLinkSub: { color: "#6B7280", fontSize: 12 },
+  backLinkArrow: {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: "rgba(34,197,94,0.1)",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "rgba(34,197,94,0.2)",
+  },
 });
