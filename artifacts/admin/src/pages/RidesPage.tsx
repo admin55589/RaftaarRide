@@ -18,7 +18,7 @@ function downloadCsv(data: object[], filename: string) {
   URL.revokeObjectURL(url);
 }
 
-const STATUS_FILTERS = ["all", "completed", "in_progress", "pending", "assigned", "cancelled"];
+const STATUS_FILTERS = ["all", "completed", "cancelled", "searching", "accepted", "arrived", "onRide"];
 
 export function RidesPage() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);

@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken";
 
 const router: IRouter = Router();
 
-const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-secret-2024";
+const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
 
 function getUserFromToken(req: Request): { id: number; type: "user" | "driver" } | null {
   const auth = req.headers.authorization;

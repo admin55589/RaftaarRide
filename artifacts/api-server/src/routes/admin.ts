@@ -554,6 +554,12 @@ router.patch("/admin/withdrawals/:id", authMiddleware, async (req: Request, res:
         await db.update(driversTable)
           .set({ walletBalance: String(refundBalance) })
           .where(eq(driversTable.id, wr.driverId));
+        await db.insert(walletTransactionsTable).values({
+          driverId: wr.driverId,
+          type: "credit",
+          amount: String(Number(wr.amount)),
+          description: `🔄 Withdrawal #${id} reject → ₹${Number(wr.amount)} refund ho gaya (Admin: ${rejectionReason ?? "Rejected"})`,
+        });
       }
     }
 
@@ -791,7 +797,7 @@ router.get("/admin/live-rides", authMiddleware, async (_req: Request, res: Respo
       .leftJoin(usersTable, eq(ridesTable.userId, usersTable.id))
       .leftJoin(driversTable, eq(ridesTable.driverId, driversTable.id))
       .where(
-        sql`${ridesTable.status} IN ('accepted', 'ongoing', 'searching')`
+        sql`${ridesTable.status} IN ('searching', 'accepted', 'arrived', 'onRide')`
       )
       .orderBy(desc(ridesTable.createdAt))
       .limit(50);
