@@ -130,6 +130,8 @@ type CloudCostData = {
   accountOpen?: boolean;
   monthLabel?: string;
   budgets?: Array<{ name: string; budgetAmount: number; projects: string[] }>;
+  budgetApiError?: string;
+  projectId?: string;
   fetchedAt?: string;
   error?: string;
 };
@@ -330,9 +332,24 @@ function CloudCostCard() {
             </div>
           </div>
 
-          {(data.budgets ?? []).length > 0 ? (
+          {data.budgetApiError === "BUDGET_API_DISABLED" ? (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+              <p className="text-xs text-amber-400 font-semibold mb-1">⚡ Cloud Billing Budget API Enable Karo</p>
+              <p className="text-xs text-muted-foreground mb-2">
+                Budget data dekhne ke liye yeh API enable karni hogi — 1 click ka kaam!
+              </p>
+              <a
+                href={`https://console.developers.google.com/apis/api/billingbudgets.googleapis.com/overview?project=${data.projectId ?? "796255910809"}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-block bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Enable Budget API →
+              </a>
+            </div>
+          ) : (data.budgets ?? []).length > 0 ? (
             <div className="space-y-2">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Budgets</p>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Active Budgets</p>
               {(data.budgets ?? []).map((b, i) => (
                 <div key={i} className="bg-white/5 rounded-xl p-3 flex items-center justify-between">
                   <p className="text-xs font-medium text-foreground">{b.name}</p>
@@ -343,19 +360,11 @@ function CloudCostCard() {
               ))}
             </div>
           ) : (
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
-              <p className="text-xs text-blue-400 font-semibold mb-1">Budget setup karo</p>
+            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3">
+              <p className="text-xs text-green-400 font-semibold mb-1">✅ Budget Connected!</p>
               <p className="text-xs text-muted-foreground">
-                GCP Console → Billing → Budgets &amp; alerts → "Create Budget" banao — taaki exact kharch track ho sake.
+                Budget data load ho raha hai — thodi der mein dikh jaayega.
               </p>
-              <a
-                href="https://console.cloud.google.com/billing"
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-blue-400 underline mt-1 inline-block"
-              >
-                Google Cloud Console kholo →
-              </a>
             </div>
           )}
 

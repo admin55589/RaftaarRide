@@ -1196,19 +1196,32 @@ router.get("/admin/cloud-costs", authMiddleware, async (req: Request, res: Respo
         displayName?: string;
         amount?: { specifiedAmount?: { units?: string; nanos?: number }; lastPeriodAmount?: object };
         filter?: { projects?: string[] };
-        spendingLimit?: { spendingLimit?: string };
       }>;
+      error?: { code: number; message: string; status: string };
     };
-
-    const budgets = budgetsData.budgets ?? [];
-
-    /* 3. Fetch SKU usage for current month via Cloud Billing Reports */
-    /* Use the projects.getAncestry → billing export is best but requires BigQuery.
-       Instead, return budget summary + account info */
 
     const now = new Date();
     const monthLabel = now.toLocaleString("en-IN", { month: "long", year: "numeric" });
 
+    /* Budget API disabled or permission error — return account info but flag budget issue */
+    if (budgetsData.error) {
+      const isBudgetApiDisabled = budgetsData.error.message?.includes("has not been used") || budgetsData.error.code === 403;
+      res.json({
+        configured: true,
+        accountName: account.displayName,
+        accountOpen: account.open,
+        monthLabel,
+        budgets: [],
+        budgetApiError: isBudgetApiDisabled
+          ? "BUDGET_API_DISABLED"
+          : budgetsData.error.message,
+        projectId: "796255910809",
+        fetchedAt: new Date().toISOString(),
+      });
+      return;
+    }
+
+    const budgets = budgetsData.budgets ?? [];
     const budgetSummary = budgets.map((b) => {
       const budgetUnits = Number(b.amount?.specifiedAmount?.units ?? 0);
       return {
@@ -1224,6 +1237,7 @@ router.get("/admin/cloud-costs", authMiddleware, async (req: Request, res: Respo
       accountOpen: account.open,
       monthLabel,
       budgets: budgetSummary,
+      projectId: "796255910809",
       fetchedAt: new Date().toISOString(),
     });
   } catch (err: any) {
