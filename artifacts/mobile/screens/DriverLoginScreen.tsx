@@ -80,6 +80,13 @@ export default function DriverLoginScreen() {
         style={[styles.container, { paddingTop: insets.top + 20 }]}
       >
         <Pressable
+          onPress={() => router.back()}
+          hitSlop={8}
+          style={{ position: "absolute", top: insets.top + 12, left: 16, zIndex: 100, width: 40, height: 40, borderRadius: 20, borderWidth: 1, backgroundColor: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" }}
+        >
+          <Text style={{ color: "#fff", fontSize: 20, lineHeight: 24 }}>‹</Text>
+        </Pressable>
+        <Pressable
           onPress={toggleLanguage}
           hitSlop={8}
           style={{ position: "absolute", top: insets.top + 12, right: 16, zIndex: 100, width: 40, height: 40, borderRadius: 20, borderWidth: 1, backgroundColor: "rgba(245,166,35,0.15)", borderColor: "rgba(245,166,35,0.4)", alignItems: "center", justifyContent: "center" }}
