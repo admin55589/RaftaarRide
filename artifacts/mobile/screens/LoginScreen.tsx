@@ -235,15 +235,11 @@ export default function LoginScreen() {
             <Pressable
               android_ripple={null}
               onPress={() => router.push("/auth/forgot-password")}
-              style={({ pressed }) => [{
-                alignSelf: "center", marginTop: 14, flexDirection: "row", alignItems: "center",
-                gap: 8, backgroundColor: pressed ? "rgba(245,166,35,0.14)" : "rgba(245,166,35,0.08)",
-                borderWidth: 1, borderColor: "rgba(245,166,35,0.28)",
-                paddingHorizontal: 18, paddingVertical: 9, borderRadius: 24,
-              }]}
+              style={({ pressed }) => [{ alignSelf: "center", marginTop: 16, opacity: pressed ? 0.6 : 1 }]}
             >
-              <Text style={{ fontSize: 14 }}>🔑</Text>
-              <Text style={{ color: "#F5A623", fontSize: 13, fontWeight: "700", letterSpacing: 0.2 }}>Password bhool gaye?</Text>
+              <Text style={{ color: "#F5A623", fontSize: 13, fontWeight: "600", textDecorationLine: "underline", textDecorationColor: "rgba(245,166,35,0.45)" }}>
+                Password bhool gaye?
+              </Text>
             </Pressable>
 
             <View style={[styles.divider, { marginTop: 20 }]}>
