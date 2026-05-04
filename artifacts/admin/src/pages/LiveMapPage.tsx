@@ -27,7 +27,7 @@ interface LiveRide {
 const STATUS_COLOR: Record<string, string> = {
   searching: "#f59e0b",
   accepted: "#3b82f6",
-  ongoing: "#22c55e",
+  onRide: "#22c55e",
 };
 
 const VEHICLE_ICON: Record<string, string> = {

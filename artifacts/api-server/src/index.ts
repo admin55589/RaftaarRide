@@ -1,6 +1,7 @@
 import { createServer } from "http";
 import app from "./app";
 import { initSocket } from "./lib/socket";
+import { startCron } from "./lib/cron";
 import { logger } from "./lib/logger";
 
 const rawPort = process.env["PORT"];
@@ -19,6 +20,7 @@ if (Number.isNaN(port) || port <= 0) {
 
 const httpServer = createServer(app);
 initSocket(httpServer);
+startCron();
 
 httpServer.listen(port, () => {
   logger.info({ port }, "Server listening with Socket.io");

@@ -494,6 +494,41 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
   const [editPhoto, setEditPhoto] = useState<string | null>(driver?.photoUrl ?? null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [deletingDriverAccount, setDeletingDriverAccount] = useState(false);
+
+  const handleDeleteDriverAccount = () => {
+    Alert.alert(
+      "🗑️ Driver Account Delete Karo",
+      "Kya aap sure hain? Yeh action undo nahi ho sakta. Aapka sara data delete ho jayega.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Haan, Delete Karo",
+          style: "destructive",
+          onPress: async () => {
+            setDeletingDriverAccount(true);
+            try {
+              const res = await fetch(`${API_BASE}/driver-auth/account`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${driverToken}` },
+              });
+              const data = await res.json();
+              if (data.success) {
+                setShowProfileEdit(false);
+                driverLogout();
+              } else {
+                Alert.alert("Error", data.message ?? "Account delete nahi hua");
+              }
+            } catch {
+              Alert.alert("Error", "Network error — dobara try karo");
+            } finally {
+              setDeletingDriverAccount(false);
+            }
+          },
+        },
+      ]
+    );
+  };
   const [toast, setToast] = useState<{ show: boolean; title: string; subtitle: string; type: "success" | "error" }>({
     show: false, title: "", subtitle: "", type: "success",
   });
@@ -1099,6 +1134,37 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
                   <Text style={styles.saveBtnText}>✅ Save Karo</Text>
                 )}
               </Pressable>
+
+              <Pressable
+                onPress={() => { setShowProfileEdit(false); }}
+                style={[styles.driverChangePwdBtn]}
+              >
+                <Text style={{ fontSize: 13 }}>🔑</Text>
+                <Text style={styles.driverChangePwdText}>Password Change Karo</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => { setShowProfileEdit(false); driverLogout(); }}
+                style={styles.driverLogoutBtnInModal}
+              >
+                <Text style={{ fontSize: 13 }}>🚪</Text>
+                <Text style={styles.driverLogoutBtnText}>Logout</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleDeleteDriverAccount}
+                disabled={deletingDriverAccount}
+                style={styles.driverDeleteBtn}
+              >
+                {deletingDriverAccount ? (
+                  <ActivityIndicator size="small" color="#FF4D4D" />
+                ) : (
+                  <>
+                    <Text style={{ fontSize: 13 }}>🗑️</Text>
+                    <Text style={styles.driverDeleteBtnText}>Account Delete Karo</Text>
+                  </>
+                )}
+              </Pressable>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -1288,6 +1354,40 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   saveBtnText: { color: "#0A0A0F", fontWeight: "800", fontSize: 15 },
+  driverChangePwdBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    marginTop: 10,
+  },
+  driverChangePwdText: { color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: "500" },
+  driverLogoutBtnInModal: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  driverLogoutBtnText: { color: "#FF4D4D", fontSize: 13, fontWeight: "600" },
+  driverDeleteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,77,77,0.3)",
+    backgroundColor: "rgba(255,77,77,0.08)",
+    marginTop: 4,
+  },
+  driverDeleteBtnText: { color: "#FF4D4D", fontSize: 13, fontWeight: "600" },
   header: {
     position: "absolute",
     top: 0,

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "expo-router";
 import {
   Alert,
   Image,
@@ -82,6 +83,7 @@ function SuggestionChip({
 export function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { setScreen, setDestination, currentLocationAddress, setCurrentLocationAddress, setPickup } = useApp();
   const { user, token, logout, updateUser } = useAuth();
   const { lang, toggleLanguage, t } = useLanguage();
@@ -130,6 +132,41 @@ export function HomeScreen() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [pickingPhoto, setPickingPhoto] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "🗑️ Account Delete Karo",
+      "Kya aap sure hain? Yeh action undo nahi ho sakta. Aapka sara data permanently delete ho jayega.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Haan, Delete Karo",
+          style: "destructive",
+          onPress: async () => {
+            setDeletingAccount(true);
+            try {
+              const res = await fetch(`${API_BASE}/auth/account`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              const data = await res.json();
+              if (data.success) {
+                setShowProfileEdit(false);
+                logout();
+              } else {
+                Alert.alert("Error", data.message ?? "Account delete nahi hua");
+              }
+            } catch {
+              Alert.alert("Error", "Network error — dobara try karo");
+            } finally {
+              setDeletingAccount(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const [showPickupEdit, setShowPickupEdit] = useState(false);
   const [editPickup, setEditPickup] = useState(currentLocationAddress);
@@ -421,9 +458,32 @@ export function HomeScreen() {
                   <Text style={styles.modalSaveBtnText}>✅ {t("save")}</Text>
                 )}
               </Pressable>
+              <Pressable
+                onPress={() => { setShowProfileEdit(false); setTimeout(() => router.push("/auth/forgot-password"), 200); }}
+                style={[styles.actionLinkBtn, { borderColor: colors.border }]}
+              >
+                <Text style={{ fontSize: 14 }}>🔑</Text>
+                <Text style={[styles.actionLinkText, { color: colors.foreground }]}>Password Change Karo</Text>
+              </Pressable>
+
               <Pressable onPress={logout} style={styles.logoutBtn}>
                 <Text style={{ fontSize: 14 }}>🚪</Text>
                 <Text style={[styles.logoutText, { color: colors.destructive }]}>{t("logout")}</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleDeleteAccount}
+                disabled={deletingAccount}
+                style={[styles.deleteBtn, { borderColor: "rgba(255,77,77,0.3)" }]}
+              >
+                {deletingAccount ? (
+                  <ActivityIndicator size="small" color="#FF4D4D" />
+                ) : (
+                  <>
+                    <Text style={{ fontSize: 14 }}>🗑️</Text>
+                    <Text style={[styles.actionLinkText, { color: colors.destructive }]}>Account Delete Karo</Text>
+                  </>
+                )}
               </Pressable>
             </View>
           </View>
@@ -823,6 +883,31 @@ const styles = StyleSheet.create({
   logoutText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
+  },
+  actionLinkBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  actionLinkText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+  },
+  deleteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 2,
   },
   bottomSheet: {
     position: "absolute",

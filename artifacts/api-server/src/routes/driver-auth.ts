@@ -7,6 +7,25 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import Razorpay from "razorpay";
 import { emitRideUpdate } from "../lib/socket";
+import { logger } from "../lib/logger";
+
+/* In-memory OTP store for driver password reset (phone → {otp, expiresAt}) */
+const driverResetOtps = new Map<string, { otp: string; expiresAt: Date }>();
+
+async function sendDriverResetOtp(phone: string, otp: string): Promise<{ sent: boolean; dev: boolean }> {
+  const apiKey = process.env.TWOFACTOR_API_KEY;
+  if (apiKey) {
+    const cleanPhone = phone.replace(/\D/g, "").slice(-10);
+    try {
+      const url = `https://2factor.in/API/V1/${apiKey}/SMS/${cleanPhone}/${otp}`;
+      const res = await fetch(url);
+      const data = (await res.json()) as { Status: string };
+      if (data.Status === "Success") return { sent: true, dev: false };
+    } catch { /* fallthrough to dev */ }
+  }
+  logger.warn({ phone }, `[DRIVER-OTP][DEV] OTP: ${otp}`);
+  return { sent: false, dev: true };
+}
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID ?? "",
@@ -706,6 +725,115 @@ router.post("/driver-auth/plan/activate", async (req: Request, res: Response) =>
     res.json({ success: true, plan: getPlanStatus(updated) });
   } catch (err: any) {
     res.status(500).json({ message: "Plan activate nahi hua", error: err?.message });
+  }
+});
+
+/* ─── FORGOT PASSWORD ─────────────────────────────────────────────────────── */
+
+router.post("/driver-auth/forgot-password", async (req: Request, res: Response) => {
+  const { phone } = req.body as { phone: string };
+  if (!phone) { res.status(400).json({ success: false, message: "Phone number required hai" }); return; }
+
+  try {
+    const [driver] = await db
+      .select({ id: driversTable.id, status: driversTable.status })
+      .from(driversTable).where(eq(driversTable.phone, phone)).limit(1);
+
+    if (!driver) {
+      res.status(404).json({ success: false, message: "Yeh phone number registered nahi hai" });
+      return;
+    }
+    if (driver.status === "blocked") {
+      res.status(403).json({ success: false, message: "Aapka account block hai. Support se contact karein." });
+      return;
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    driverResetOtps.set(phone, { otp, expiresAt });
+
+    const { sent, dev } = await sendDriverResetOtp(phone, otp);
+    res.json({
+      success: true,
+      message: sent ? "OTP bhej diya gaya" : "OTP ready (dev mode)",
+      otp: dev ? otp : undefined,
+      smsSent: sent,
+    });
+  } catch (err) {
+    logger.error({ err }, "driver forgot-password error");
+    res.status(500).json({ success: false, message: "OTP send nahi hua" });
+  }
+});
+
+router.post("/driver-auth/reset-password", async (req: Request, res: Response) => {
+  const { phone, otp, newPassword, step: flowStep } = req.body as {
+    phone: string;
+    otp: string;
+    newPassword?: string;
+    step: "verify" | "reset";
+  };
+
+  if (!phone || !otp) {
+    res.status(400).json({ success: false, message: "Phone aur OTP required hain" });
+    return;
+  }
+
+  const stored = driverResetOtps.get(phone);
+  if (!stored) {
+    res.status(400).json({ success: false, message: "OTP nahi mila. Dobara request karo." });
+    return;
+  }
+  if (new Date() > stored.expiresAt) {
+    driverResetOtps.delete(phone);
+    res.status(400).json({ success: false, message: "OTP expire ho gaya. Dobara request karo." });
+    return;
+  }
+  if (stored.otp !== otp) {
+    res.status(400).json({ success: false, message: "OTP galat hai" });
+    return;
+  }
+
+  if (flowStep === "verify") {
+    res.json({ success: true, message: "OTP sahi hai. Naya password set karo." });
+    return;
+  }
+
+  if (!newPassword || newPassword.length < 6) {
+    res.status(400).json({ success: false, message: "Password kam se kam 6 characters ka hona chahiye" });
+    return;
+  }
+
+  try {
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.update(driversTable).set({ passwordHash }).where(eq(driversTable.phone, phone));
+    driverResetOtps.delete(phone);
+    res.json({ success: true, message: "Password reset ho gaya! Ab login karein." });
+  } catch (err) {
+    logger.error({ err }, "driver reset-password error");
+    res.status(500).json({ success: false, message: "Password reset nahi hua" });
+  }
+});
+
+/* ─── DELETE ACCOUNT ──────────────────────────────────────────────────────── */
+
+router.delete("/driver-auth/account", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({ success: false, message: "Unauthorized" });
+    return;
+  }
+  try {
+    const payload = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { driverId: number; role: string };
+    if (payload.role !== "driver") { res.status(403).json({ success: false, message: "Driver token required" }); return; }
+
+    await db.update(driversTable)
+      .set({ status: "deleted" as any, isOnline: false })
+      .where(eq(driversTable.id, payload.driverId));
+
+    res.json({ success: true, message: "Aapka driver account delete ho gaya. Bye bye! 👋" });
+  } catch (err) {
+    logger.error({ err }, "driver delete-account error");
+    res.status(500).json({ success: false, message: "Account delete nahi hua" });
   }
 });
 

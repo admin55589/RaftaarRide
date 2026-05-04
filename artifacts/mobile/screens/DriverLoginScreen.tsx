@@ -161,6 +161,13 @@ export default function DriverLoginScreen() {
                 <Text style={{ color: "#22c55e", fontWeight: "600" }}>Register karo</Text>
               </Text>
             </Pressable>
+
+            <Pressable
+              onPress={() => router.push("/driver-auth/forgot-password")}
+              style={{ alignSelf: "center", marginTop: 12, padding: 4 }}
+            >
+              <Text style={{ color: "#F5A623", fontSize: 13, fontWeight: "500" }}>🔑 Password bhool gaye?</Text>
+            </Pressable>
           </Animated.View>
 
           <Pressable

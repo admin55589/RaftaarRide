@@ -4,6 +4,7 @@ import { usersTable } from "@workspace/db/schema";
 import { eq, or } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -38,8 +39,8 @@ async function sendSmsOtp(phone: string, otp: string): Promise<{ sent: boolean; 
   const sent = await twoFactorSendOtp(phone, otp);
   if (sent) return { sent: true, dev: false };
 
-  // Dev fallback — OTP console mein dikhao
-  console.log(`[OTP][DEV] Phone: ${phone} → OTP: ${otp}`);
+  // Dev fallback — OTP logger mein dikhao
+  logger.warn({ phone }, `[OTP][DEV] OTP: ${otp}`);
   return { sent: false, dev: true };
 }
 
@@ -320,6 +321,117 @@ router.post("/auth/verify-otp", async (req: Request, res: Response) => {
 
 router.post("/auth/logout", (_req: Request, res: Response) => {
   res.json({ message: "Logged out successfully" });
+});
+
+/* ─── FORGOT PASSWORD ─────────────────────────────────────────────────────── */
+
+router.post("/auth/forgot-password", async (req: Request, res: Response) => {
+  const { phone } = req.body as { phone: string };
+  if (!phone) { res.status(400).json({ success: false, message: "Phone number required hai" }); return; }
+
+  const otp = generateOTP();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  try {
+    const [user] = await db.select({ id: usersTable.id, status: usersTable.status })
+      .from(usersTable).where(eq(usersTable.phone, phone)).limit(1);
+
+    if (!user) {
+      res.status(404).json({ success: false, message: "Yeh phone number registered nahi hai" });
+      return;
+    }
+    if (user.status === "blocked" || user.status === "suspended") {
+      res.status(403).json({ success: false, message: "Aapka account active nahi hai. Support se contact karein." });
+      return;
+    }
+
+    await db.update(usersTable).set({ otpCode: otp, otpExpiresAt: expiresAt }).where(eq(usersTable.phone, phone));
+
+    const { sent, dev } = await sendSmsOtp(phone, otp);
+    res.json({
+      success: true,
+      message: sent ? "OTP bhej diya gaya" : "OTP ready (dev mode)",
+      otp: dev ? otp : undefined,
+      smsSent: sent,
+    });
+  } catch (err) {
+    logger.error({ err }, "forgot-password error");
+    res.status(500).json({ success: false, message: "OTP send nahi hua" });
+  }
+});
+
+router.post("/auth/reset-password", async (req: Request, res: Response) => {
+  const { phone, otp, newPassword, step: flowStep } = req.body as {
+    phone: string;
+    otp: string;
+    newPassword?: string;
+    step: "verify" | "reset";
+  };
+
+  if (!phone || !otp) {
+    res.status(400).json({ success: false, message: "Phone aur OTP required hain" });
+    return;
+  }
+
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.phone, phone)).limit(1);
+
+    if (!user || !user.otpCode) {
+      res.status(400).json({ success: false, message: "OTP nahi mila. Dobara request karo." });
+      return;
+    }
+    if (user.otpExpiresAt && new Date() > user.otpExpiresAt) {
+      res.status(400).json({ success: false, message: "OTP expire ho gaya. Dobara request karo." });
+      return;
+    }
+    if (user.otpCode !== otp) {
+      res.status(400).json({ success: false, message: "OTP galat hai" });
+      return;
+    }
+
+    if (flowStep === "verify") {
+      res.json({ success: true, message: "OTP sahi hai. Naya password set karo." });
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      res.status(400).json({ success: false, message: "Password kam se kam 6 characters ka hona chahiye" });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.update(usersTable)
+      .set({ passwordHash, otpCode: null, otpExpiresAt: null })
+      .where(eq(usersTable.phone, phone));
+
+    res.json({ success: true, message: "Password reset ho gaya! Ab login karein." });
+  } catch (err) {
+    logger.error({ err }, "reset-password error");
+    res.status(500).json({ success: false, message: "Password reset nahi hua" });
+  }
+});
+
+/* ─── DELETE ACCOUNT ──────────────────────────────────────────────────────── */
+
+router.delete("/auth/account", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({ success: false, message: "Unauthorized" });
+    return;
+  }
+  try {
+    const payload = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { userId: number; role: string };
+    if (payload.role !== "user") { res.status(403).json({ success: false, message: "User token required" }); return; }
+
+    await db.update(usersTable)
+      .set({ status: "deleted" as any, otpCode: null, otpExpiresAt: null })
+      .where(eq(usersTable.id, payload.userId));
+
+    res.json({ success: true, message: "Aapka account delete ho gaya. Bye bye! 👋" });
+  } catch (err) {
+    logger.error({ err }, "delete-account error");
+    res.status(500).json({ success: false, message: "Account delete nahi hua" });
+  }
 });
 
 export default router;

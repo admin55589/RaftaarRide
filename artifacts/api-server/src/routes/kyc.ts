@@ -13,7 +13,7 @@ import { isAutomationEnabled } from "../lib/automation-state";
 
 const router: IRouter = Router();
 const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
-const COMMISSION_RATE = 0.067;
+const COMMISSION_RATE = 0;
 
 interface JwtPayload { driverId: number; email: string; role: string; }
 
