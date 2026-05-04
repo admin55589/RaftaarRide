@@ -5,7 +5,7 @@ import * as Location from "expo-location";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 
-const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || "";
+const GOOGLE_MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q";
 const DEFAULT_CENTER = { lat: 28.6139, lng: 77.2090 };
 
 interface MapViewProps {
@@ -38,74 +38,81 @@ function buildMapHtml(opts: {
     hasRealPickup,
   } = opts;
 
-  const style = isDark
-    ? "mapbox://styles/mapbox/dark-v11"
-    : "mapbox://styles/mapbox/streets-v12";
-
   const centerLat = showRoute ? (pickupLat + dropLat) / 2 : pickupLat;
   const centerLng = showRoute ? (pickupLng + dropLng) / 2 : pickupLng;
-  const zoom = showRoute ? 11 : 14;
+  const zoom = showRoute ? 12 : 15;
+
+  const darkStyles = JSON.stringify([
+    { elementType: "geometry", stylers: [{ color: "#12121A" }] },
+    { elementType: "labels.text.stroke", stylers: [{ color: "#12121A" }] },
+    { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+    { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
+    { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
+    { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#263c3f" }] },
+    { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#6b9a76" }] },
+    { featureType: "road", elementType: "geometry", stylers: [{ color: "#38414e" }] },
+    { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#212a37" }] },
+    { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9ca5b3" }] },
+    { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#746855" }] },
+    { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#1f2835" }] },
+    { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#f3d19c" }] },
+    { featureType: "transit", elementType: "geometry", stylers: [{ color: "#2f3948" }] },
+    { featureType: "transit.station", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
+    { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] },
+    { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#515c6d" }] },
+    { featureType: "water", elementType: "labels.text.stroke", stylers: [{ color: "#17263c" }] },
+  ]);
 
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no"/>
-  <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet"/>
-  <script src="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{width:100vw;height:100vh;overflow:hidden}
+    html,body{width:100%;height:100%;overflow:hidden}
     #map{width:100%;height:100%}
 
-    /* Uber-style user location dot */
-    .user-location-marker{
-      width:22px;height:22px;position:relative;
-    }
-    .user-location-dot{
+    .user-dot-wrap{position:relative;width:22px;height:22px}
+    .user-dot{
       width:18px;height:18px;border-radius:50%;
-      background:#4A90E2;
-      border:3px solid #fff;
-      box-shadow:0 2px 8px rgba(74,144,226,0.6);
-      position:absolute;top:2px;left:2px;
-      z-index:2;
+      background:#4A90E2;border:3px solid #fff;
+      box-shadow:0 2px 8px rgba(74,144,226,0.7);
+      position:absolute;top:2px;left:2px;z-index:2;
     }
-    .user-location-pulse{
+    .user-pulse{
       width:44px;height:44px;border-radius:50%;
       background:rgba(74,144,226,0.2);
       border:1.5px solid rgba(74,144,226,0.4);
       position:absolute;top:-11px;left:-11px;
-      animation:userPulse 2s ease-out infinite;
-      z-index:1;
+      animation:pulse 2s ease-out infinite;z-index:1;
     }
-    @keyframes userPulse{
+    @keyframes pulse{
       0%{transform:scale(0.6);opacity:1}
       60%{transform:scale(1.4);opacity:0.3}
       100%{transform:scale(1.8);opacity:0}
     }
 
-    /* Pickup pin — orange teardrop */
-    .pickup-marker{
-      width:34px;height:34px;border-radius:50%;
+    .pickup-pin{
+      width:36px;height:36px;border-radius:50%;
       background:#F5A623;border:3px solid #fff;
-      box-shadow:0 0 12px rgba(245,166,35,0.8);
-      display:flex;align-items:center;justify-content:center;font-size:14px;
+      box-shadow:0 0 14px rgba(245,166,35,0.8);
+      display:flex;align-items:center;justify-content:center;
+      font-size:16px;cursor:pointer;
     }
-
-    /* Drop pin — green square */
-    .drop-marker{
-      width:34px;height:34px;border-radius:8px;
+    .drop-pin{
+      width:36px;height:36px;border-radius:8px;
       background:#22c55e;border:3px solid #fff;
-      box-shadow:0 0 12px rgba(34,197,94,0.8);
-      display:flex;align-items:center;justify-content:center;font-size:14px;
+      box-shadow:0 0 14px rgba(34,197,94,0.8);
+      display:flex;align-items:center;justify-content:center;
+      font-size:16px;cursor:pointer;
     }
-
-    /* Driver / radar marker */
-    .driver-marker{
-      width:40px;height:40px;border-radius:50%;
+    .driver-pin{
+      width:42px;height:42px;border-radius:50%;
       background:#F5A623;border:3px solid #fff;
-      box-shadow:0 0 16px rgba(245,166,35,0.9);
-      display:flex;align-items:center;justify-content:center;font-size:20px;
+      box-shadow:0 0 18px rgba(245,166,35,0.9);
+      display:flex;align-items:center;justify-content:center;
+      font-size:22px;
       animation:driverPulse 1.5s infinite;
     }
     @keyframes driverPulse{
@@ -118,100 +125,131 @@ function buildMapHtml(opts: {
 <body>
   <div id="map"></div>
   <script>
-    mapboxgl.accessToken='${MAPBOX_TOKEN}';
-    var map=new mapboxgl.Map({
-      container:'map',
-      style:'${style}',
-      center:[${centerLng},${centerLat}],
-      zoom:${zoom},
-      attributionControl:false,
-      logoPosition:'bottom-left'
-    });
+    var map, directionsRenderer, driverMarker, userMarker;
+    var DARK = ${isDark};
+    var SHOW_ROUTE = ${showRoute};
+    var SHOW_RADAR = ${showRadar};
+    var HAS_PICKUP = ${hasRealPickup};
+    var pickupLatLng = {lat:${pickupLat},lng:${pickupLng}};
+    var dropLatLng   = {lat:${dropLat},lng:${dropLng}};
+    var driverLatLng = {lat:${driverLat},lng:${driverLng}};
 
-    var userMarker=null;
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: {lat:${centerLat},lng:${centerLng}},
+        zoom: ${zoom},
+        disableDefaultUI: true,
+        gestureHandling: 'greedy',
+        styles: DARK ? ${darkStyles} : [],
+      });
 
-    function showUserPin(lat,lng){
-      if(userMarker){userMarker.remove();}
-      var el=document.createElement('div');
-      el.className='user-location-marker';
-      el.innerHTML='<div class="user-location-pulse"></div><div class="user-location-dot"></div>';
-      userMarker=new mapboxgl.Marker({element:el,anchor:'center'})
-        .setLngLat([lng,lat])
-        .addTo(map);
+      if (SHOW_ROUTE) {
+        drawRoute();
+        addPickupMarker();
+        addDropMarker();
+        addDriverMarker(driverLatLng);
+      } else if (SHOW_RADAR) {
+        addDriverMarker(pickupLatLng);
+      } else {
+        if (HAS_PICKUP) {
+          addPickupMarker();
+        } else {
+          addUserDot(pickupLatLng);
+        }
+      }
+
+      /* Listen messages from React Native */
+      document.addEventListener('message', handleMsg);
+      window.addEventListener('message', handleMsg);
     }
 
-    map.on('load',function(){
+    function drawRoute() {
+      var ds = new google.maps.DirectionsService();
+      directionsRenderer = new google.maps.DirectionsRenderer({
+        suppressMarkers: true,
+        polylineOptions: {
+          strokeColor: '#F5A623',
+          strokeWeight: 5,
+          strokeOpacity: 0.85,
+        }
+      });
+      directionsRenderer.setMap(map);
+      ds.route({
+        origin: pickupLatLng,
+        destination: dropLatLng,
+        travelMode: google.maps.TravelMode.DRIVING,
+      }, function(result, status) {
+        if (status === 'OK') {
+          directionsRenderer.setDirections(result);
+        }
+      });
+    }
 
-      ${showRoute ? `
-        var pickupLngLat=[${pickupLng},${pickupLat}];
-        var dropLngLat=[${dropLng},${dropLat}];
+    function addPickupMarker() {
+      var el = document.createElement('div');
+      el.className = 'pickup-pin';
+      el.innerHTML = '🟡';
+      new google.maps.marker.AdvancedMarkerElement({
+        map: map,
+        position: pickupLatLng,
+        content: el,
+      });
+    }
 
-        fetch('https://api.mapbox.com/directions/v5/mapbox/driving/'+
-          pickupLngLat[0]+','+pickupLngLat[1]+';'+
-          dropLngLat[0]+','+dropLngLat[1]+
-          '?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}')
-        .then(function(r){return r.json();})
-        .then(function(data){
-          if(!data.routes||!data.routes.length)return;
-          var coords=data.routes[0].geometry.coordinates;
-          var totalPts=coords.length;
-          var donePts=Math.max(1,Math.floor(totalPts*${routeProgress}));
-          map.addSource('route',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:coords}}});
-          map.addLayer({id:'route-bg',type:'line',source:'route',paint:{'line-color':'rgba(245,166,35,0.22)','line-width':7,'line-cap':'round','line-join':'round'}});
-          if(${routeProgress}>0){
-            map.addSource('route-done',{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:coords.slice(0,donePts+1)}}});
-            map.addLayer({id:'route-done',type:'line',source:'route-done',paint:{'line-color':'#22c55e','line-width':7,'line-cap':'round','line-join':'round'}});
+    function addDropMarker() {
+      var el = document.createElement('div');
+      el.className = 'drop-pin';
+      el.innerHTML = '📍';
+      new google.maps.marker.AdvancedMarkerElement({
+        map: map,
+        position: dropLatLng,
+        content: el,
+      });
+    }
+
+    function addDriverMarker(pos) {
+      var el = document.createElement('div');
+      el.className = 'driver-pin';
+      el.innerHTML = '🚗';
+      driverMarker = new google.maps.marker.AdvancedMarkerElement({
+        map: map,
+        position: pos,
+        content: el,
+      });
+    }
+
+    function addUserDot(pos) {
+      var wrap = document.createElement('div');
+      wrap.className = 'user-dot-wrap';
+      wrap.innerHTML = '<div class="user-pulse"></div><div class="user-dot"></div>';
+      userMarker = new google.maps.marker.AdvancedMarkerElement({
+        map: map,
+        position: pos,
+        content: wrap,
+      });
+    }
+
+    function handleMsg(e) {
+      try {
+        var m = JSON.parse(e.data);
+        if (m.type === 'userLocation') {
+          var pos = {lat: m.lat, lng: m.lng};
+          map.panTo(pos);
+          if (userMarker) {
+            userMarker.position = pos;
+          } else {
+            addUserDot(pos);
           }
-        }).catch(function(e){console.warn(e);});
-
-        var pEl=document.createElement('div');pEl.className='pickup-marker';pEl.innerHTML='🟡';
-        new mapboxgl.Marker({element:pEl}).setLngLat(pickupLngLat).addTo(map);
-        var dEl=document.createElement('div');dEl.className='drop-marker';dEl.innerHTML='📍';
-        new mapboxgl.Marker({element:dEl}).setLngLat(dropLngLat).addTo(map);
-        var carEl=document.createElement('div');carEl.className='driver-marker';carEl.innerHTML='🚗';
-        var driverMarker=new mapboxgl.Marker({element:carEl}).setLngLat([${driverLng},${driverLat}]).addTo(map);
-
-        document.addEventListener('message',function(e){
-          try{var m=JSON.parse(e.data);if(m.type==='driverLocation'){driverMarker.setLngLat([m.lng,m.lat]);}}catch(err){}
-        });
-        window.addEventListener('message',function(e){
-          try{var m=JSON.parse(e.data);if(m.type==='driverLocation'){driverMarker.setLngLat([m.lng,m.lat]);}}catch(err){}
-        });
-      ` : ''}
-
-      ${showRadar && !showRoute ? `
-        var radarEl=document.createElement('div');radarEl.className='driver-marker';radarEl.innerHTML='📍';
-        new mapboxgl.Marker({element:radarEl}).setLngLat([${pickupLng},${pickupLat}]).addTo(map);
-      ` : ''}
-
-      ${!showRoute && !showRadar ? `
-        /* Show user-location dot only if no real GPS yet */
-        ${!hasRealPickup ? `showUserPin(${centerLat},${centerLng});` : ''}
-        ${hasRealPickup ? `
-          var pinEl=document.createElement('div');pinEl.className='pickup-marker';pinEl.innerHTML='📍';
-          new mapboxgl.Marker({element:pinEl}).setLngLat([${centerLng},${centerLat}]).addTo(map);
-        ` : ''}
-      ` : ''}
-
-    });
-
-    /* Listen for GPS message from React Native */
-    function handleMsg(e){
-      try{
-        var m=JSON.parse(e.data);
-        if(m.type==='userLocation'){
-          /* Fly to user GPS smoothly */
-          map.flyTo({center:[m.lng,m.lat],zoom:15,speed:1.6,curve:1.2,essential:true});
-          showUserPin(m.lat,m.lng);
         }
-        if(m.type==='driverLocation' && ${showRoute}){
-          /* handled above */
+        if (m.type === 'driverLocation' && driverMarker) {
+          driverMarker.position = {lat: m.lat, lng: m.lng};
         }
-      }catch(err){}
+      } catch(err) {}
     }
-    document.addEventListener('message',handleMsg);
-    window.addEventListener('message',handleMsg);
-
+  </script>
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&libraries=marker&callback=initMap&loading=async"
+    async defer>
   </script>
 </body>
 </html>`;
@@ -239,7 +277,7 @@ export function MapView({
   const driverLat = driverLocation?.lat ?? pickupLat;
   const driverLng = driverLocation?.lng ?? pickupLng;
 
-  /* Auto-locate user on mount when no pickup set yet */
+  /* Auto-locate user on mount */
   useEffect(() => {
     let cancelled = false;
     async function locateUser() {
@@ -254,16 +292,14 @@ export function MapView({
         });
         if (cancelled) return;
         const { latitude, longitude } = pos.coords;
-        /* Update AppContext so pickup coords are set */
         if (!pickupCoords) {
           setPickupCoords({ lat: latitude, lng: longitude });
         }
-        /* Fly the map to user's location */
         setTimeout(() => {
           webviewRef.current?.postMessage(
             JSON.stringify({ type: "userLocation", lat: latitude, lng: longitude })
           );
-        }, 1200);
+        }, 1500);
       } catch (_) {}
     }
     locateUser();
