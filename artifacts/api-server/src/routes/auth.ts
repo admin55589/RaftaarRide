@@ -1,10 +1,19 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db/schema";
+import { usersTable, walletTransactionsTable } from "@workspace/db/schema";
 import { eq, or } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { logger } from "../lib/logger";
+
+function generateReferralCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "RR";
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
 
 const router: IRouter = Router();
 
@@ -76,6 +85,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
+    const referralCode = generateReferralCode();
 
     const [user] = await db
       .insert(usersTable)
@@ -87,6 +97,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
         gender: gender || null,
         isVerified: false,
         status: "active",
+        referralCode,
       })
       .returning();
 
@@ -408,6 +419,116 @@ router.post("/auth/reset-password", async (req: Request, res: Response) => {
   } catch (err) {
     logger.error({ err }, "reset-password error");
     res.status(500).json({ success: false, message: "Password reset nahi hua" });
+  }
+});
+
+/* ─── REFERRAL SYSTEM ─────────────────────────────────────────────────────── */
+
+router.get("/auth/referral", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({ success: false, message: "Unauthorized" });
+    return;
+  }
+  try {
+    const payload = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { userId: number; role: string };
+    if (payload.role !== "user") { res.status(403).json({ success: false, message: "User token required" }); return; }
+
+    const [user] = await db
+      .select({ referralCode: usersTable.referralCode, referredBy: usersTable.referredBy })
+      .from(usersTable)
+      .where(eq(usersTable.id, payload.userId))
+      .limit(1);
+
+    if (!user) { res.status(404).json({ success: false, message: "User not found" }); return; }
+
+    let code = user.referralCode;
+    if (!code) {
+      code = generateReferralCode();
+      await db.update(usersTable).set({ referralCode: code }).where(eq(usersTable.id, payload.userId));
+    }
+
+    const referredUsers = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.referredBy, code));
+
+    res.json({
+      success: true,
+      referralCode: code,
+      referredCount: referredUsers.length,
+      creditsEarned: referredUsers.length * 50,
+      alreadyReferred: !!user.referredBy,
+    });
+  } catch (err) {
+    logger.error({ err }, "get-referral error");
+    res.status(500).json({ success: false, message: "Referral fetch nahi hua" });
+  }
+});
+
+router.post("/auth/apply-referral", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({ success: false, message: "Unauthorized" });
+    return;
+  }
+  const { code } = req.body as { code: string };
+  if (!code?.trim()) {
+    res.status(400).json({ success: false, message: "Referral code daalna zaroori hai" });
+    return;
+  }
+
+  try {
+    const payload = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { userId: number; role: string };
+    if (payload.role !== "user") { res.status(403).json({ success: false, message: "User token required" }); return; }
+
+    const [me] = await db
+      .select({ id: usersTable.id, referredBy: usersTable.referredBy, referralCode: usersTable.referralCode, walletBalance: usersTable.walletBalance })
+      .from(usersTable)
+      .where(eq(usersTable.id, payload.userId))
+      .limit(1);
+
+    if (!me) { res.status(404).json({ success: false, message: "User not found" }); return; }
+    if (me.referredBy) { res.status(400).json({ success: false, message: "Aapne pehle se ek referral code use kar liya hai" }); return; }
+    if (me.referralCode === code.toUpperCase()) { res.status(400).json({ success: false, message: "Apna hi code use nahi kar sakte" }); return; }
+
+    const [referrer] = await db
+      .select({ id: usersTable.id, walletBalance: usersTable.walletBalance })
+      .from(usersTable)
+      .where(eq(usersTable.referralCode, code.toUpperCase()))
+      .limit(1);
+
+    if (!referrer) { res.status(404).json({ success: false, message: "Yeh referral code sahi nahi hai" }); return; }
+
+    const CREDIT = "50";
+    const myNewBal = Number(me.walletBalance ?? "0") + 50;
+
+    await db.update(usersTable)
+      .set({ referredBy: code.toUpperCase(), walletBalance: String(myNewBal) })
+      .where(eq(usersTable.id, payload.userId));
+    await db.insert(walletTransactionsTable).values({
+      userId: payload.userId,
+      type: "referral_credit",
+      amount: CREDIT,
+      description: `Referral bonus — code ${code.toUpperCase()} use kiya`,
+    });
+
+    const newReferrerBal = Number(referrer.walletBalance ?? "0") + 50;
+    await db.update(usersTable)
+      .set({ walletBalance: String(newReferrerBal) })
+      .where(eq(usersTable.id, referrer.id));
+    await db.insert(walletTransactionsTable).values({
+      userId: referrer.id,
+      type: "referral_credit",
+      amount: CREDIT,
+      description: `Referral bonus — kisi ne aapka code use kiya`,
+    });
+
+    logger.info({ userId: payload.userId, referrerId: referrer.id, code }, "Referral applied");
+    res.json({ success: true, message: "🎉 ₹50 aapke wallet mein add ho gaye! Referrer ko bhi ₹50 mila." });
+  } catch (err) {
+    logger.error({ err }, "apply-referral error");
+    res.status(500).json({ success: false, message: "Referral apply nahi hua" });
   }
 });
 

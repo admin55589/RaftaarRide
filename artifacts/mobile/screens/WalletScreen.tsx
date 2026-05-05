@@ -8,6 +8,8 @@ import {
   TextInput,
   Platform,
   ActivityIndicator,
+  Share,
+  Alert,
 } from "react-native";
 import Animated, {
   FadeInDown,
@@ -55,6 +57,13 @@ export function WalletScreen() {
   const [razorpayOrder, setRazorpayOrder] = useState<RazorpayOrder | null>(null);
   const [showRazorpay, setShowRazorpay] = useState(false);
 
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [referredCount, setReferredCount] = useState(0);
+  const [alreadyReferred, setAlreadyReferred] = useState(false);
+  const [applyCode, setApplyCode] = useState("");
+  const [applyingCode, setApplyingCode] = useState(false);
+  const [showReferral, setShowReferral] = useState(false);
+
   const balanceScale = useSharedValue(1);
   const balanceStyle = useAnimatedStyle(() => ({ transform: [{ scale: balanceScale.value }] }));
 
@@ -78,6 +87,56 @@ export function WalletScreen() {
   }, [token]);
 
   useEffect(() => { fetchWallet(); }, [fetchWallet]);
+
+  const fetchReferral = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${BASE_URL}auth/referral`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) {
+        setReferralCode(data.referralCode);
+        setReferredCount(data.referredCount ?? 0);
+        setAlreadyReferred(data.alreadyReferred ?? false);
+      }
+    } catch { }
+  }, [token]);
+
+  useEffect(() => { fetchReferral(); }, [fetchReferral]);
+
+  const handleShareReferral = async () => {
+    if (!referralCode) return;
+    try {
+      await Share.share({
+        message: `🚗 RaftaarRide join karo aur pehli ride pe ₹50 wallet credit pao!\n\nMera referral code use karo: ${referralCode}\n\nApp download karo aur signup karte waqt code daalo. Dono ko ₹50 milenge! 🎉`,
+        title: "RaftaarRide pe ₹50 pao!",
+      });
+    } catch { }
+  };
+
+  const handleApplyReferral = async () => {
+    if (!applyCode.trim()) return;
+    setApplyingCode(true);
+    try {
+      const res = await fetch(`${BASE_URL}auth/apply-referral`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code: applyCode.trim().toUpperCase() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotification({ title: "₹50 Wallet Mein! 🎉", body: data.message, type: "success", icon: "🎁" });
+        setApplyCode("");
+        setAlreadyReferred(true);
+        await fetchWallet();
+      } else {
+        Alert.alert("Oops", data.message ?? "Code apply nahi hua");
+      }
+    } catch {
+      Alert.alert("Network Error", "Dobara try karein");
+    } finally {
+      setApplyingCode(false);
+    }
+  };
 
   const handlePayNow = async () => {
     const amt = Number(topupAmount);
@@ -174,6 +233,25 @@ export function WalletScreen() {
     rzpBadge: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 14, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)", borderWidth: 1, borderColor: colors.border },
     rzpLock: { fontSize: 15, marginRight: 8, lineHeight: 20 },
     rzpBadgeText: { fontSize: 12, color: colors.textSecondary, fontFamily: "Inter_400Regular", flexShrink: 1, flexWrap: "wrap" },
+    referralCard: { marginHorizontal: 20, marginBottom: 6, borderRadius: 16, borderWidth: 1, padding: 16, gap: 8 },
+    referralTop: { flexDirection: "row", alignItems: "center", gap: 10 },
+    referralTitle: { fontSize: 15, fontWeight: "700", fontFamily: "Inter_700Bold" },
+    referralSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
+    referralStatRow: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+    referralStat: { fontSize: 13, fontFamily: "Inter_500Medium" },
+    referralBox: { marginHorizontal: 20, marginBottom: 16, gap: 10, padding: 18, borderRadius: 16 },
+    referralCodeLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
+    referralCodeBox: { borderRadius: 12, borderWidth: 1.5, paddingVertical: 14, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    referralCodeText: { fontSize: 22, fontWeight: "800", fontFamily: "Inter_700Bold", letterSpacing: 3 },
+    shareBtn: { borderRadius: 12, paddingVertical: 14, alignItems: "center" },
+    shareBtnText: { fontSize: 14, fontWeight: "700", color: "#000", fontFamily: "Inter_700Bold" },
+    dividerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 4 },
+    divider: { flex: 1, height: 1 },
+    dividerText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+    applyRow: { flexDirection: "row", gap: 10 },
+    applyInput: { flex: 1, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: "Inter_600SemiBold", letterSpacing: 2 },
+    applyBtn: { borderRadius: 12, paddingHorizontal: 18, justifyContent: "center", alignItems: "center" },
+    applyBtnText: { fontSize: 13, fontWeight: "700", color: "#000", fontFamily: "Inter_700Bold" },
   });
 
   const formatDate = (d: string) => {
@@ -278,6 +356,95 @@ export function WalletScreen() {
             </GlassCard>
           </Animated.View>
         )}
+
+        <Animated.View entering={FadeInDown.delay(170)}>
+          <TouchableOpacity
+            style={[s.referralCard, { backgroundColor: colors.glassBackground, borderColor: colors.border }]}
+            onPress={() => setShowReferral(!showReferral)}
+            activeOpacity={0.85}
+          >
+            <View style={s.referralTop}>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.referralTitle, { color: colors.text }]}>🎁 Invite & Earn ₹50</Text>
+                <Text style={[s.referralSub, { color: colors.textSecondary }]}>
+                  Dost ko invite karo — dono ko ₹50 wallet credit
+                </Text>
+              </View>
+              <Text style={{ fontSize: 18, color: colors.textSecondary }}>{showReferral ? "▲" : "▼"}</Text>
+            </View>
+            {referredCount > 0 && (
+              <View style={[s.referralStatRow, { backgroundColor: colors.primary + "22" }]}>
+                <Text style={[s.referralStat, { color: colors.primary }]}>
+                  👥 {referredCount} dost joined · ₹{referredCount * 50} earned
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {showReferral && (
+            <Animated.View entering={FadeInUp.duration(250)}>
+              <GlassCard style={[s.referralBox]}>
+                <Text style={[s.referralCodeLabel, { color: colors.textSecondary }]}>Aapka referral code</Text>
+                <TouchableOpacity
+                  style={[s.referralCodeBox, { backgroundColor: colors.primary + "18", borderColor: colors.primary + "44" }]}
+                  onPress={handleShareReferral}
+                >
+                  <Text style={[s.referralCodeText, { color: colors.primary }]}>
+                    {referralCode ?? "Loading..."}
+                  </Text>
+                  <Text style={{ fontSize: 16 }}>📤</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.shareBtn, { backgroundColor: colors.primary }]}
+                  onPress={handleShareReferral}
+                >
+                  <Text style={s.shareBtnText}>📲 Share Karo · ₹50 Pao</Text>
+                </TouchableOpacity>
+
+                {!alreadyReferred && (
+                  <>
+                    <View style={s.dividerRow}>
+                      <View style={[s.divider, { backgroundColor: colors.border }]} />
+                      <Text style={[s.dividerText, { color: colors.textSecondary }]}>Ya</Text>
+                      <View style={[s.divider, { backgroundColor: colors.border }]} />
+                    </View>
+                    <Text style={[s.referralCodeLabel, { color: colors.textSecondary }]}>Kisi ka code apply karo</Text>
+                    <View style={s.applyRow}>
+                      <TextInput
+                        style={[s.applyInput, { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", borderColor: colors.border, color: colors.text }]}
+                        placeholder="e.g. RRAB1234"
+                        placeholderTextColor={colors.textSecondary}
+                        value={applyCode}
+                        onChangeText={(v) => setApplyCode(v.toUpperCase())}
+                        autoCapitalize="characters"
+                        maxLength={10}
+                      />
+                      <TouchableOpacity
+                        style={[s.applyBtn, { backgroundColor: applyCode.length >= 4 ? colors.primary : colors.border }]}
+                        onPress={handleApplyReferral}
+                        disabled={applyingCode || applyCode.length < 4}
+                      >
+                        {applyingCode ? (
+                          <ActivityIndicator size="small" color="#000" />
+                        ) : (
+                          <Text style={s.applyBtnText}>Apply</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
+
+                {alreadyReferred && (
+                  <View style={[s.referralStatRow, { backgroundColor: "#4ADE8022" }]}>
+                    <Text style={{ fontSize: 13, color: "#4ADE80", fontFamily: "Inter_500Medium" }}>
+                      ✅ Aapne referral code apply kar liya hai
+                    </Text>
+                  </View>
+                )}
+              </GlassCard>
+            </Animated.View>
+          )}
+        </Animated.View>
 
         <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
           <Text style={s.sectionTitle}>💳 {t("transaction_history")}</Text>

@@ -79,6 +79,14 @@ export function DriverKYCScreen() {
 
   useEffect(() => { fetchKyc(); }, [driverToken]);
 
+  useEffect(() => {
+    if (kycData?.status !== "pending") return;
+    const interval = setInterval(() => {
+      fetchKyc();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [kycData?.status, driverToken]);
+
   const pickImage = async (field: DocKey) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {

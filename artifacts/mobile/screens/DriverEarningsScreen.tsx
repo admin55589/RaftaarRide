@@ -101,7 +101,12 @@ export function DriverEarningsScreen() {
     } catch { }
   };
 
-  useEffect(() => { fetchWallet(); fetchProfile(); }, [driverToken]);
+  useEffect(() => {
+    fetchWallet();
+    fetchProfile();
+    const interval = setInterval(fetchWallet, 30000);
+    return () => clearInterval(interval);
+  }, [driverToken]);
 
   const handleWithdraw = async () => {
     const amt = Number(withdrawAmount);

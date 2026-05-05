@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import {
   Alert,
   Image,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -602,6 +603,34 @@ export function HomeScreen() {
                 <Text style={[styles.chevronEmoji, { color: colors.mutedForeground }]}>›</Text>
               </Pressable>
             ))}
+
+            <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 16 }]}>
+              HELP & SUPPORT
+            </Text>
+            <View style={[styles.supportCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.supportTitle, { color: colors.foreground }]}>🎧 Madad chahiye?</Text>
+              <Text style={[styles.supportSub, { color: colors.mutedForeground }]}>
+                Koi problem? Hum yahan hain — WhatsApp ya email karein
+              </Text>
+              <View style={styles.supportBtns}>
+                <Pressable
+                  onPress={() => Linking.openURL("https://wa.me/919999999999?text=RaftaarRide%20Support%20chahiye")}
+                  style={[styles.supportBtn, { backgroundColor: "#25D366" }]}
+                >
+                  <Text style={styles.supportBtnText}>💬 WhatsApp</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => Linking.openURL("mailto:support@raftaarride.com")}
+                  style={[styles.supportBtn, { backgroundColor: colors.primary }]}
+                >
+                  <Text style={styles.supportBtnText}>📧 Email</Text>
+                </Pressable>
+              </View>
+              <Text style={[styles.supportHours, { color: colors.mutedForeground }]}>
+                🕐 9 AM – 9 PM, Mon–Sat
+              </Text>
+            </View>
+            <View style={{ height: 12 }} />
           </ScrollView>
         </GlassCard>
       </View>
@@ -988,4 +1017,40 @@ const styles = StyleSheet.create({
   recentClockEmoji: { fontSize: 14 },
   recentLabel: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 14 },
   chevronEmoji: { fontSize: 22, lineHeight: 26, fontWeight: "300" },
+  supportCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    gap: 8,
+  },
+  supportTitle: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 15,
+  },
+  supportSub: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  supportBtns: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
+  },
+  supportBtn: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  supportBtnText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    color: "#fff",
+  },
+  supportHours: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    marginTop: 2,
+  },
 });

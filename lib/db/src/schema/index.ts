@@ -23,6 +23,8 @@ export const usersTable = pgTable("users", {
   walletBalance: numeric("wallet_balance", { precision: 10, scale: 2 }).notNull().default("0"),
   preferredLanguage: text("preferred_language").notNull().default("hi"),
   pushToken: text("push_token"),
+  referralCode: text("referral_code").unique(),
+  referredBy: text("referred_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
