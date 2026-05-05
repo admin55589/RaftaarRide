@@ -408,9 +408,26 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>("hi");
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((v) => {
-      if (v === "hi" || v === "en") setLangState(v);
-    });
+    (async () => {
+      try {
+        const [storedLang, storedUserJson] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEY),
+          AsyncStorage.getItem("raftaar_auth_user"),
+        ]);
+        /* User profile's preferredLanguage takes precedence over local cached setting */
+        let finalLang: Lang | null = null;
+        if (storedUserJson) {
+          const u = JSON.parse(storedUserJson) as { preferredLanguage?: string };
+          if (u?.preferredLanguage === "en" || u?.preferredLanguage === "hi") {
+            finalLang = u.preferredLanguage as Lang;
+          }
+        }
+        if (!finalLang && (storedLang === "hi" || storedLang === "en")) {
+          finalLang = storedLang as Lang;
+        }
+        if (finalLang) setLangState(finalLang);
+      } catch {}
+    })();
   }, []);
 
   const setLang = async (l: Lang) => {

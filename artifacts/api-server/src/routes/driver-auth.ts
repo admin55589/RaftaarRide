@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { driversTable, ridesTable, usersTable, walletTransactionsTable, planTransactionsTable } from "@workspace/db/schema";
-import { eq, or, inArray, sum, avg, count, isNotNull, and, sql } from "drizzle-orm";
+import { eq, or, inArray, sum, avg, count, isNotNull, and, sql, desc } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -867,6 +867,78 @@ router.delete("/driver-auth/account", async (req: Request, res: Response) => {
   } catch (err) {
     logger.error({ err }, "driver delete-account error");
     res.status(500).json({ success: false, message: "Account delete nahi hua" });
+  }
+});
+
+/* GET /api/driver-auth/earnings — driver's earnings history (last 50 completed rides) */
+router.get("/driver-auth/earnings", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) { res.status(401).json({ message: "Token required" }); return; }
+  try {
+    const payload = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { driverId: number; role: string };
+    if (payload.role !== "driver") { res.status(403).json({ message: "Driver token required" }); return; }
+
+    const rides = await db.select({
+      id: ridesTable.id,
+      price: ridesTable.price,
+      driverEarning: ridesTable.driverEarning,
+      vehicleType: ridesTable.vehicleType,
+      paymentMethod: ridesTable.paymentMethod,
+      createdAt: ridesTable.createdAt,
+    })
+      .from(ridesTable)
+      .where(and(eq(ridesTable.driverId, payload.driverId), eq(ridesTable.status, "completed")))
+      .orderBy(desc(ridesTable.createdAt))
+      .limit(50);
+
+    const totalEarned = rides.reduce((s, r) => s + parseFloat(String(r.driverEarning ?? 0)), 0);
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayEarned = rides
+      .filter(r => r.createdAt && new Date(r.createdAt) >= todayStart)
+      .reduce((s, r) => s + parseFloat(String(r.driverEarning ?? 0)), 0);
+
+    res.json({
+      success: true,
+      summary: {
+        totalEarned: parseFloat(totalEarned.toFixed(2)),
+        todayEarned: parseFloat(todayEarned.toFixed(2)),
+        totalRides: rides.length,
+      },
+      rides,
+    });
+  } catch (err) {
+    logger.error({ err }, "driver earnings fetch error");
+    res.status(401).json({ message: "Invalid token" });
+  }
+});
+
+/* PATCH /api/driver-auth/profile — update driver name / preferredLanguage */
+router.patch("/driver-auth/profile", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) { res.status(401).json({ message: "Token required" }); return; }
+  try {
+    const payload = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { driverId: number; role: string };
+    if (payload.role !== "driver") { res.status(403).json({ message: "Driver token required" }); return; }
+
+    const { name, preferredLanguage } = req.body as { name?: string; preferredLanguage?: string };
+    const updateData: Partial<{ name: string; preferredLanguage: string }> = {};
+    if (name?.trim()) updateData.name = name.trim();
+    if (preferredLanguage === "en" || preferredLanguage === "hi") updateData.preferredLanguage = preferredLanguage;
+
+    if (Object.keys(updateData).length === 0) {
+      res.status(400).json({ message: "Kuch update karne ke liye bhejo (name ya preferredLanguage)" }); return;
+    }
+
+    const [updated] = await db
+      .update(driversTable)
+      .set(updateData)
+      .where(eq(driversTable.id, payload.driverId))
+      .returning({ id: driversTable.id, name: driversTable.name, phone: driversTable.phone, preferredLanguage: driversTable.preferredLanguage });
+
+    res.json({ success: true, driver: updated });
+  } catch (err) {
+    logger.error({ err }, "driver profile update error");
+    res.status(401).json({ message: "Invalid token" });
   }
 });
 

@@ -15,6 +15,9 @@ import {
   CreditCard,
   IndianRupee,
   Gift,
+  AlertTriangle,
+  Zap,
+  TrendingUp,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
@@ -90,6 +93,9 @@ export function Sidebar({ isLive = false }: SidebarProps) {
     { label: "Driver Plans", href: "/driver-plans", icon: CreditCard, badge: 0 },
     { label: "Plan Revenue", href: "/plan-revenue", icon: IndianRupee, badge: 0 },
     { label: "Referral Program", href: "/referrals", icon: Gift, badge: 0 },
+    { label: "Disputes", href: "/disputes", icon: AlertTriangle, badge: 0 },
+    { label: "Surge Pricing", href: "/surge", icon: Zap, badge: 0 },
+    { label: "Earnings Report", href: "/earnings", icon: TrendingUp, badge: 0 },
     { label: "Live Map", href: "/live-map", icon: Map, badge: 0 },
     { label: "Chat History", href: "/chat-history", icon: MessageSquare, badge: 0 },
     { label: "Broadcast", href: "/broadcast", icon: Bell, badge: 0 },

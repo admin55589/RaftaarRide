@@ -12,6 +12,7 @@ import scheduledRouter from "./scheduled";
 import voiceRouter from "./voice";
 import pagesRouter from "./pages";
 import chatRouter from "./chat";
+import disputesRouter from "./disputes";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(kycRouter);
 router.use(scheduledRouter);
 router.use(voiceRouter);
 router.use(chatRouter);
+router.use(disputesRouter);
 
 export default router;

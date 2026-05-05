@@ -366,12 +366,7 @@ export function HomeScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => {
-              setEditName(user?.name ?? "");
-              setEditEmail(user?.email ?? "");
-              setEditPhoto(user?.photoUrl ?? null);
-              setShowProfileEdit(true);
-            }}
+            onPress={() => setScreen("profile")}
             style={[styles.profileTopBtn, { borderColor: colors.primary + "55" }]}
             hitSlop={8}
           >

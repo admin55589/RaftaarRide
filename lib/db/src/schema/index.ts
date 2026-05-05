@@ -195,3 +195,27 @@ export const chatMessagesTable = pgTable("chat_messages", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 export type ChatMessage = typeof chatMessagesTable.$inferSelect;
+
+export const disputesTable = pgTable("disputes", {
+  id: serial("id").primaryKey(),
+  rideId: integer("ride_id").notNull().references(() => ridesTable.id),
+  userId: integer("user_id").notNull().references(() => usersTable.id),
+  driverId: integer("driver_id").references(() => driversTable.id),
+  issue: text("issue").notNull(),
+  description: text("description").notNull(),
+  status: text("status").notNull().default("open"),
+  adminNote: text("admin_note"),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedBy: text("resolved_by"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type Dispute = typeof disputesTable.$inferSelect;
+
+export const surgeSettingsTable = pgTable("surge_settings", {
+  id: serial("id").primaryKey(),
+  multiplier: numeric("multiplier", { precision: 4, scale: 2 }).notNull().default("1.00"),
+  isActive: boolean("is_active").notNull().default(false),
+  reason: text("reason"),
+  updatedBy: text("updated_by"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

@@ -39,7 +39,9 @@ export type AppScreen =
   | "live_tracking"
   | "payment"
   | "payment_success"
-  | "driver_mode";
+  | "driver_mode"
+  | "profile"
+  | "dispute_report";
 
 export interface SavedPlace {
   id: string;
@@ -177,6 +179,8 @@ interface AppContextType {
   setLastCompletedDriverId: (id: string | null) => void;
   lastPaymentMethod: string;
   setLastPaymentMethod: (m: string) => void;
+  surgeMultiplier: number;
+  surgeReason: string | null;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -221,6 +225,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lastCompletedRideId, setLastCompletedRideId] = useState<number | null>(null);
   const [lastCompletedDriverId, setLastCompletedDriverId] = useState<string | null>(null);
   const [lastPaymentMethod, setLastPaymentMethod] = useState<string>("UPI");
+  const [surgeMultiplier, setSurgeMultiplier] = useState<number>(1.0);
+  const [surgeReason, setSurgeReason] = useState<string | null>(null);
+
+  /* Fetch surge multiplier from API on mount */
+  useEffect(() => {
+    const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? "https://workspaceapi-server-production-2e22.up.railway.app";
+    fetch(`${API_BASE}/api/surge`)
+      .then(r => r.json())
+      .then((d: { isActive: boolean; multiplier: number; reason: string | null }) => {
+        if (d.isActive && d.multiplier > 1) {
+          setSurgeMultiplier(d.multiplier);
+          setSurgeReason(d.reason);
+        }
+      })
+      .catch(() => {/* surge fetch fail = default 1x */});
+  }, []);
 
   /* Auto-calculate real distance when both pickup + drop coords are available */
   useEffect(() => {
@@ -323,6 +343,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         lastCompletedRideId, setLastCompletedRideId,
         lastCompletedDriverId, setLastCompletedDriverId,
         lastPaymentMethod, setLastPaymentMethod,
+        surgeMultiplier, surgeReason,
       }}
     >
       {children}

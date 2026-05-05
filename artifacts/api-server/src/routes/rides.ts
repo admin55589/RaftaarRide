@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { ridesTable, driversTable, usersTable, walletTransactionsTable, promoCodesTable } from "@workspace/db/schema";
+import { ridesTable, driversTable, usersTable, walletTransactionsTable, promoCodesTable, surgeSettingsTable } from "@workspace/db/schema";
 import { eq, desc, and, inArray, avg, isNotNull } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { emitRideUpdate, emitAdminUpdate, emitToDriver } from "../lib/socket";
@@ -21,6 +21,31 @@ async function userAuth(req: Request, res: Response, next: NextFunction) {
     if (user.status === "blocked") { res.status(403).json({ success: false, error: "Aapka account block kar diya gaya hai. Support se contact karein." }); return; }
     if (user.status === "suspended") { res.status(403).json({ success: false, error: "Aapka account suspend hai. Support se contact karein." }); return; }
     (req as any).userId = payload.userId;
+    next();
+  } catch { res.status(401).json({ success: false, error: "Invalid token" }); }
+}
+
+/* flexAuth: accepts BOTH user JWT (userId) and driver JWT (driverId) */
+interface FlexPayload { userId?: number; driverId?: number; phone?: string; role?: string; }
+async function flexAuth(req: Request, res: Response, next: NextFunction) {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) { res.status(401).json({ success: false, error: "Unauthorized" }); return; }
+  try {
+    const payload = jwt.verify(auth.slice(7), JWT_SECRET) as FlexPayload;
+    if (payload.userId) {
+      const [user] = await db.select({ id: usersTable.id, status: usersTable.status })
+        .from(usersTable).where(eq(usersTable.id, payload.userId)).limit(1);
+      if (!user || user.status === "blocked" || user.status === "suspended") {
+        res.status(403).json({ success: false, error: "Access denied" }); return;
+      }
+      (req as any).userId = payload.userId;
+      (req as any).callerType = "user";
+    } else if (payload.driverId) {
+      (req as any).driverId = payload.driverId;
+      (req as any).callerType = "driver";
+    } else {
+      res.status(401).json({ success: false, error: "Invalid token" }); return;
+    }
     next();
   } catch { res.status(401).json({ success: false, error: "Invalid token" }); }
 }
@@ -121,7 +146,7 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
         await db.update(promoCodesTable)
           .set({ usedCount: existingPromo.usedCount + 1 })
           .where(eq(promoCodesTable.id, existingPromo.id))
-          .catch(() => {});
+          .catch((err: unknown) => { console.error("[rides] promo usedCount update failed:", err); });
       }
     }
 
@@ -232,11 +257,22 @@ router.get("/rides/my", userAuth, async (req: Request, res: Response) => {
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
-router.get("/rides/:id", userAuth, async (req: Request, res: Response) => {
+router.get("/rides/:id", flexAuth, async (req: Request, res: Response) => {
   const rideId = Number(req.params.id);
   try {
     const [ride] = await db.select().from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
     if (!ride) { res.status(404).json({ success: false, error: "Ride not found" }); return; }
+
+    /* Ownership check: user sees only their ride; driver sees only their assigned ride */
+    const callUid = (req as any).userId as number | undefined;
+    const callDid = (req as any).driverId as number | undefined;
+    const callType = ((req as any).callerType ?? "user") as string;
+    if (callType === "user" && ride.userId !== callUid) {
+      res.status(403).json({ success: false, error: "Not your ride" }); return;
+    }
+    if (callType === "driver" && ride.driverId !== callDid) {
+      res.status(403).json({ success: false, error: "Not your ride" }); return;
+    }
 
     let driver = null;
     if (ride.driverId) {
@@ -319,8 +355,11 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
 
 const VALID_STATUSES = ["searching", "accepted", "arrived", "onRide", "completed", "cancelled"];
 
-router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) => {
+router.patch("/rides/:id/status", flexAuth, async (req: Request, res: Response) => {
   const rideId = Number(req.params.id);
+  const callerUserId: number | undefined = (req as any).userId;
+  const callerDriverId: number | undefined = (req as any).driverId;
+  const callerType: string = (req as any).callerType ?? "user";
   const { status, driverRating, paymentMethod: pmUpdate } = req.body as { status: string; driverRating?: number; paymentMethod?: string };
 
   if (!VALID_STATUSES.includes(status)) {
@@ -328,6 +367,20 @@ router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) 
   }
 
   try {
+    /* Fetch ride first — needed for ownership check + completionPin pre-check */
+    const [existingRide] = await db.select({
+      userId: ridesTable.userId, driverId: ridesTable.driverId, completionPin: ridesTable.completionPin,
+    }).from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
+    if (!existingRide) { res.status(404).json({ success: false, error: "Ride not found" }); return; }
+
+    /* Ownership: user can only update their own ride; driver can only update their assigned ride */
+    if (callerType === "user" && existingRide.userId !== callerUserId) {
+      res.status(403).json({ success: false, error: "Not your ride" }); return;
+    }
+    if (callerType === "driver" && existingRide.driverId !== callerDriverId) {
+      res.status(403).json({ success: false, error: "Not your ride" }); return;
+    }
+
     const updateData: Record<string, any> = { status };
     if (pmUpdate && ["Cash","UPI","Card","RaftaarWallet"].includes(pmUpdate)) {
       updateData.paymentMethod = pmUpdate;
@@ -335,8 +388,8 @@ router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) 
     const [updated] = await db.update(ridesTable).set(updateData).where(eq(ridesTable.id, rideId)).returning();
     if (!updated) { res.status(404).json({ success: false, error: "Ride not found" }); return; }
 
-    /* Generate 4-digit completion PIN when driver accepts */
-    if (status === "accepted") {
+    /* Generate 4-digit completion PIN when driver accepts — ONLY if PIN not already set (POST /rides may have set it) */
+    if (status === "accepted" && !existingRide.completionPin) {
       const pin = 1000 + Math.floor(Math.random() * 9000);
       await db.update(ridesTable).set({ completionPin: pin }).where(eq(ridesTable.id, rideId));
       emitRideUpdate(rideId, "ride:pin", { rideId, pin });
@@ -457,9 +510,10 @@ router.post("/rides/:id/verify-pin", async (req: Request, res: Response) => {
     /* Mark ride as completed */
     const [updated] = await db.update(ridesTable).set({ status: "completed" }).where(eq(ridesTable.id, rideId)).returning();
 
-    /* Calculate earnings — 0% commission, platform fee model */
+    /* Calculate earnings — 0% commission, platform fee model
+       Guard: skip if PATCH /status already credited (e.g. race condition) */
     const [driver] = await db.select().from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
-    if (driver) {
+    if (driver && !(updated.driverEarning && parseFloat(String(updated.driverEarning)) > 0)) {
       const price = parseFloat(String(updated.price));
       const isCash = updated.paymentMethod === "Cash";
 
@@ -578,6 +632,24 @@ router.post("/rides/:id/rate", userAuth, async (req: Request, res: Response) => 
     res.json({ success: true, message: `${rating}-star rating save ho gayi!` });
   } catch (err) {
     res.status(500).json({ success: false, error: String(err) });
+  }
+});
+
+/* GET /api/surge — public: current surge multiplier for mobile app */
+router.get("/surge", async (_req: Request, res: Response) => {
+  try {
+    const [surge] = await db
+      .select({ multiplier: surgeSettingsTable.multiplier, isActive: surgeSettingsTable.isActive, reason: surgeSettingsTable.reason })
+      .from(surgeSettingsTable)
+      .where(eq(surgeSettingsTable.isActive, true))
+      .limit(1);
+    res.json({
+      isActive: !!surge,
+      multiplier: surge ? parseFloat(String(surge.multiplier)) : 1.0,
+      reason: surge?.reason ?? null,
+    });
+  } catch {
+    res.json({ isActive: false, multiplier: 1.0, reason: null });
   }
 });
 

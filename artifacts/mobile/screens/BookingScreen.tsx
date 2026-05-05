@@ -1,5 +1,6 @@
 import React, { useCallback, useState, useRef } from "react";
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,7 +17,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { calculateFare, getRideModeMultiplier, DEFAULT_DISTANCE_KM, getSurgeInfo } from "@/lib/pricing";
-import { ridesApi } from "@/lib/ridesApi";
+import { ridesApi, type PaymentMethod } from "@/lib/ridesApi";
 import { GlassCard } from "@/components/GlassCard";
 import { VehicleSelector } from "@/components/VehicleSelector";
 import { RideModeSelector } from "@/components/RideModeSelector";
@@ -78,6 +79,7 @@ export function BookingScreen() {
   const [promoError, setPromoError] = useState("");
   const [promoExpanded, setPromoExpanded] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const [bookingLoading, setBookingLoading] = useState(false);
 
   const finalPrice = promoApplied ? promoApplied.finalFare : basePrice;
 
@@ -121,6 +123,7 @@ export function BookingScreen() {
   };
 
   const handleBookRide = useCallback(async () => {
+    if (bookingLoading) return;
     setFinalPaymentPrice(finalPrice);
     setFareBreakdown({
       rideFare: fare.total - fare.platformFee,
@@ -131,35 +134,43 @@ export function BookingScreen() {
       distanceCharge: fare.distanceCharge,
       waitingCharge: fare.waitingCharge,
     });
-    setScreen("searching");
 
-    if (token) {
-      try {
-        const result = await ridesApi.createRide(token, {
-          pickup: {
-            lat: pickupCoords?.lat ?? 28.6328,
-            lng: pickupCoords?.lng ?? 77.2197,
-            address: pickup,
-          },
-          drop: {
-            lat: dropCoords?.lat ?? 28.7041,
-            lng: dropCoords?.lng ?? 77.1025,
-            address: destination,
-          },
-          vehicleType: selectedVehicle,
-          rideMode,
-          price: finalPrice,
-          distanceKm,
-          promoCode: promoApplied?.code,
-          discountAmount: promoApplied?.discountAmount,
-          originalPrice: promoApplied ? basePrice : undefined,
-        });
-        setCurrentRideId(result.rideId);
-      } catch (err) {
-        console.warn("[booking] ride save failed:", err);
-      }
+    if (!token) {
+      setScreen("searching");
+      return;
     }
-  }, [selectedVehicle, token, pickup, destination, pickupCoords, dropCoords, rideMode, finalPrice, distanceKm, promoApplied, basePrice]);
+
+    setBookingLoading(true);
+    try {
+      const result = await ridesApi.createRide(token, {
+        pickup: {
+          lat: pickupCoords?.lat ?? 28.6328,
+          lng: pickupCoords?.lng ?? 77.2197,
+          address: pickup,
+        },
+        drop: {
+          lat: dropCoords?.lat ?? 28.7041,
+          lng: dropCoords?.lng ?? 77.1025,
+          address: destination,
+        },
+        vehicleType: selectedVehicle,
+        rideMode,
+        price: finalPrice,
+        distanceKm,
+        promoCode: promoApplied?.code,
+        discountAmount: promoApplied?.discountAmount,
+        originalPrice: promoApplied ? basePrice : undefined,
+        paymentMethod: paymentMethod as PaymentMethod,
+      });
+      setCurrentRideId(result.rideId);
+      setScreen("searching");
+    } catch (err: any) {
+      const msg = err?.message ?? "Server se connect nahi ho pa raha";
+      Alert.alert("Booking Failed ❌", `Ride book nahi ho payi.\n${msg}\n\nDobara koshish karein.`, [{ text: "OK" }]);
+    } finally {
+      setBookingLoading(false);
+    }
+  }, [bookingLoading, selectedVehicle, token, pickup, destination, pickupCoords, dropCoords, rideMode, finalPrice, distanceKm, promoApplied, basePrice, paymentMethod]);
 
   const PAYMENT_METHODS = [
     { label: "UPI", icon: "📱" },
@@ -487,8 +498,9 @@ export function BookingScreen() {
 
             <View style={styles.bookBtnContainer}>
               <PrimaryButton
-                label={`Book ${selectedVehicle.charAt(0).toUpperCase() + selectedVehicle.slice(1)} — ₹${finalPrice}${promoApplied ? ` (Save ₹${promoApplied.discountAmount})` : ""}`}
+                label={bookingLoading ? "Booking..." : `Book ${selectedVehicle.charAt(0).toUpperCase() + selectedVehicle.slice(1)} — ₹${finalPrice}${promoApplied ? ` (Save ₹${promoApplied.discountAmount})` : ""}`}
                 onPress={handleBookRide}
+                disabled={bookingLoading}
               />
             </View>
           </ScrollView>

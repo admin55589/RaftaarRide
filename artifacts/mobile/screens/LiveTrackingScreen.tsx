@@ -106,7 +106,17 @@ export function LiveTrackingScreen() {
     }
 
     function onRideStatus(data: { status: string }) {
-      if (data.status === "completed") {
+      if (data.status === "arrived") {
+        setStage(1);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        showNotification({ title: "Driver Aa Gaya! 📍", body: "Aapka driver pickup point pe hai — bahar aao!", type: "ride", icon: "📍", duration: 5000 });
+        announcePickupReached();
+      } else if (data.status === "onRide") {
+        setStage(2);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        showNotification({ title: "Ride Shuru Ho Gayi! 🚀", body: "Manzil ki taraf chal padhe — safe journey!", type: "info", icon: "🚀", duration: 4000 });
+        announceRideStarted(destination ?? "manzil");
+      } else if (data.status === "completed") {
         setTimeout(() => setScreen("payment"), 600);
       }
     }

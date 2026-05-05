@@ -178,6 +178,7 @@ export function WalletScreen() {
           method: "razorpay",
           paymentId: data.razorpay_payment_id,
           orderId: data.razorpay_order_id,
+          signature: data.razorpay_signature,
         }),
       });
       const result = await res.json();

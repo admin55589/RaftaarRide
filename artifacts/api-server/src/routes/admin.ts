@@ -10,8 +10,9 @@ import {
   promoCodesTable,
   chatMessagesTable,
   planTransactionsTable,
+  surgeSettingsTable,
 } from "@workspace/db/schema";
-import { eq, desc, sql, and, gte, isNotNull, ne } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lte, isNotNull, ne } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { validateAccountDetails, createRazorpayPayout } from "../lib/razorpay-payout";
 import { sendPushNotification } from "../lib/expoPush";
@@ -1295,6 +1296,98 @@ router.get("/admin/maps-usage", authMiddleware, async (req: Request, res: Respon
   } catch (err: any) {
     res.json({ error: err?.message });
   }
+});
+
+/* GET /api/admin/surge — get current surge settings */
+router.get("/admin/surge", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const [surge] = await db.select().from(surgeSettingsTable).orderBy(desc(surgeSettingsTable.updatedAt)).limit(1);
+    res.json({ success: true, surge: surge ?? { multiplier: "1.00", isActive: false, reason: null, updatedAt: null } });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+/* POST /api/admin/surge — upsert surge settings */
+router.post("/admin/surge", authMiddleware, async (req: Request, res: Response) => {
+  const { multiplier, isActive, reason } = req.body as { multiplier?: number; isActive?: boolean; reason?: string };
+
+  const mult = multiplier !== undefined ? Number(multiplier) : undefined;
+  if (mult !== undefined && (isNaN(mult) || mult < 1 || mult > 5)) {
+    res.status(400).json({ success: false, error: "Multiplier 1.0 se 5.0 ke beech hona chahiye" }); return;
+  }
+
+  try {
+    const [existing] = await db.select({ id: surgeSettingsTable.id }).from(surgeSettingsTable).limit(1);
+    const setData: Record<string, any> = { updatedAt: new Date(), updatedBy: "admin" };
+    if (mult !== undefined) setData.multiplier = String(mult.toFixed(2));
+    if (isActive !== undefined) setData.isActive = isActive;
+    if (reason !== undefined) setData.reason = reason.trim() || null;
+
+    let surge;
+    if (existing) {
+      [surge] = await db.update(surgeSettingsTable).set(setData).where(eq(surgeSettingsTable.id, existing.id)).returning();
+    } else {
+      [surge] = await db.insert(surgeSettingsTable).values({
+        multiplier: String((mult ?? 1).toFixed(2)),
+        isActive: isActive ?? false,
+        reason: reason?.trim() || null,
+        updatedBy: "admin",
+      }).returning();
+    }
+    res.json({ success: true, surge });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+/* GET /api/admin/earnings — earnings report with date filter */
+router.get("/admin/earnings", authMiddleware, async (req: Request, res: Response) => {
+  const { from, to, limit = "200", offset = "0" } = req.query as { from?: string; to?: string; limit?: string; offset?: string };
+
+  try {
+    const conditions = [eq(ridesTable.status, "completed")];
+    if (from) conditions.push(gte(ridesTable.createdAt, new Date(from)));
+    if (to) conditions.push(lte(ridesTable.createdAt, new Date(to + "T23:59:59")));
+
+    const rides = await db.select({
+      id: ridesTable.id,
+      price: ridesTable.price,
+      vehicleType: ridesTable.vehicleType,
+      paymentMethod: ridesTable.paymentMethod,
+      driverEarning: ridesTable.driverEarning,
+      commissionAmount: ridesTable.commissionAmount,
+      createdAt: ridesTable.createdAt,
+    })
+      .from(ridesTable)
+      .where(and(...conditions))
+      .orderBy(desc(ridesTable.createdAt))
+      .limit(parseInt(limit))
+      .offset(parseInt(offset));
+
+    const totalRevenue = rides.reduce((s, r) => s + parseFloat(String(r.price ?? 0)), 0);
+    const totalDriverEarnings = rides.reduce((s, r) => s + parseFloat(String(r.driverEarning ?? 0)), 0);
+    const totalPlatformFees = parseFloat((totalRevenue - totalDriverEarnings).toFixed(2));
+
+    const byPaymentMethod: Record<string, { count: number; revenue: number }> = {};
+    const byVehicle: Record<string, { count: number; revenue: number }> = {};
+    for (const r of rides) {
+      const pm = r.paymentMethod ?? "Unknown";
+      const vt = (r.vehicleType ?? "Unknown").toLowerCase();
+      byPaymentMethod[pm] = byPaymentMethod[pm] ?? { count: 0, revenue: 0 };
+      byPaymentMethod[pm].count++; byPaymentMethod[pm].revenue += parseFloat(String(r.price ?? 0));
+      byVehicle[vt] = byVehicle[vt] ?? { count: 0, revenue: 0 };
+      byVehicle[vt].count++; byVehicle[vt].revenue += parseFloat(String(r.price ?? 0));
+    }
+    for (const k of Object.keys(byPaymentMethod)) byPaymentMethod[k].revenue = parseFloat(byPaymentMethod[k].revenue.toFixed(2));
+    for (const k of Object.keys(byVehicle)) byVehicle[k].revenue = parseFloat(byVehicle[k].revenue.toFixed(2));
+
+    res.json({
+      success: true,
+      summary: {
+        totalRides: rides.length, totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+        totalDriverEarnings: parseFloat(totalDriverEarnings.toFixed(2)),
+        totalPlatformFees, byPaymentMethod, byVehicle,
+      },
+      rides,
+    });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
 /* GET /api/admin/referrals — referral stats and top referrers */
