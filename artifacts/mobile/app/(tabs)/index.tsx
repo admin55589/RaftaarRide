@@ -25,6 +25,7 @@ import { SearchingScreen } from "@/screens/SearchingScreen";
 import { DriverAssignedScreen } from "@/screens/DriverAssignedScreen";
 import { LiveTrackingScreen } from "@/screens/LiveTrackingScreen";
 import { PaymentScreen } from "@/screens/PaymentScreen";
+import { PaymentSuccessScreen } from "@/screens/PaymentSuccessScreen";
 import { DriverModeScreen } from "@/screens/DriverModeScreen";
 import { WalletScreen } from "@/screens/WalletScreen";
 import { ScheduledRidesScreen } from "@/screens/ScheduledRidesScreen";
@@ -108,7 +109,7 @@ const USER_TABS = [
 ];
 
 
-const RIDE_SCREENS = ["booking", "searching", "driver_assigned", "live_tracking", "payment"];
+const RIDE_SCREENS = ["booking", "searching", "driver_assigned", "live_tracking", "payment", "payment_success"];
 
 export default function MainScreen() {
   const colors = useColors();
@@ -146,6 +147,7 @@ export default function MainScreen() {
         case "driver_assigned": return <DriverAssignedScreen />;
         case "live_tracking":   return <LiveTrackingScreen />;
         case "payment":         return <PaymentScreen />;
+        case "payment_success": return <PaymentSuccessScreen />;
       }
     }
 

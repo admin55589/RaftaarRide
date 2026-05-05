@@ -144,6 +144,12 @@ interface AppContextType {
   setFinalPaymentPrice: (p: number) => void;
   fareBreakdown: { rideFare: number; platformFee: number; promoDiscount: number; promoCode: string; distanceKm: number; distanceCharge: number; waitingCharge: number } | null;
   setFareBreakdown: (b: { rideFare: number; platformFee: number; promoDiscount: number; promoCode: string; distanceKm: number; distanceCharge: number; waitingCharge: number } | null) => void;
+  lastCompletedRideId: number | null;
+  setLastCompletedRideId: (id: number | null) => void;
+  lastCompletedDriverId: string | null;
+  setLastCompletedDriverId: (id: string | null) => void;
+  lastPaymentMethod: string;
+  setLastPaymentMethod: (m: string) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -184,6 +190,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentRideId, setCurrentRideId] = useState<number | null>(null);
   const [finalPaymentPrice, setFinalPaymentPrice] = useState<number>(0);
   const [fareBreakdown, setFareBreakdown] = useState<{ rideFare: number; platformFee: number; promoDiscount: number; promoCode: string; distanceKm: number; distanceCharge: number; waitingCharge: number } | null>(null);
+  const [lastCompletedRideId, setLastCompletedRideId] = useState<number | null>(null);
+  const [lastCompletedDriverId, setLastCompletedDriverId] = useState<string | null>(null);
+  const [lastPaymentMethod, setLastPaymentMethod] = useState<string>("UPI");
 
   useEffect(() => {
     loadCachedHistory();
@@ -247,6 +256,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         currentRideId, setCurrentRideId,
         finalPaymentPrice, setFinalPaymentPrice,
         fareBreakdown, setFareBreakdown,
+        lastCompletedRideId, setLastCompletedRideId,
+        lastCompletedDriverId, setLastCompletedDriverId,
+        lastPaymentMethod, setLastPaymentMethod,
       }}
     >
       {children}

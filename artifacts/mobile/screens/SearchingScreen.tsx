@@ -26,7 +26,7 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColors } from "@/hooks/useColors";
 import { useTheme } from "@/context/ThemeContext";
-import { useApp, MOCK_DRIVERS } from "@/context/AppContext";
+import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { MapView } from "@/components/MapView";
 import { useVoiceAI } from "@/hooks/useVoiceAI";
@@ -246,18 +246,36 @@ export function SearchingScreen() {
       if (pollRef.current) clearInterval(pollRef.current);
       clearInterval(timerRef.current!);
       clearInterval(msgTimer);
-      const mockDriver = MOCK_DRIVERS.find((d) => d.vehicleType === selectedVehicle) ?? MOCK_DRIVERS[2];
-      const driverName = driver?.name ?? mockDriver.name;
-      const eta = driver?.eta ?? mockDriver.eta;
+      const ratingVal = driver
+        ? (typeof driver.rating === "number" ? driver.rating : parseFloat(String(driver.rating)) || 4.5)
+        : 4.5;
+      const vehicleLabel = (vt: string) => {
+        switch (vt.toLowerCase()) {
+          case "bike":  return "Bike";
+          case "auto":  return "Auto Rickshaw";
+          case "suv":   return "SUV";
+          case "prime":
+          case "cab":
+          case "car":   return "Sedan Car";
+          default:      return "Sedan Car";
+        }
+      };
+      const vType = (driver?.vehicleType ?? selectedVehicle ?? "prime") as import("@/context/AppContext").VehicleType;
+      const initials = driver?.name
+        ? driver.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+        : "DR";
       setAssignedDriver({
-        ...mockDriver,
-        name: driverName,
+        id: driver?.id ? String(driver.id) : "0",
+        name: driver?.name ?? "Driver",
         phone: driver?.phone ?? undefined,
-        vehicleNumber: driver?.vehicleNumber ?? mockDriver.vehicleNumber,
-        rating: driver ? (typeof driver.rating === "number" ? driver.rating : parseFloat(String(driver.rating)) || mockDriver.rating) : mockDriver.rating,
-        eta,
+        vehicleType: vType,
+        vehicleNumber: driver?.vehicleNumber ?? "—",
+        vehicle: vehicleLabel(driver?.vehicleType ?? selectedVehicle ?? "prime"),
+        rating: ratingVal,
+        eta: driver?.eta ?? 5,
+        photo: initials,
       });
-      showNotification({ title: "Driver Mil Gaya! 🎉", body: `${driverName} ${eta} min mein aapke paas pahunchega`, type: "success", icon: "🚗", duration: 5000 });
+      showNotification({ title: "Driver Mil Gaya! 🎉", body: `${driver?.name ?? "Driver"} ${driver?.eta ?? 5} min mein aapke paas pahunchega`, type: "success", icon: "🚗", duration: 5000 });
       setScreen("driver_assigned");
     }
 

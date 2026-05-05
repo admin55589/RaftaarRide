@@ -656,10 +656,21 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
       .then((r) => r.json())
       .then((data) => {
         if (data.success && Array.isArray(data.rides) && data.rides.length > 0) {
-          /* Only add if there's no current activeRide and no existing requests */
+          /* Map DB ride format → request format expected by the UI */
+          type DbRide = { id: number; pickup: string; destination: string; distanceKm: string | null; price: string; userId: number; status: string };
+          const mapped = (data.rides as DbRide[]).map((r) => ({
+            id: String(r.id),
+            rideId: r.id,
+            from: r.pickup,
+            to: r.destination,
+            distance: r.distanceKm ? `${parseFloat(r.distanceKm).toFixed(1)} km` : "—",
+            price: parseFloat(r.price) || 0,
+            eta: 5,
+            userName: "Passenger",
+          }));
           setRequests((prev) => {
             const existingIds = new Set(prev.map((r) => r.id));
-            const newRides = data.rides.filter((r: { id: string }) => !existingIds.has(r.id));
+            const newRides = mapped.filter((r) => !existingIds.has(r.id));
             return [...prev, ...newRides];
           });
         }
@@ -771,7 +782,6 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
     const req = requests.find((r) => r.id === id);
     if (!req) return;
     setRequests((rs) => rs.filter((r) => r.id !== id));
-    setDriverEarnings(driverEarnings + req.price);
     setChatMessages([]);
     setUnreadCount(0);
     setActiveRide({
@@ -783,16 +793,16 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
       userName: req.userName,
     });
 
-    /* Join ride socket room so we can send/receive events for this ride */
+    /* Join ride socket room for chat/location/status events */
     const socket = connectSocket();
     socket.emit("ride:join", req.rideId);
 
-    /* Notify backend that driver is on the way (status → arrived) */
+    /* Notify backend: driver accepted the ride */
     if (driverToken) {
       fetch(`${API_BASE}/driver-auth/rides/${req.rideId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${driverToken}` },
-        body: JSON.stringify({ status: "arrived" }),
+        body: JSON.stringify({ status: "accepted" }),
       }).catch(() => {});
     }
 
@@ -861,7 +871,16 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
   };
 
   const handleReject = (id: string) => {
+    const req = requests.find((r) => r.id === id);
     setRequests((rs) => rs.filter((r) => r.id !== id));
+    /* Notify backend: driver rejected → cancel this ride */
+    if (driverToken && req) {
+      fetch(`${API_BASE}/driver-auth/rides/${req.rideId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${driverToken}` },
+        body: JSON.stringify({ status: "cancelled" }),
+      }).catch(() => {});
+    }
     showNotification({
       title: "Request Reject Ki",
       body: "Agli request ka intezaar karo",

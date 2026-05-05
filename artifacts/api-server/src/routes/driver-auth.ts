@@ -497,7 +497,7 @@ router.patch("/driver-auth/rides/:id/status", async (req: Request, res: Response
     }
     const rideId = parseInt(String(req.params.id), 10);
     const { status } = req.body as { status: string };
-    const allowedStatuses = ["arrived", "onRide", "completed", "cancelled"];
+    const allowedStatuses = ["accepted", "arrived", "onRide", "completed", "cancelled"];
     if (!allowedStatuses.includes(status)) {
       res.status(400).json({ success: false, message: `Status '${status}' allowed nahi hai` });
       return;

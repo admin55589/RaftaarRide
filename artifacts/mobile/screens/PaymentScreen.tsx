@@ -109,6 +109,7 @@ export function PaymentScreen() {
     paymentMethod, assignedDriver, destination, pickup,
     addRideToHistory, refreshHistoryFromServer, currentRideId, setCurrentRideId,
     finalPaymentPrice, fareBreakdown,
+    setLastCompletedRideId, setLastCompletedDriverId, setLastPaymentMethod,
   } = useApp();
 
   const [paid, setPaid] = useState(false);
@@ -137,11 +138,13 @@ export function PaymentScreen() {
   }, [token]);
 
   const completeRide = (paidAmount: number, method: string) => {
-    setPaid(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     announcePaymentSuccess(paidAmount);
-    const driver = assignedDriver ?? { name: "Raj Kumar", rating: 4.8, vehicle: "Swift Dzire", vehicleNumber: "DL 4C AB 1234", vehicleType: selectedVehicle, eta: 5, photo: "RK", id: "1" };
-    /* Capture IDs for rating before they are cleared */
+    const driver = assignedDriver ?? { name: "Driver", rating: 4.5, vehicle: "Car", vehicleNumber: "—", vehicleType: selectedVehicle, eta: 5, photo: "DR", id: "0" };
+    /* Save IDs to context so PaymentSuccessScreen can access them */
+    setLastCompletedRideId(currentRideId);
+    setLastCompletedDriverId(driver.id ?? null);
+    setLastPaymentMethod(method);
     setCompletedRideId(currentRideId);
     setCompletedDriverId(driver.id ?? null);
     addRideToHistory({
@@ -155,6 +158,7 @@ export function PaymentScreen() {
         .catch(() => {});
       setCurrentRideId(null);
     }
+    setScreen("payment_success");
   };
 
   const handleWalletPay = async () => {
