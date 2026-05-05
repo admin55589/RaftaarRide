@@ -13,7 +13,7 @@ import {
 import Animated, { FadeInDown, FadeInUp, FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
-import { useApp, MOCK_DRIVERS } from "@/context/AppContext";
+import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { calculateFare, getRideModeMultiplier, DEFAULT_DISTANCE_KM, getSurgeInfo } from "@/lib/pricing";
 import { ridesApi } from "@/lib/ridesApi";
@@ -53,7 +53,7 @@ export function BookingScreen() {
     selectedVehicle,
     rideMode,
     estimatedTime,
-    setAssignedDriver,
+
     paymentMethod,
     setPaymentMethod,
     estimatedDistanceKm,
@@ -121,8 +121,6 @@ export function BookingScreen() {
   };
 
   const handleBookRide = useCallback(async () => {
-    const driver = MOCK_DRIVERS.find((d) => d.vehicleType === selectedVehicle) ?? MOCK_DRIVERS[2];
-    setAssignedDriver(driver);
     setFinalPaymentPrice(finalPrice);
     setFareBreakdown({
       rideFare: fare.total - fare.platformFee,

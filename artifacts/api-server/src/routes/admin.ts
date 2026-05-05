@@ -1297,4 +1297,45 @@ router.get("/admin/maps-usage", authMiddleware, async (req: Request, res: Respon
   }
 });
 
+/* GET /api/admin/referrals — referral stats and top referrers */
+router.get("/admin/referrals", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const [totalUsers, usersWithReferral, usersReferred, topReferrers] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` }).from(usersTable),
+      db.select({ count: sql<number>`count(*)` }).from(usersTable).where(isNotNull(usersTable.referralCode)),
+      db.select({ count: sql<number>`count(*)` }).from(usersTable).where(isNotNull(usersTable.referredBy)),
+      db.select({
+        id: usersTable.id,
+        name: usersTable.name,
+        phone: usersTable.phone,
+        referralCode: usersTable.referralCode,
+        referredCount: sql<number>`(select count(*) from users where referred_by = ${usersTable.referralCode})`,
+        joinedAt: usersTable.createdAt,
+      })
+        .from(usersTable)
+        .where(isNotNull(usersTable.referralCode))
+        .orderBy(desc(sql`(select count(*) from users where referred_by = ${usersTable.referralCode})`))
+        .limit(20),
+    ]);
+
+    res.json({
+      success: true,
+      stats: {
+        totalUsers: Number(totalUsers[0]?.count ?? 0),
+        usersWithReferralCode: Number(usersWithReferral[0]?.count ?? 0),
+        usersReferredByOthers: Number(usersReferred[0]?.count ?? 0),
+        conversionRate: totalUsers[0]?.count
+          ? ((Number(usersReferred[0]?.count ?? 0) / Number(totalUsers[0].count)) * 100).toFixed(1)
+          : "0",
+      },
+      topReferrers: topReferrers.map((u) => ({
+        ...u,
+        referredCount: Number(u.referredCount),
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
+});
+
 export default router;

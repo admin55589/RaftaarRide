@@ -227,6 +227,7 @@ router.post("/auth/send-otp", async (req: Request, res: Response) => {
         .set({ otpCode: otp, otpExpiresAt: expiresAt })
         .where(eq(usersTable.phone, phone));
     } else {
+      const referralCode = generateReferralCode();
       await db.insert(usersTable).values({
         name: "User",
         phone,
@@ -234,6 +235,7 @@ router.post("/auth/send-otp", async (req: Request, res: Response) => {
         otpExpiresAt: expiresAt,
         isVerified: false,
         status: "active",
+        referralCode,
       });
     }
 
@@ -294,14 +296,19 @@ router.post("/auth/verify-otp", async (req: Request, res: Response) => {
       return;
     }
 
+    /* Generate referral code if user doesn't have one (e.g. old registrations) */
+    const referralUpdate: Record<string, any> = {
+      otpCode: null,
+      otpExpiresAt: null,
+      isVerified: true,
+      name: name || user.name,
+    };
+    if (!user.referralCode) {
+      referralUpdate.referralCode = generateReferralCode();
+    }
     await db
       .update(usersTable)
-      .set({
-        otpCode: null,
-        otpExpiresAt: null,
-        isVerified: true,
-        name: name || user.name,
-      })
+      .set(referralUpdate)
       .where(eq(usersTable.phone, phone));
 
     const token = jwt.sign(

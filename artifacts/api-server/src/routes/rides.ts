@@ -267,6 +267,47 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
 
     if (ride.driverId) {
       await db.update(driversTable).set({ isOnline: true }).where(eq(driversTable.id, ride.driverId));
+      /* Notify driver their ride was cancelled */
+      const [drv] = await db.select({ pushToken: driversTable.pushToken })
+        .from(driversTable).where(eq(driversTable.id, ride.driverId)).limit(1);
+      if (drv?.pushToken) {
+        await sendPushNotification({
+          to: drv.pushToken,
+          title: "❌ Ride Cancel Ho Gayi",
+          body: "Passenger ne ride cancel kar di. Aap ab online hain.",
+          data: { type: "ride_cancelled", rideId },
+        });
+      }
+    }
+
+    /* Wallet refund: if user paid via RaftaarWallet, refund the amount */
+    if (ride.paymentMethod === "RaftaarWallet") {
+      const ridePrice = parseFloat(String(ride.price));
+      if (!isNaN(ridePrice) && ridePrice > 0) {
+        const [rideUser] = await db.select({ walletBalance: usersTable.walletBalance, pushToken: usersTable.pushToken })
+          .from(usersTable).where(eq(usersTable.id, ride.userId)).limit(1);
+        if (rideUser) {
+          const currentBal = parseFloat(String(rideUser.walletBalance ?? "0"));
+          const newBal = parseFloat((currentBal + ridePrice).toFixed(2));
+          await db.update(usersTable)
+            .set({ walletBalance: String(newBal) })
+            .where(eq(usersTable.id, ride.userId));
+          await db.insert(walletTransactionsTable).values({
+            userId: ride.userId,
+            type: "refund",
+            amount: String(ridePrice),
+            description: `Ride #${rideId} cancel — ₹${ridePrice.toFixed(2)} wallet mein wapas`,
+          });
+          if (rideUser.pushToken) {
+            await sendPushNotification({
+              to: rideUser.pushToken,
+              title: "💰 Refund Ho Gaya!",
+              body: `₹${ridePrice.toFixed(2)} aapke RaftaarWallet mein wapas aa gaye`,
+              data: { type: "wallet_refund", rideId, amount: ridePrice },
+            });
+          }
+        }
+      }
     }
 
     emitRideUpdate(rideId, "ride:status", { rideId, status: "cancelled" });
@@ -319,6 +360,13 @@ router.patch("/rides/:id/status", userAuth, async (req: Request, res: Response) 
     }
 
     if (status === "completed" && updated.driverId) {
+      /* Skip if earnings already credited (e.g. via verify-pin route) */
+      if (updated.driverEarning && parseFloat(String(updated.driverEarning)) > 0) {
+        emitRideUpdate(rideId, "ride:status", { rideId, status });
+        emitAdminUpdate("admin:ride:updated", { rideId, status });
+        res.json({ success: true, ride: updated, driverRating });
+        return;
+      }
       const [driver] = await db.select().from(driversTable).where(eq(driversTable.id, updated.driverId)).limit(1);
       if (driver) {
         const price = parseFloat(String(updated.price));

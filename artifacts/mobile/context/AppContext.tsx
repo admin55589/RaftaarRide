@@ -1,6 +1,33 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { ridesApi, type RideRecord } from "@/lib/ridesApi";
+
+/* Haversine straight-line distance (km) */
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLng = (lng2 - lng1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/* Calculate road distance & time from two coordinate pairs */
+export function calcRealDistance(
+  pickupCoords: { lat: number; lng: number } | null,
+  dropCoords: { lat: number; lng: number } | null
+): { distanceKm: number; timeMin: number } | null {
+  if (!pickupCoords || !dropCoords) return null;
+  const straightLine = haversineKm(pickupCoords.lat, pickupCoords.lng, dropCoords.lat, dropCoords.lng);
+  const roadFactor = 1.38; // Indian urban roads typically 35-40% longer than straight line
+  const distanceKm = parseFloat((straightLine * roadFactor).toFixed(1));
+  const avgSpeedKmh = 26; // avg urban speed Delhi/NCR
+  const timeMin = Math.max(3, Math.round((distanceKm / avgSpeedKmh) * 60));
+  return { distanceKm, timeMin };
+}
 
 export type RideMode = "economy" | "fast" | "premium";
 export type VehicleType = "bike" | "auto" | "cab" | "prime" | "suv";
@@ -180,6 +207,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [estimatedPrice, setEstimatedPrice] = useState(180);
   const [estimatedTime, setEstimatedTime] = useState(12);
   const [estimatedDistanceKm, setEstimatedDistanceKm] = useState(8.2);
+  const mapsKeyRef = useRef<string>(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "");
   const [assignedDriver, setAssignedDriver] = useState<Driver | null>(null);
   const [rideHistory, setRideHistory] = useState<Ride[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
@@ -193,6 +221,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lastCompletedRideId, setLastCompletedRideId] = useState<number | null>(null);
   const [lastCompletedDriverId, setLastCompletedDriverId] = useState<string | null>(null);
   const [lastPaymentMethod, setLastPaymentMethod] = useState<string>("UPI");
+
+  /* Auto-calculate real distance when both pickup + drop coords are available */
+  useEffect(() => {
+    if (!pickupCoords || !dropCoords) return;
+    const mapsKey = mapsKeyRef.current || "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q";
+    /* Try Google Maps Directions API for accurate road distance */
+    const origin = `${pickupCoords.lat},${pickupCoords.lng}`;
+    const destination = `${dropCoords.lat},${dropCoords.lng}`;
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&mode=driving&key=${mapsKey}`;
+    fetch(url)
+      .then((r) => r.json())
+      .then((data: { routes?: Array<{ legs?: Array<{ distance?: { value: number }; duration?: { value: number } }> }> }) => {
+        const leg = data?.routes?.[0]?.legs?.[0];
+        if (leg?.distance?.value && leg?.duration?.value) {
+          const distKm = parseFloat((leg.distance.value / 1000).toFixed(1));
+          const timeMin = Math.ceil(leg.duration.value / 60);
+          setEstimatedDistanceKm(distKm);
+          setEstimatedTime(timeMin);
+        } else {
+          /* Fallback: haversine + road factor */
+          const result = calcRealDistance(pickupCoords, dropCoords);
+          if (result) {
+            setEstimatedDistanceKm(result.distanceKm);
+            setEstimatedTime(result.timeMin);
+          }
+        }
+      })
+      .catch(() => {
+        /* Network/API error: use haversine fallback */
+        const result = calcRealDistance(pickupCoords, dropCoords);
+        if (result) {
+          setEstimatedDistanceKm(result.distanceKm);
+          setEstimatedTime(result.timeMin);
+        }
+      });
+  }, [pickupCoords, dropCoords]);
 
   useEffect(() => {
     loadCachedHistory();

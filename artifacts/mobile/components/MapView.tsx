@@ -236,6 +236,20 @@ function buildMapHtml(opts: {
       }, function(result, status) {
         if (status === 'OK') {
           directionsRenderer.setDirections(result);
+          /* Send real route distance & duration back to React Native */
+          try {
+            var leg = result.routes[0].legs[0];
+            var msg = JSON.stringify({
+              type: 'routeInfo',
+              distanceM: leg.distance.value,
+              durationS: leg.duration.value,
+            });
+            if (window.ReactNativeWebView) {
+              window.ReactNativeWebView.postMessage(msg);
+            } else {
+              window.postMessage(msg, '*');
+            }
+          } catch(e) {}
         }
       });
     }
@@ -317,7 +331,7 @@ export function MapView({
   driverLocation = null,
 }: MapViewProps) {
   const colors = useColors();
-  const { pickupCoords, dropCoords, setPickupCoords } = useApp();
+  const { pickupCoords, dropCoords, setPickupCoords, setEstimatedDistanceKm, setEstimatedTime } = useApp();
   const webviewRef = useRef<WebView>(null);
 
   const isDark = colors.background === "#0A0A0F"
@@ -391,7 +405,17 @@ export function MapView({
         originWhitelist={["*"]}
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}
-        onMessage={() => {}}
+        onMessage={(e) => {
+          try {
+            const msg = JSON.parse(e.nativeEvent.data) as { type: string; distanceM?: number; durationS?: number };
+            if (msg.type === "routeInfo" && msg.distanceM && msg.durationS) {
+              const distKm = parseFloat((msg.distanceM / 1000).toFixed(1));
+              const timeMin = Math.ceil(msg.durationS / 60);
+              setEstimatedDistanceKm(distKm);
+              setEstimatedTime(timeMin);
+            }
+          } catch {}
+        }}
       />
     </View>
   );

@@ -85,7 +85,7 @@ export function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setScreen, setDestination, currentLocationAddress, setCurrentLocationAddress, setPickup } = useApp();
+  const { setScreen, setDestination, setDropCoords, currentLocationAddress, setCurrentLocationAddress, setPickup } = useApp();
   const { user, token, logout, updateUser } = useAuth();
   const { lang, toggleLanguage, t } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
@@ -293,6 +293,18 @@ export function HomeScreen() {
 
   const handleDestinationSelect = (dest: string) => {
     setDestination(dest);
+    /* Geocode destination asynchronously so real distance can be calculated */
+    const mapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q";
+    const q = encodeURIComponent(dest);
+    fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${q}&region=in&key=${mapsKey}`)
+      .then((r) => r.json())
+      .then((data: { results?: Array<{ geometry?: { location?: { lat: number; lng: number } } }> }) => {
+        const loc = data?.results?.[0]?.geometry?.location;
+        if (loc?.lat && loc?.lng) {
+          setDropCoords({ lat: loc.lat, lng: loc.lng });
+        }
+      })
+      .catch(() => {});
     setScreen("booking");
   };
 

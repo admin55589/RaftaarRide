@@ -18,6 +18,7 @@ import { ChatHistoryPage } from "@/pages/ChatHistoryPage";
 import { BroadcastPage } from "@/pages/BroadcastPage";
 import { DriverPlansPage } from "@/pages/DriverPlansPage";
 import { PlanRevenuePage } from "@/pages/PlanRevenuePage";
+import { ReferralPage } from "@/pages/ReferralPage";
 import { TermsPage } from "@/pages/TermsPage";
 import { PrivacyPage } from "@/pages/PrivacyPage";
 import NotFound from "@/pages/not-found";
@@ -70,6 +71,7 @@ function AppLayout() {
           <Route path="/broadcast" component={BroadcastPage} />
           <Route path="/driver-plans" component={DriverPlansPage} />
           <Route path="/plan-revenue" component={PlanRevenuePage} />
+          <Route path="/referrals" component={ReferralPage} />
           <Route component={NotFound} />
         </Switch>
       </main>
