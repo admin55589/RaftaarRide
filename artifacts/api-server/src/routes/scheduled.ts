@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { usersTable, scheduledRidesTable } from "@workspace/db/schema";
+import { usersTable, scheduledRidesTable, walletTransactionsTable } from "@workspace/db/schema";
 import { eq, desc, gte } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 
@@ -50,9 +50,19 @@ router.post("/scheduled-rides", userAuth, async (req: Request, res: Response) =>
   }
 
   try {
-    const [user] = await db.select({ id: usersTable.id }).from(usersTable)
-      .where(eq(usersTable.id, userId)).limit(1);
+    const [user] = await db.select({ id: usersTable.id, walletBalance: usersTable.walletBalance })
+      .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { res.status(404).json({ success: false, error: "User not found" }); return; }
+
+    const currentBalance = Number(user.walletBalance ?? 0);
+    const ridePrice = Number(price);
+    if (currentBalance < ridePrice) {
+      res.status(400).json({ success: false, error: `Wallet mein paisa kam hai. Balance: ₹${currentBalance.toFixed(2)}, Required: ₹${ridePrice.toFixed(2)}` });
+      return;
+    }
+
+    const newBalance = currentBalance - ridePrice;
+    await db.update(usersTable).set({ walletBalance: String(newBalance) }).where(eq(usersTable.id, userId));
 
     const [ride] = await db.insert(scheduledRidesTable).values({
       userId,
@@ -60,12 +70,19 @@ router.post("/scheduled-rides", userAuth, async (req: Request, res: Response) =>
       destination,
       vehicleType,
       rideMode: rideMode ?? "economy",
-      price: String(price),
+      price: String(ridePrice),
       scheduledAt: scheduledTime,
       notes,
     }).returning();
 
-    res.json({ success: true, ride, message: "Ride schedule ho gayi!" });
+    await db.insert(walletTransactionsTable).values({
+      userId,
+      type: "deduction",
+      amount: String(ridePrice),
+      description: `Scheduled ride booking: ${pickup} → ${destination} on ${scheduledTime.toLocaleDateString("en-IN")}`,
+    });
+
+    res.json({ success: true, ride, newBalance, message: "Ride schedule ho gayi! Wallet se ₹" + ridePrice + " kaat liya gaya." });
   } catch { res.status(500).json({ success: false, error: "Server error" }); }
 });
 

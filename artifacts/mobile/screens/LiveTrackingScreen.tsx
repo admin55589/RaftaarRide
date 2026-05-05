@@ -137,51 +137,14 @@ export function LiveTrackingScreen() {
   useEffect(() => {
     const tick = setInterval(() => {
       setProgress((p) => {
-        const next = p + 0.025;
-        if (next >= 0.35 && stage === 0) {
-          setStage(1);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          showNotification({
-            title: "Driver Aa Gaya! 📍",
-            body: "Aapka driver pickup point pe hai — bahar aao!",
-            type: "ride",
-            icon: "📍",
-            duration: 5000,
-          });
-          announcePickupReached();
-        }
-        if (next >= 0.7 && stage <= 1) {
-          setStage(2);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          showNotification({
-            title: "Ride Shuru Ho Gayi! 🚀",
-            body: "Manzil ki taraf chal padhe — safe journey!",
-            type: "info",
-            icon: "🚀",
-            duration: 4000,
-          });
-          announceRideStarted(destination ?? "manzil");
-        }
-        if (next >= 1) {
-          clearInterval(tick);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          showNotification({
-            title: "Safar Complete! 🎉",
-            body: "Apni manzil pe pahunch gaye — enjoy karo!",
-            type: "success",
-            icon: "🎉",
-            duration: 4000,
-          });
-          announceArrived();
-          setTimeout(() => setScreen("payment"), 800);
-          return 1;
-        }
+        const next = p + 0.005;
+        if (next >= 1) { clearInterval(tick); return 1; }
         return next;
       });
-      setTimeLeft((t) => Math.max(0, t - 0.3));
+      setTimeLeft((t) => Math.max(0, t - 0.06));
     }, 300);
     return () => clearInterval(tick);
-  }, [stage]);
+  }, []);
 
   const driver = assignedDriver ?? { name: "Raj Kumar", rating: 4.8, vehicle: "Swift Dzire", vehicleNumber: "DL 4C AB 1234", vehicleType: selectedVehicle, eta: 5, photo: "RK", phone: undefined };
 

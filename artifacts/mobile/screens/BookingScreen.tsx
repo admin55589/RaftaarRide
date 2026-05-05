@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
-import { calculateFare, getRideModeMultiplier, DEFAULT_DISTANCE_KM, getSurgeInfo } from "@/lib/pricing";
+import { calculateFare, getRideModeMultiplier, DEFAULT_DISTANCE_KM } from "@/lib/pricing";
 import { ridesApi, type PaymentMethod } from "@/lib/ridesApi";
 import { GlassCard } from "@/components/GlassCard";
 import { VehicleSelector } from "@/components/VehicleSelector";
@@ -61,11 +61,12 @@ export function BookingScreen() {
     setCurrentRideId,
     setFinalPaymentPrice,
     setFareBreakdown,
+    surgeMultiplier,
+    surgeReason,
   } = useApp();
 
-  const surgeInfo = getSurgeInfo();
   const distanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
-  const fare = calculateFare(selectedVehicle, distanceKm, 0, getRideModeMultiplier(rideMode) * surgeInfo.multiplier);
+  const fare = calculateFare(selectedVehicle, distanceKm, 0, getRideModeMultiplier(rideMode) * surgeMultiplier);
   const basePrice = fare.total;
   const timeMultiplier = selectedVehicle === "bike" ? 0.7 : selectedVehicle === "auto" ? 0.9 : 1;
   const duration = Math.round(estimatedTime * timeMultiplier);
@@ -379,12 +380,12 @@ export function BookingScreen() {
               ) : null}
             </View>
 
-            {surgeInfo.isActive && (
+            {surgeMultiplier > 1 && (
               <View style={[styles.surgeBanner, { backgroundColor: "rgba(245,158,11,0.13)", borderColor: "rgba(245,158,11,0.33)" }]}>
                 <Text style={{ fontSize: 14 }}>⚡</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.surgeTitle, { color: "#f59e0b" }]}>Surge Pricing — {surgeInfo.label}</Text>
-                  <Text style={[styles.surgeSubtitle, { color: "rgba(245,158,11,0.6)" }]}>{surgeInfo.reason}</Text>
+                  <Text style={[styles.surgeTitle, { color: "#f59e0b" }]}>Surge Pricing — {surgeMultiplier}x</Text>
+                  <Text style={[styles.surgeSubtitle, { color: "rgba(245,158,11,0.6)" }]}>{surgeReason ?? "High demand in your area"}</Text>
                 </View>
               </View>
             )}

@@ -12,7 +12,7 @@ import {
   planTransactionsTable,
   surgeSettingsTable,
 } from "@workspace/db/schema";
-import { eq, desc, sql, and, gte, lte, isNotNull, ne } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lte, isNotNull, ne, inArray, count, max } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { validateAccountDetails, createRazorpayPayout } from "../lib/razorpay-payout";
 import { sendPushNotification } from "../lib/expoPush";
@@ -1388,6 +1388,112 @@ router.get("/admin/earnings", authMiddleware, async (req: Request, res: Response
       rides,
     });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+/* GET /api/admin/live-rides — active rides with driver + user coordinates for live map */
+router.get("/admin/live-rides", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const rides = await db
+      .select({
+        id: ridesTable.id,
+        pickup: ridesTable.pickup,
+        destination: ridesTable.destination,
+        pickupLat: ridesTable.pickupLat,
+        pickupLng: ridesTable.pickupLng,
+        dropLat: ridesTable.dropLat,
+        dropLng: ridesTable.dropLng,
+        status: ridesTable.status,
+        vehicleType: ridesTable.vehicleType,
+        price: ridesTable.price,
+        createdAt: ridesTable.createdAt,
+        userName: usersTable.name,
+        userPhone: usersTable.phone,
+        driverName: driversTable.name,
+        driverPhone: driversTable.phone,
+        driverLat: driversTable.driverLat,
+        driverLng: driversTable.driverLng,
+      })
+      .from(ridesTable)
+      .innerJoin(usersTable, eq(ridesTable.userId, usersTable.id))
+      .leftJoin(driversTable, eq(ridesTable.driverId, driversTable.id))
+      .where(inArray(ridesTable.status, ["searching", "accepted", "arrived", "onRide"]))
+      .orderBy(desc(ridesTable.createdAt))
+      .limit(100);
+
+    res.json(rides);
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
+});
+
+/* GET /api/admin/chats/recent — rides that have chat messages, most recent first */
+router.get("/admin/chats/recent", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const threads = await db
+      .select({
+        rideId: ridesTable.id,
+        pickup: ridesTable.pickup,
+        destination: ridesTable.destination,
+        status: ridesTable.status,
+        userName: usersTable.name,
+        driverName: driversTable.name,
+        messageCount: count(chatMessagesTable.id),
+        lastAt: max(chatMessagesTable.createdAt),
+      })
+      .from(chatMessagesTable)
+      .innerJoin(ridesTable, eq(chatMessagesTable.rideId, ridesTable.id))
+      .innerJoin(usersTable, eq(ridesTable.userId, usersTable.id))
+      .leftJoin(driversTable, eq(ridesTable.driverId, driversTable.id))
+      .groupBy(ridesTable.id, ridesTable.pickup, ridesTable.destination, ridesTable.status, usersTable.name, driversTable.name)
+      .orderBy(desc(max(chatMessagesTable.createdAt)))
+      .limit(50);
+
+    /* For each thread get the last message text using a subquery approach */
+    const rideIds = threads.map(t => t.rideId);
+    let lastMsgMap: Record<number, string> = {};
+    if (rideIds.length > 0) {
+      const lastMsgs = await db
+        .select({ rideId: chatMessagesTable.rideId, message: chatMessagesTable.message, createdAt: chatMessagesTable.createdAt })
+        .from(chatMessagesTable)
+        .where(inArray(chatMessagesTable.rideId, rideIds))
+        .orderBy(desc(chatMessagesTable.createdAt));
+      for (const msg of lastMsgs) {
+        if (!lastMsgMap[msg.rideId]) lastMsgMap[msg.rideId] = msg.message;
+      }
+    }
+
+    res.json(threads.map(t => ({ ...t, messageCount: Number(t.messageCount), lastMessage: lastMsgMap[t.rideId] ?? null })));
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
+});
+
+/* GET /api/admin/chat/:rideId — all messages + ride detail for a specific ride */
+router.get("/admin/chat/:rideId", authMiddleware, async (req: Request, res: Response) => {
+  const rideId = parseInt(String(req.params.rideId), 10);
+  if (isNaN(rideId)) { res.status(400).json({ success: false, error: "Invalid rideId" }); return; }
+
+  try {
+    const [[rideRow], messages] = await Promise.all([
+      db
+        .select({ id: ridesTable.id, pickup: ridesTable.pickup, destination: ridesTable.destination, status: ridesTable.status, userName: usersTable.name, driverName: driversTable.name })
+        .from(ridesTable)
+        .innerJoin(usersTable, eq(ridesTable.userId, usersTable.id))
+        .leftJoin(driversTable, eq(ridesTable.driverId, driversTable.id))
+        .where(eq(ridesTable.id, rideId))
+        .limit(1),
+      db
+        .select({ id: chatMessagesTable.id, rideId: chatMessagesTable.rideId, senderType: chatMessagesTable.senderType, senderId: chatMessagesTable.senderId, message: chatMessagesTable.message, createdAt: chatMessagesTable.createdAt })
+        .from(chatMessagesTable)
+        .where(eq(chatMessagesTable.rideId, rideId))
+        .orderBy(chatMessagesTable.createdAt),
+    ]);
+
+    if (!rideRow) { res.status(404).json({ success: false, error: "Ride nahi mili" }); return; }
+    res.json({ ride: rideRow, messages });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
 });
 
 /* GET /api/admin/referrals — referral stats and top referrers */
