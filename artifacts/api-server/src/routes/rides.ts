@@ -52,7 +52,7 @@ async function flexAuth(req: Request, res: Response, next: NextFunction) {
 
 interface GeoPoint { lat?: number; lng?: number; address: string; }
 
-async function assignNearestDriver(vehicleType: string, pickupLat?: number, pickupLng?: number) {
+async function assignNearestDriver(vehicleType: string, pickupLat?: number, pickupLng?: number): Promise<{ driver: typeof driversTable.$inferSelect; etaMinutes: number } | null> {
   const availableDrivers = await db
     .select()
     .from(driversTable)
@@ -65,6 +65,8 @@ async function assignNearestDriver(vehicleType: string, pickupLat?: number, pick
 
   if (availableDrivers.length === 0) return null;
 
+  const DEFAULT_ETA = 5;
+
   if (pickupLat && pickupLng) {
     let nearest = availableDrivers[0];
     let minDist = Infinity;
@@ -72,13 +74,25 @@ async function assignNearestDriver(vehicleType: string, pickupLat?: number, pick
       if (d.driverLat && d.driverLng) {
         const dLat = parseFloat(String(d.driverLat));
         const dLng = parseFloat(String(d.driverLng));
-        const dist = Math.sqrt(Math.pow(dLat - pickupLat, 2) + Math.pow(dLng - pickupLng, 2));
+        /* Haversine approx — convert degree distance to km */
+        const latDiff = dLat - pickupLat;
+        const lngDiff = dLng - pickupLng;
+        const avgLat = (dLat + pickupLat) / 2;
+        const kmLat = latDiff * 111.0;
+        const kmLng = lngDiff * 111.0 * Math.cos(avgLat * Math.PI / 180);
+        const dist = Math.sqrt(kmLat * kmLat + kmLng * kmLng);
         if (dist < minDist) { minDist = dist; nearest = d; }
       }
     }
-    return nearest;
+    /* ETA = distance / avg city speed (20 km/h), min 1 min, max 20 min */
+    const etaMinutes = minDist === Infinity
+      ? DEFAULT_ETA
+      : Math.min(20, Math.max(1, Math.round(minDist / 20 * 60)));
+    return { driver: nearest, etaMinutes };
   }
-  return availableDrivers[Math.floor(Math.random() * availableDrivers.length)];
+
+  const randomDriver = availableDrivers[Math.floor(Math.random() * availableDrivers.length)];
+  return { driver: randomDriver, etaMinutes: DEFAULT_ETA };
 }
 
 router.post("/rides", userAuth, async (req: Request, res: Response) => {
@@ -112,11 +126,13 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
   }
 
   try {
-    const matchedDriver = await assignNearestDriver(
+    const driverResult = await assignNearestDriver(
       finalVehicleType,
       typeof pickup === "object" ? pickup.lat : undefined,
       typeof pickup === "object" ? pickup.lng : undefined
     );
+    const matchedDriver = driverResult?.driver ?? null;
+    const driverEta = driverResult?.etaMinutes ?? 5;
 
     const { paymentMethod: pmRaw } = req.body as { paymentMethod?: string };
     const finalPaymentMethod = (pmRaw && ["Cash","UPI","Card","RaftaarWallet"].includes(pmRaw)) ? pmRaw : "Cash";
@@ -161,7 +177,7 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       vehicleType: matchedDriver.vehicleType,
       vehicleNumber: matchedDriver.vehicleNumber,
       rating: matchedDriver.rating,
-      eta: Math.floor(Math.random() * 5) + 2,
+      eta: driverEta,
     } : null;
 
     /* Generate PIN immediately when driver auto-assigned */

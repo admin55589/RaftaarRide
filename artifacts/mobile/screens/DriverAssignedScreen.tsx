@@ -247,20 +247,10 @@ function ChatModal({
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+    /* Show typing indicator; clears when real driver message arrives via socket */
     setIsDriverTyping(true);
-    const delay = 1200 + Math.random() * 1000;
-    setTimeout(() => {
-      const reply = getSmartDriverReply(text, driverName, eta);
-      const driverMsg: ChatMsg = {
-        id: `${Date.now()}-driver`,
-        role: "driver",
-        senderName: driverName,
-        text: reply,
-        timestamp: Date.now(),
-      };
-      setIsDriverTyping(false);
-      setMessages((prev) => [...prev, driverMsg]);
-    }, delay);
+    const typingTimer = setTimeout(() => setIsDriverTyping(false), 30000);
+    return () => clearTimeout(typingTimer);
   };
 
   const formatTime = (ts: number) =>
