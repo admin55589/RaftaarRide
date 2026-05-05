@@ -24,12 +24,12 @@ async function twoFactorSendOtp(phone: string, otp: string): Promise<boolean> {
     const res = await fetch(url);
     const data = (await res.json()) as { Status: string; Details: string };
     if (data.Status === "Success") {
-      console.log(`[OTP][2Factor] SMS sent to ${cleanPhone}, SessionId: ${data.Details}`);
+      logger.info({ phone: cleanPhone, sessionId: data.Details }, "[OTP][2Factor] SMS sent");
       return true;
     }
-    console.error("[OTP][2Factor] Failed:", JSON.stringify(data));
+    logger.warn({ phone: cleanPhone, data }, "[OTP][2Factor] SMS failed");
   } catch (err) {
-    console.error("[OTP][2Factor] Error:", err);
+    logger.error({ err }, "[OTP][2Factor] Error");
   }
   return false;
 }
@@ -109,7 +109,7 @@ router.post("/auth/register", async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error("Register error:", err);
+    logger.error({ err }, "register error");
     res.status(500).json({ message: "Registration failed" });
   }
 });
@@ -176,7 +176,7 @@ router.post("/auth/login", async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error("Login error:", err);
+    logger.error({ err }, "login error");
     res.status(500).json({ message: "Login failed" });
   }
 });
@@ -235,7 +235,7 @@ router.post("/auth/send-otp", async (req: Request, res: Response) => {
       smsSent: sent,
     });
   } catch (err) {
-    console.error("Send OTP error:", err);
+    logger.error({ err }, "send-otp error");
     res.status(500).json({ message: "Failed to send OTP" });
   }
 });
@@ -314,7 +314,7 @@ router.post("/auth/verify-otp", async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error("Verify OTP error:", err);
+    logger.error({ err }, "verify-otp error");
     res.status(500).json({ message: "OTP verification failed" });
   }
 });

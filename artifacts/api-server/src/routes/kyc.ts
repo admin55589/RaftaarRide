@@ -13,7 +13,6 @@ import { isAutomationEnabled } from "../lib/automation-state";
 
 const router: IRouter = Router();
 const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
-const COMMISSION_RATE = 0;
 
 interface JwtPayload { driverId: number; email: string; role: string; }
 
@@ -118,7 +117,7 @@ router.get("/driver/wallet", driverAuth, async (req: Request, res: Response) => 
       success: true,
       balance: Number(driver.walletBalance),
       totalEarnings: Number(driver.totalEarnings),
-      commissionRate: COMMISSION_RATE,
+      commissionRate: 0,
       transactions: txns,
       withdrawals: pendingWithdrawals,
     });

@@ -876,7 +876,7 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <MapView showRadar={isOnline} />
+      <MapView showRadar={isOnline && !activeRide} showRoute={!!activeRide} />
 
       <View style={[styles.header, { paddingTop: topPad + 8 }]}>
         <View style={styles.headerRow}>

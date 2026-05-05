@@ -214,6 +214,7 @@ export function SearchingScreen() {
   const [msgIndex, setMsgIndex] = React.useState(0);
   const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [onlineDriverCount, setOnlineDriverCount] = useState<number | null>(null);
   const { announceSearching } = useVoiceAI();
   const { showNotification } = useNotification();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -222,6 +223,16 @@ export function SearchingScreen() {
   const vehicleIcon = selectedVehicle === "bike" ? "🏍️" : selectedVehicle === "auto" ? "🛺" : selectedVehicle === "suv" ? "🚙" : "🚗";
   const vehicleLabel = selectedVehicle === "bike" ? "Bike" : selectedVehicle === "auto" ? "Auto" : selectedVehicle === "suv" ? "SUV" : "Cab";
   const vehicleColor = selectedVehicle === "bike" ? "#F5A623" : selectedVehicle === "auto" ? "#22c55e" : selectedVehicle === "suv" ? "#9333ea" : "#818cf8";
+
+  useEffect(() => {
+    const BASE = process.env.EXPO_PUBLIC_DOMAIN
+      ? `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`
+      : "https://workspaceapi-server-production-2e22.up.railway.app/api";
+    fetch(`${BASE}/stats/online-drivers`)
+      .then((r) => r.json())
+      .then((d: { count: number }) => setOnlineDriverCount(d.count))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     announceSearching();
@@ -419,8 +430,8 @@ export function SearchingScreen() {
                 style={[styles.statCard, { borderColor: "rgba(245,166,35,0.3)" }]}
               >
                 <Text style={styles.statEmoji}>👥</Text>
-                <Text style={styles.statNum}>12</Text>
-                <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Paas ke{"\n"}Drivers</Text>
+                <Text style={styles.statNum}>{onlineDriverCount ?? "—"}</Text>
+                <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Online{"\n"}Drivers</Text>
               </LinearGradient>
 
               <LinearGradient
@@ -437,7 +448,7 @@ export function SearchingScreen() {
                 style={[styles.statCard, { borderColor: "rgba(34,197,94,0.3)" }]}
               >
                 <Text style={styles.statEmoji}>🗺️</Text>
-                <Text style={[styles.statNum, { color: "#22c55e" }]}>2km</Text>
+                <Text style={[styles.statNum, { color: "#22c55e" }]}>5km</Text>
                 <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Search{"\n"}Radius</Text>
               </LinearGradient>
             </Animated.View>
