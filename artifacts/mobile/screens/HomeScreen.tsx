@@ -584,6 +584,21 @@ export function HomeScreen() {
             contentContainerStyle={styles.suggestionsContent}
           >
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+              SERVICES
+            </Text>
+            <Pressable
+              onPress={() => setScreen("package_booking")}
+              style={[styles.packageBanner, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "55" }]}
+            >
+              <Text style={{ fontSize: 30 }}>📦</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.packageBannerTitle, { color: colors.foreground }]}>Package Delivery</Text>
+                <Text style={[styles.packageBannerSub, { color: colors.mutedForeground }]}>Bike se fast parcel delivery — ₹40 se shuru</Text>
+              </View>
+              <Text style={{ color: colors.primary, fontSize: 20 }}>›</Text>
+            </Pressable>
+
+            <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 4 }]}>
               {t("quick_select").toUpperCase()}
             </Text>
             {SUGGESTIONS.map((s) => (
@@ -980,6 +995,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 20,
     gap: 8,
+  },
+  packageBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1.5,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+  },
+  packageBannerTitle: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  packageBannerSub: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
   },
   sectionLabel: {
     fontFamily: "Inter_500Medium",

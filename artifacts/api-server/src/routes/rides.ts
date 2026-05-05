@@ -97,13 +97,19 @@ async function assignNearestDriver(vehicleType: string, pickupLat?: number, pick
 
 router.post("/rides", userAuth, async (req: Request, res: Response) => {
   const userId = (req as any).userId;
-  const { pickup, drop, destination, vehicleType, rideType, rideMode, price, fare, distanceKm, promoCode, discountAmount, originalPrice } = req.body as {
+  const {
+    pickup, drop, destination, vehicleType, rideType, rideMode, price, fare, distanceKm,
+    promoCode, discountAmount, originalPrice,
+    senderName, receiverName, receiverPhone, itemWeight, packageDetails,
+  } = req.body as {
     pickup: GeoPoint | string;
     drop?: GeoPoint | string;
     destination?: GeoPoint | string;
     vehicleType?: string; rideType?: string;
     rideMode?: string; price?: number; fare?: number; distanceKm?: number;
     promoCode?: string; discountAmount?: number; originalPrice?: number;
+    senderName?: string; receiverName?: string; receiverPhone?: string;
+    itemWeight?: string; packageDetails?: string;
   };
 
   const dropPoint = drop ?? destination;
@@ -151,6 +157,11 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       promoCode: promoCode?.toUpperCase().trim() ?? null,
       discountAmount: discountAmount ? String(discountAmount) : "0",
       originalPrice: originalPrice ? String(originalPrice) : String(finalPrice),
+      senderName: senderName?.trim() ?? null,
+      receiverName: receiverName?.trim() ?? null,
+      receiverPhone: receiverPhone?.trim() ?? null,
+      itemWeight: itemWeight ?? null,
+      packageDetails: packageDetails ?? null,
     }).returning();
 
     /* Increment promo usedCount if a valid code was applied */
@@ -311,61 +322,112 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
     }
 
     const { cancelReason } = req.body as { cancelReason?: string };
+
+    /* ── Cancellation Fee Logic ── */
+    let cancelFee = 0;
+    if (ride.status === "arrived")  cancelFee = 50; // driver was waiting at pickup
+    else if (ride.status === "accepted") cancelFee = 30; // driver was on the way
+
     const [updated] = await db.update(ridesTable).set({
       status: "cancelled",
       cancelReason: cancelReason?.trim() || null,
       cancelledBy: "user",
+      cancellationFee: String(cancelFee),
     }).where(eq(ridesTable.id, rideId)).returning();
 
+    /* ── Cancellation Fee Deduction / Wallet Refund ── */
+    const ridePrice = parseFloat(String(ride.price));
+    const [rideUser] = await db.select({ walletBalance: usersTable.walletBalance, pushToken: usersTable.pushToken })
+      .from(usersTable).where(eq(usersTable.id, ride.userId)).limit(1);
+
+    if (rideUser) {
+      const currentBal = parseFloat(String(rideUser.walletBalance ?? "0"));
+
+      if (ride.paymentMethod === "RaftaarWallet") {
+        /* Wallet was pre-charged — refund (price - cancelFee) */
+        const refundAmt = parseFloat(Math.max(0, ridePrice - cancelFee).toFixed(2));
+        const newBal = parseFloat((currentBal + refundAmt).toFixed(2));
+        await db.update(usersTable).set({ walletBalance: String(newBal) }).where(eq(usersTable.id, ride.userId));
+        if (refundAmt > 0) {
+          await db.insert(walletTransactionsTable).values({
+            userId: ride.userId,
+            type: "refund",
+            amount: String(refundAmt),
+            description: cancelFee > 0
+              ? `Ride #${rideId} cancel — ₹${refundAmt.toFixed(2)} wapas (₹${cancelFee} cancellation charge kaat ke)`
+              : `Ride #${rideId} cancel — ₹${refundAmt.toFixed(2)} wallet mein wapas`,
+          });
+        }
+        if (cancelFee > 0) {
+          await db.insert(walletTransactionsTable).values({
+            userId: ride.userId,
+            type: "debit",
+            amount: String(-cancelFee),
+            description: `Ride #${rideId} cancellation charge — driver ${ride.status === "arrived" ? "aapka wait kar raha tha" : "aapke taraf aa raha tha"}`,
+          });
+        }
+        if (rideUser.pushToken) {
+          const msg = cancelFee > 0
+            ? `₹${cancelFee} cancellation charge laga. ₹${refundAmt.toFixed(2)} wallet mein wapas.`
+            : `₹${ridePrice.toFixed(2)} wallet mein wapas aa gaye`;
+          await sendPushNotification({
+            to: rideUser.pushToken,
+            title: cancelFee > 0 ? "❌ Ride Cancel — Charge Laga" : "💰 Refund Ho Gaya!",
+            body: msg,
+            data: { type: "cancel_refund", rideId, cancelFee, refundAmt },
+          });
+        }
+      } else if (cancelFee > 0) {
+        /* Non-wallet payment — try to deduct cancelFee from wallet */
+        if (currentBal >= cancelFee) {
+          const newBal = parseFloat((currentBal - cancelFee).toFixed(2));
+          await db.update(usersTable).set({ walletBalance: String(newBal) }).where(eq(usersTable.id, ride.userId));
+          await db.insert(walletTransactionsTable).values({
+            userId: ride.userId,
+            type: "debit",
+            amount: String(-cancelFee),
+            description: `Ride #${rideId} cancellation charge — driver ${ride.status === "arrived" ? "wait kar raha tha" : "aa raha tha"}`,
+          });
+        }
+        if (rideUser.pushToken) {
+          await sendPushNotification({
+            to: rideUser.pushToken,
+            title: "❌ Cancellation Charge",
+            body: `₹${cancelFee} cancellation fee lagi — driver aapke paas tha`,
+            data: { type: "cancellation_fee", rideId, amount: cancelFee },
+          });
+        }
+      }
+    }
+
+    /* ── Notify driver + set back online ── */
     if (ride.driverId) {
       await db.update(driversTable).set({ isOnline: true }).where(eq(driversTable.id, ride.driverId));
-      /* Notify driver their ride was cancelled */
       const [drv] = await db.select({ pushToken: driversTable.pushToken })
         .from(driversTable).where(eq(driversTable.id, ride.driverId)).limit(1);
       if (drv?.pushToken) {
         await sendPushNotification({
           to: drv.pushToken,
           title: "❌ Ride Cancel Ho Gayi",
-          body: "Passenger ne ride cancel kar di. Aap ab online hain.",
+          body: cancelFee > 0
+            ? `Passenger ne cancel kiya — ₹${cancelFee} cancellation charge apply hua.`
+            : "Passenger ne ride cancel kar di. Aap ab online hain.",
           data: { type: "ride_cancelled", rideId },
         });
-      }
-    }
-
-    /* Wallet refund: if user paid via RaftaarWallet, refund the amount */
-    if (ride.paymentMethod === "RaftaarWallet") {
-      const ridePrice = parseFloat(String(ride.price));
-      if (!isNaN(ridePrice) && ridePrice > 0) {
-        const [rideUser] = await db.select({ walletBalance: usersTable.walletBalance, pushToken: usersTable.pushToken })
-          .from(usersTable).where(eq(usersTable.id, ride.userId)).limit(1);
-        if (rideUser) {
-          const currentBal = parseFloat(String(rideUser.walletBalance ?? "0"));
-          const newBal = parseFloat((currentBal + ridePrice).toFixed(2));
-          await db.update(usersTable)
-            .set({ walletBalance: String(newBal) })
-            .where(eq(usersTable.id, ride.userId));
-          await db.insert(walletTransactionsTable).values({
-            userId: ride.userId,
-            type: "refund",
-            amount: String(ridePrice),
-            description: `Ride #${rideId} cancel — ₹${ridePrice.toFixed(2)} wallet mein wapas`,
-          });
-          if (rideUser.pushToken) {
-            await sendPushNotification({
-              to: rideUser.pushToken,
-              title: "💰 Refund Ho Gaya!",
-              body: `₹${ridePrice.toFixed(2)} aapke RaftaarWallet mein wapas aa gaye`,
-              data: { type: "wallet_refund", rideId, amount: ridePrice },
-            });
-          }
-        }
       }
     }
 
     emitRideUpdate(rideId, "ride:status", { rideId, status: "cancelled" });
     emitAdminUpdate("admin:ride:updated", { rideId, status: "cancelled" });
 
-    res.json({ success: true, ride: updated, message: "Ride cancelled successfully" });
+    res.json({
+      success: true,
+      ride: updated,
+      cancellationFee: cancelFee,
+      message: cancelFee > 0
+        ? `Ride cancel ho gayi. ₹${cancelFee} cancellation charge laga.`
+        : "Ride cancelled successfully",
+    });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
@@ -383,9 +445,10 @@ router.patch("/rides/:id/status", flexAuth, async (req: Request, res: Response) 
   }
 
   try {
-    /* Fetch ride first — needed for ownership check + completionPin pre-check */
+    /* Fetch ride first — needed for ownership check + completionPin pre-check + wait time */
     const [existingRide] = await db.select({
       userId: ridesTable.userId, driverId: ridesTable.driverId, completionPin: ridesTable.completionPin,
+      arrivedAt: ridesTable.arrivedAt, price: ridesTable.price, status: ridesTable.status,
     }).from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
     if (!existingRide) { res.status(404).json({ success: false, error: "Ride not found" }); return; }
 
@@ -401,6 +464,26 @@ router.patch("/rides/:id/status", flexAuth, async (req: Request, res: Response) 
     if (pmUpdate && ["Cash","UPI","Card","RaftaarWallet"].includes(pmUpdate)) {
       updateData.paymentMethod = pmUpdate;
     }
+
+    /* ── Arrived: record timestamp for wait-time tracking ── */
+    if (status === "arrived") {
+      updateData.arrivedAt = new Date();
+    }
+
+    /* ── onRide: calculate wait-time fee (₹3/min after first 3 free minutes) ── */
+    let waitFee = 0;
+    if (status === "onRide" && existingRide.arrivedAt) {
+      const arrivedMs = new Date(existingRide.arrivedAt).getTime();
+      const waitMinutes = (Date.now() - arrivedMs) / 60000;
+      const chargeableMinutes = Math.max(0, waitMinutes - 3);
+      waitFee = Math.round(chargeableMinutes * 3);
+      if (waitFee > 0) {
+        const basePrice = parseFloat(String(existingRide.price ?? "0"));
+        updateData.waitTimeFee = String(waitFee);
+        updateData.price = String(parseFloat((basePrice + waitFee).toFixed(2)));
+      }
+    }
+
     const [updated] = await db.update(ridesTable).set(updateData).where(eq(ridesTable.id, rideId)).returning();
     if (!updated) { res.status(404).json({ success: false, error: "Ride not found" }); return; }
 

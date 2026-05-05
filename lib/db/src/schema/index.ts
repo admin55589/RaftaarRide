@@ -92,6 +92,14 @@ export const ridesTable = pgTable("rides", {
   promoCode: text("promo_code"),
   discountAmount: numeric("discount_amount", { precision: 8, scale: 2 }).default("0"),
   originalPrice: numeric("original_price", { precision: 8, scale: 2 }),
+  arrivedAt: timestamp("arrived_at"),
+  cancellationFee: numeric("cancellation_fee", { precision: 8, scale: 2 }).default("0"),
+  waitTimeFee: numeric("wait_time_fee", { precision: 8, scale: 2 }).default("0"),
+  packageDetails: text("package_details"),
+  senderName: text("sender_name"),
+  receiverName: text("receiver_name"),
+  receiverPhone: text("receiver_phone"),
+  itemWeight: text("item_weight"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

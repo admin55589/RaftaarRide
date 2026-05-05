@@ -41,6 +41,7 @@ import { SOSModal } from "@/components/SOSModal";
 import { CallModal } from "@/components/CallModal";
 import { useVoiceAI } from "@/hooks/useVoiceAI";
 import { connectSocket, joinRideRoom, getSocket, sendChatMessage } from "@/lib/socket";
+import { ridesApi } from "@/lib/ridesApi";
 import * as Location from "expo-location";
 
 interface ChatMsg {
@@ -367,8 +368,8 @@ function ChatModal({
 export function DriverAssignedScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { assignedDriver, setScreen, selectedVehicle, pickup, destination, currentRideId } = useApp();
-  const { user } = useAuth();
+  const { assignedDriver, setScreen, selectedVehicle, pickup, destination, currentRideId, setCurrentRideId } = useApp();
+  const { user, token } = useAuth();
   const { announceDriverFound } = useVoiceAI();
 
   const [showSOS, setShowSOS] = useState(false);
@@ -435,10 +436,24 @@ export function DriverAssignedScreen() {
 
   const handleCancel = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    Alert.alert("Cancel Ride", "Are you sure?", [
-      { text: "No" },
-      { text: "Yes", style: "destructive", onPress: () => setScreen("home") },
-    ]);
+    Alert.alert(
+      "❌ Ride Cancel?",
+      "Driver aapki taraf aa raha hai.\n\n₹30 cancellation charge lagega aur aapke wallet se deduct hoga.",
+      [
+        { text: "Nahi, Raho", style: "cancel" },
+        {
+          text: "Haan, Cancel Karo (₹30)",
+          style: "destructive",
+          onPress: async () => {
+            if (currentRideId && token) {
+              try { await ridesApi.cancelRide(token, currentRideId, "Driver assigned — user cancelled"); } catch { }
+              setCurrentRideId(null);
+            }
+            setScreen("home");
+          },
+        },
+      ]
+    );
   };
 
   const userName = user?.name ?? user?.email?.split("@")[0] ?? "User";
