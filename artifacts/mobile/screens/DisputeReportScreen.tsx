@@ -97,14 +97,14 @@ export function DisputeReportScreen() {
           style={({ pressed }) => [
             styles.backBtn,
             {
-              backgroundColor: pressed ? colors.primary + "22" : colors.secondary,
-              borderColor: colors.border,
+              backgroundColor: pressed ? colors.primary : colors.primary + "22",
+              borderColor: colors.primary,
             },
           ]}
-          hitSlop={8}
+          hitSlop={10}
         >
-          <Text style={[styles.backArrow, { color: colors.foreground }]}>←</Text>
-          <Text style={[styles.backLabel, { color: colors.mutedForeground }]}>Back</Text>
+          <Text style={[styles.backChevron, { color: colors.primary }]}>‹</Text>
+          <Text style={[styles.backLabel, { color: colors.primary }]}>Back</Text>
         </Pressable>
         <Text style={[styles.title, { color: colors.foreground }]}>Report an Issue</Text>
       </View>
