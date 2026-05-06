@@ -210,16 +210,18 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
   },
-  backArrow: {
-    fontSize: 17,
+  backChevron: {
+    fontSize: 22,
     fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    lineHeight: 20,
+    lineHeight: 24,
+    marginTop: -2,
   },
   backLabel: {
     fontSize: 13,
-    fontFamily: "Inter_500Medium",
-    fontWeight: "500",
+    fontFamily: "Inter_700Bold",
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   title: {
     flex: 1,

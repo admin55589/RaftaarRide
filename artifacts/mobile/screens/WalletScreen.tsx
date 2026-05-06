@@ -211,10 +211,10 @@ export function WalletScreen() {
     header: { paddingHorizontal: 20, paddingBottom: 16 },
     title: { fontSize: 26, fontWeight: "700", color: colors.text, fontFamily: "Inter_700Bold" },
     subtitle: { fontSize: 14, color: colors.textSecondary, marginTop: 4, fontFamily: "Inter_400Regular" },
-    balanceCard: { marginHorizontal: 20, marginBottom: 20, borderRadius: 20, padding: 28, alignItems: "center", overflow: "hidden" },
-    balanceLabel: { fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 8, fontFamily: "Inter_400Regular" },
-    balanceAmount: { fontSize: 48, fontWeight: "800", color: "#fff", fontFamily: "Inter_700Bold" },
-    balanceSub: { fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 6, fontFamily: "Inter_400Regular" },
+    balanceCard: { marginHorizontal: 20, marginBottom: 20, borderRadius: 20, paddingHorizontal: 24, paddingVertical: 26, overflow: "hidden" },
+    balanceLabel: { fontSize: 12, color: "rgba(255,255,255,0.75)", marginBottom: 6, fontFamily: "Inter_600SemiBold", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.8 },
+    balanceAmount: { fontSize: 46, fontWeight: "800", color: "#fff", fontFamily: "Inter_700Bold", letterSpacing: -1 },
+    balanceSub: { fontSize: 13, color: "rgba(255,255,255,0.65)", marginTop: 6, fontFamily: "Inter_400Regular" },
     actionRow: { flexDirection: "row", paddingHorizontal: 20, gap: 12, marginBottom: 20 },
     actionBtn: { flex: 1, borderRadius: 14, padding: 14, alignItems: "center", borderWidth: 1, borderColor: colors.border },
     actionBtnText: { fontSize: 13, fontWeight: "600", marginTop: 4, fontFamily: "Inter_600SemiBold" },
@@ -283,10 +283,10 @@ export function WalletScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100)} style={[s.balanceCard, { backgroundColor: colors.primary }]}>
-          <Animated.View style={balanceStyle}>
+          <Animated.View style={[balanceStyle, { width: "100%" }]}>
             <Text style={s.balanceLabel}>{t("wallet_balance")}</Text>
             {loading ? (
-              <ActivityIndicator color="#fff" size="large" />
+              <ActivityIndicator color="#fff" size="large" style={{ marginVertical: 8 }} />
             ) : (
               <Text style={s.balanceAmount}>₹{balance.toFixed(2)}</Text>
             )}
