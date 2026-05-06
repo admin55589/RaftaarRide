@@ -85,7 +85,7 @@ export function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setScreen, setDestination, setDropCoords, currentLocationAddress, setCurrentLocationAddress, setPickup } = useApp();
+  const { setScreen, setDestination, setDropCoords, setPickupCoords, currentLocationAddress, setCurrentLocationAddress, setPickup } = useApp();
   const { user, token, logout, updateUser } = useAuth();
   const { lang, toggleLanguage, t } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
@@ -241,12 +241,27 @@ export function HomeScreen() {
     finally { setSavingProfile(false); }
   };
 
+  const MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q";
+
+  const geocodeAddress = (address: string, onResult: (lat: number, lng: number) => void) => {
+    const q = encodeURIComponent(address);
+    fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${q}&region=in&key=${MAPS_KEY}`)
+      .then(r => r.json())
+      .then((data: { results?: Array<{ geometry?: { location?: { lat: number; lng: number } } }> }) => {
+        const loc = data?.results?.[0]?.geometry?.location;
+        if (loc?.lat && loc?.lng) onResult(loc.lat, loc.lng);
+      })
+      .catch(() => {});
+  };
+
   const handleGpsPickup = async () => {
     setGpsLoading(true);
     try {
       const granted = await ensureLocationPermission();
       if (!granted) { setGpsLoading(false); return; }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      /* Set pickup coords from GPS immediately — no geocoding delay */
+      setPickupCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       const [geo] = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
       if (geo) {
         const parts = [geo.name, geo.street, geo.subregion ?? geo.district, geo.city].filter(Boolean);
@@ -263,6 +278,8 @@ export function HomeScreen() {
     setCurrentLocationAddress(val);
     setPickup(val);
     setShowPickupEdit(false);
+    /* Geocode the manually-entered pickup so distanceKm can be calculated accurately */
+    geocodeAddress(val, (lat, lng) => setPickupCoords({ lat, lng }));
   };
 
   const dotScale = useSharedValue(1);
@@ -280,6 +297,8 @@ export function HomeScreen() {
       const granted = await ensureLocationPermission();
       if (!granted) { setLocating(false); return; }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      /* Set pickup coords immediately from GPS */
+      setPickupCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       const [geo] = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
       if (geo) {
         const parts = [geo.name, geo.street, geo.subregion ?? geo.district, geo.city].filter(Boolean);
@@ -293,18 +312,10 @@ export function HomeScreen() {
 
   const handleDestinationSelect = (dest: string) => {
     setDestination(dest);
-    /* Geocode destination asynchronously so real distance can be calculated */
-    const mapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q";
-    const q = encodeURIComponent(dest);
-    fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${q}&region=in&key=${mapsKey}`)
-      .then((r) => r.json())
-      .then((data: { results?: Array<{ geometry?: { location?: { lat: number; lng: number } } }> }) => {
-        const loc = data?.results?.[0]?.geometry?.location;
-        if (loc?.lat && loc?.lng) {
-          setDropCoords({ lat: loc.lat, lng: loc.lng });
-        }
-      })
-      .catch(() => {});
+    /* Geocode drop address */
+    geocodeAddress(dest, (lat, lng) => setDropCoords({ lat, lng }));
+    /* Geocode pickup too so distance can be calculated accurately */
+    geocodeAddress(currentLocationAddress, (lat, lng) => setPickupCoords({ lat, lng }));
     setScreen("booking");
   };
 
