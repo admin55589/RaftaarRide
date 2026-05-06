@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
-  Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Platform, ActivityIndicator,
+  Alert, Animated as RNAnimated, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Platform, ActivityIndicator,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -31,6 +31,20 @@ export function ProfileScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(user?.photoUrl ?? null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
+  /* ── Custom Toast ── */
+  const [toast, setToast] = useState<{ message: string; sub?: string; type: "success" | "error" | "info" } | null>(null);
+  const toastAnim = useRef(new RNAnimated.Value(0)).current;
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, sub?: string, type: "success" | "error" | "info" = "success") => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ message, sub, type });
+    RNAnimated.spring(toastAnim, { toValue: 1, useNativeDriver: true, tension: 80, friction: 10 }).start();
+    toastTimer.current = setTimeout(() => {
+      RNAnimated.timing(toastAnim, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => setToast(null));
+    }, 3000);
+  }, [toastAnim]);
+
   useEffect(() => {
     if (!token) return;
     fetch(`${BASE_URL}auth/referral`, { headers: { Authorization: `Bearer ${token}` } })
@@ -43,7 +57,7 @@ export function ProfileScreen() {
   const handlePickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission Required", "Gallery access chahiye photo upload karne ke liye.");
+      showToast("Permission chahiye", "Gallery access allow karo", "error");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -57,11 +71,11 @@ export function ProfileScreen() {
     const asset = result.assets[0];
     const localUri = asset.uri;
     const b64 = asset.base64;
-    if (!b64) { Alert.alert("Error", "Photo read nahi ho saki"); return; }
+    if (!b64) { showToast("Photo read nahi ho saki", undefined, "error"); return; }
 
-    const MAX_B64 = 400000; // ~300KB
+    const MAX_B64 = 400000;
     if (b64.length > MAX_B64) {
-      Alert.alert("Photo Bahut Badi Hai", "Thodi chhoti image choose karein (max ~300KB).");
+      showToast("Photo bahut badi hai", "Chhoti image choose karein (max ~300KB)", "error");
       return;
     }
 
@@ -82,14 +96,14 @@ export function ProfileScreen() {
       const data = await res.json();
       if (res.ok && data.user) {
         updateUser({ ...user!, photoUrl: dataUri });
-        Alert.alert("✅ Photo Updated", "Profile photo save ho gayi!");
+        showToast("Photo update ho gayi!", "Profile photo save ho gayi ✓", "success");
       } else {
         setPhotoUri(user?.photoUrl ?? null);
-        Alert.alert("Upload Failed", data.error ?? "Dobara koshish karein");
+        showToast("Upload nahi hua", data.error ?? "Dobara koshish karein", "error");
       }
     } catch {
       setPhotoUri(user?.photoUrl ?? null);
-      Alert.alert("Network Error", "Photo upload nahi ho saka");
+      showToast("Network error", "Photo upload nahi ho saka", "error");
     } finally {
       setUploadingPhoto(false);
     }
@@ -104,7 +118,7 @@ export function ProfileScreen() {
 
   const handleSave = useCallback(async () => {
     if (!token) return;
-    if (!name.trim()) { Alert.alert("Naam khali nahi ho sakta"); return; }
+    if (!name.trim()) { showToast("Naam khali nahi ho sakta", undefined, "error"); return; }
     setSaving(true);
     try {
       const res = await fetch(`${BASE_URL}users/me`, {
@@ -116,16 +130,16 @@ export function ProfileScreen() {
       if (res.ok) {
         updateUser({ ...user!, name: name.trim(), email: email.trim() || null, gender: gender || null });
         setEditing(false);
-        Alert.alert("✅ Profile Updated", "Aapki profile save ho gayi!");
+        showToast("Profile update ho gayi!", "Aapki details save ho gayi ✓", "success");
       } else {
-        Alert.alert("Error", data.error ?? "Save nahi ho payi");
+        showToast("Save nahi hua", data.error ?? "Dobara koshish karein", "error");
       }
     } catch {
-      Alert.alert("Error", "Network error — dobara koshish karein");
+      showToast("Network error", "Internet check karo aur dobara try karo", "error");
     } finally {
       setSaving(false);
     }
-  }, [token, name, email, gender, user, updateUser]);
+  }, [token, name, email, gender, user, updateUser, showToast]);
 
   const handleLogout = () => {
     Alert.alert("Logout", "Kya aap logout karna chahte hain?", [
@@ -149,8 +163,38 @@ export function ProfileScreen() {
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
   const initials = (user?.name ?? "U").charAt(0).toUpperCase();
 
+  /* Toast colors */
+  const toastBg = toast?.type === "success" ? "#1a2e1a" : toast?.type === "error" ? "#2e1a1a" : "#1a1a2e";
+  const toastBorder = toast?.type === "success" ? "#22c55e" : toast?.type === "error" ? "#ef4444" : "#6366f1";
+  const toastIcon = toast?.type === "success" ? "✅" : toast?.type === "error" ? "❌" : "ℹ️";
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+
+      {/* ── Custom Toast Overlay ── */}
+      {toast && (
+        <RNAnimated.View
+          style={[
+            styles.toastContainer,
+            {
+              top: topPad + 10,
+              backgroundColor: toastBg,
+              borderColor: toastBorder,
+              transform: [{
+                translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-80, 0] }),
+              }],
+              opacity: toastAnim,
+            },
+          ]}
+          pointerEvents="none"
+        >
+          <Text style={styles.toastIcon}>{toastIcon}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.toastTitle, { color: toastBorder }]}>{toast.message}</Text>
+            {toast.sub ? <Text style={styles.toastSub}>{toast.sub}</Text> : null}
+          </View>
+        </RNAnimated.View>
+      )}
 
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: colors.border }]}>
@@ -461,5 +505,38 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 16,
     letterSpacing: 0.5,
+  },
+
+  /* Toast */
+  toastContainer: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    zIndex: 999,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  toastIcon: { fontSize: 22 },
+  toastTitle: {
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  toastSub: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.6)",
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
   },
 });
