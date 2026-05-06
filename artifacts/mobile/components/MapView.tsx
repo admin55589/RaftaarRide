@@ -76,7 +76,12 @@ function buildMapHtml(opts: {
     /* Hide ALL Google Maps error overlays */
     .gm-err-container,.gm-err-content,.gm-err-message,
     .gm-err-icon,.gm-err-title,.gm-err-autocomplete,
-    div[class*="gm-err"]{display:none!important}
+    div[class*="gm-err"],div[class*="dismissButton"],
+    .dismissButton,.gm-style-cc,
+    a[href*="maps.google"],
+    div[style*="z-index: 1000000"]{display:none!important}
+    /* Nuclear option — hide any overlay that appears over map */
+    #map > div > div:not([style*="overflow: hidden"]){pointer-events:none}
 
     /* Fallback shown when Maps API fails */
     #map-fallback{
@@ -180,6 +185,38 @@ function buildMapHtml(opts: {
       document.getElementById('map-fallback').classList.add('show');
       document.getElementById('map').style.display = 'none';
     };
+
+    /* MutationObserver: kill any Google error popup the moment it appears in DOM */
+    var _obs = new MutationObserver(function(mutations) {
+      mutations.forEach(function(m) {
+        m.addedNodes.forEach(function(node) {
+          if (node.nodeType !== 1) return;
+          var el = node;
+          /* Match error overlay by class, text content, or known structure */
+          var cls = el.className || '';
+          var txt = el.innerText || el.textContent || '';
+          if (
+            cls.indexOf('gm-err') !== -1 ||
+            cls.indexOf('dismissButton') !== -1 ||
+            txt.indexOf("can't load Google Maps") !== -1 ||
+            txt.indexOf("Do you own this website") !== -1
+          ) {
+            el.style.setProperty('display','none','important');
+            el.remove();
+            /* Also show our fallback */
+            var fb = document.getElementById('map-fallback');
+            if (fb) fb.classList.add('show');
+            var mp = document.getElementById('map');
+            if (mp) mp.style.display = 'none';
+          }
+          /* Also scan children */
+          var children = el.querySelectorAll ? el.querySelectorAll('[class*="gm-err"]') : [];
+          children.forEach(function(c) { c.style.setProperty('display','none','important'); });
+        });
+      });
+    });
+    _obs.observe(document.body, { childList: true, subtree: true });
+
     var map, directionsRenderer, driverMarker, userMarker;
     var DARK = ${isDark};
     var SHOW_ROUTE = ${showRoute};
