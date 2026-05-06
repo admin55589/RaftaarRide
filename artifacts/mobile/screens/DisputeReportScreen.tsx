@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Platform,
+  Animated as RNAnimated, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Platform,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,12 +12,12 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { BASE_URL } from "@/lib/api";
 
 const ISSUE_TYPES = [
-  { key: "overcharge", label: "💸 Overcharged / Extra paise liye" },
-  { key: "driver_behavior", label: "😤 Driver ka behavior sahi nahi tha" },
-  { key: "route_issue", label: "🗺️ Galat route liya" },
-  { key: "payment", label: "💳 Payment issue / deduction galat" },
-  { key: "safety", label: "🚨 Safety concern" },
-  { key: "other", label: "📝 Kuch aur" },
+  { key: "overcharge",       label: "💸 Overcharged / Extra paise liye" },
+  { key: "driver_behavior",  label: "😤 Driver ka behavior sahi nahi tha" },
+  { key: "route_issue",      label: "🗺️ Galat route liya" },
+  { key: "payment",          label: "💳 Payment issue / deduction galat" },
+  { key: "safety",           label: "🚨 Safety concern" },
+  { key: "other",            label: "📝 Kuch aur" },
 ];
 
 interface RecentRide {
@@ -41,6 +41,20 @@ export function DisputeReportScreen() {
   const [selectedRideId, setSelectedRideId] = useState<number | null>(currentRideId);
   const [loadingRides, setLoadingRides] = useState(true);
 
+  /* ── Custom Toast ── */
+  const [toast, setToast] = useState<{ message: string; sub?: string; type: "success" | "error" | "info" } | null>(null);
+  const toastAnim = useRef(new RNAnimated.Value(0)).current;
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, sub?: string, type: "success" | "error" | "info" = "info") => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ message, sub, type });
+    RNAnimated.spring(toastAnim, { toValue: 1, useNativeDriver: true, tension: 80, friction: 10 }).start();
+    toastTimer.current = setTimeout(() => {
+      RNAnimated.timing(toastAnim, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => setToast(null));
+    }, 3500);
+  }, [toastAnim]);
+
   useEffect(() => {
     if (!token) return;
     setLoadingRides(true);
@@ -58,11 +72,18 @@ export function DisputeReportScreen() {
   }, [token]);
 
   const handleSubmit = async () => {
-    if (!issue) { Alert.alert("Issue Type", "Koi ek issue type select karein"); return; }
-    if (!description.trim() || description.trim().length < 10) {
-      Alert.alert("Description", "Thodi zyada detail dijiye (minimum 10 characters)"); return;
+    if (!issue) {
+      showToast("Issue type select karein", "List mein se ek issue choose karein", "error");
+      return;
     }
-    if (!selectedRideId) { Alert.alert("Ride", "Jis ride ke baare mein complaint hai usse select karein"); return; }
+    if (!description.trim() || description.trim().length < 10) {
+      showToast("Thodi zyada detail chahiye", "Minimum 10 characters likhein", "error");
+      return;
+    }
+    if (!selectedRideId) {
+      showToast("Ride select karein", "Jis ride ke baare mein complaint hai usse choose karein", "error");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -73,14 +94,13 @@ export function DisputeReportScreen() {
       });
       const data = await res.json();
       if (data.success) {
-        Alert.alert("✅ Report Submitted", "Hamari support team 24 ghante mein review karegi aur aapko update karengi.", [
-          { text: "OK", onPress: () => setScreen("home") },
-        ]);
+        showToast("Report submit ho gayi!", "Support team 24 ghante mein review karegi ✓", "success");
+        setTimeout(() => setScreen("home"), 2500);
       } else {
-        Alert.alert("Error", data.error ?? "Submit nahi ho payi — dobara koshish karein");
+        showToast("Submit nahi hua", data.error ?? "Dobara koshish karein", "error");
       }
     } catch {
-      Alert.alert("Network Error", "Internet check karein aur dobara koshish karein");
+      showToast("Network error", "Internet check karein aur dobara try karein", "error");
     } finally {
       setSubmitting(false);
     }
@@ -88,8 +108,39 @@ export function DisputeReportScreen() {
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
 
+  /* Toast colors */
+  const toastBg     = toast?.type === "success" ? "#1a2e1a" : toast?.type === "error" ? "#2e1a1a" : "#1a1e2e";
+  const toastBorder = toast?.type === "success" ? "#22c55e" : toast?.type === "error" ? "#ef4444" : "#6366f1";
+  const toastIcon   = toast?.type === "success" ? "✅" : toast?.type === "error" ? "❌" : "ℹ️";
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+
+      {/* ── Custom Toast Overlay ── */}
+      {toast && (
+        <RNAnimated.View
+          style={[
+            styles.toastContainer,
+            {
+              top: topPad + 10,
+              backgroundColor: toastBg,
+              borderColor: toastBorder,
+              transform: [{
+                translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-80, 0] }),
+              }],
+              opacity: toastAnim,
+            },
+          ]}
+          pointerEvents="none"
+        >
+          <Text style={styles.toastIcon}>{toastIcon}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.toastTitle, { color: toastBorder }]}>{toast.message}</Text>
+            {toast.sub ? <Text style={styles.toastSub}>{toast.sub}</Text> : null}
+          </View>
+        </RNAnimated.View>
+      )}
+
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: colors.border }]}>
         <Pressable
@@ -110,6 +161,7 @@ export function DisputeReportScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40 }}>
+
         {/* Select Ride */}
         <Animated.View entering={FadeInDown.delay(50).duration(400)}>
           <GlassCard style={{ padding: 16, marginBottom: 16 }}>
@@ -117,20 +169,28 @@ export function DisputeReportScreen() {
             {loadingRides ? (
               <Text style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 8 }}>Loading rides...</Text>
             ) : recentRides.length === 0 ? (
-              <Text style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 8 }}>Koi completed ride nahi mili</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 8 }}>
+                Koi completed ride nahi mili abhi tak
+              </Text>
             ) : (
               <View style={{ gap: 8, marginTop: 10 }}>
-                {recentRides.map(r => (
-                  <Pressable key={r.id} onPress={() => setSelectedRideId(r.id)}
-                    style={[styles.rideOption, {
-                      borderColor: selectedRideId === r.id ? colors.primary : colors.border,
-                      backgroundColor: selectedRideId === r.id ? colors.primary + "12" : "transparent",
-                    }]}>
-                    <Text style={{ color: selectedRideId === r.id ? colors.primary : colors.foreground, fontFamily: "Inter_600SemiBold", fontWeight: "600", fontSize: 13 }}>
-                      Ride #{r.id} — {r.destination}
+                {recentRides.map(ride => (
+                  <Pressable
+                    key={ride.id}
+                    onPress={() => setSelectedRideId(ride.id)}
+                    style={[
+                      styles.rideOption,
+                      {
+                        borderColor: selectedRideId === ride.id ? colors.primary : colors.border,
+                        backgroundColor: selectedRideId === ride.id ? colors.primary + "15" : "transparent",
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: "Inter_600SemiBold" }}>
+                      {ride.pickup} → {ride.destination}
                     </Text>
-                    <Text style={{ color: colors.mutedForeground, fontSize: 11, marginTop: 2 }}>
-                      ₹{r.price} • {new Date(r.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
+                    <Text style={{ color: colors.mutedForeground, fontSize: 11, marginTop: 2, fontFamily: "Inter_400Regular" }}>
+                      ₹{ride.price} • {new Date(ride.createdAt).toLocaleDateString("en-IN")}
                     </Text>
                   </Pressable>
                 ))}
@@ -139,18 +199,26 @@ export function DisputeReportScreen() {
           </GlassCard>
         </Animated.View>
 
-        {/* Issue type */}
+        {/* Issue Type */}
         <Animated.View entering={FadeInDown.delay(100).duration(400)}>
           <GlassCard style={{ padding: 16, marginBottom: 16 }}>
             <Text style={[styles.sectionLabel, { color: colors.foreground }]}>⚠️ Issue Type</Text>
             <View style={{ gap: 8, marginTop: 10 }}>
-              {ISSUE_TYPES.map(it => (
-                <Pressable key={it.key} onPress={() => setIssue(it.key)}
-                  style={[styles.issueOption, {
-                    borderColor: issue === it.key ? colors.primary : colors.border,
-                    backgroundColor: issue === it.key ? colors.primary + "12" : "transparent",
-                  }]}>
-                  <Text style={{ color: issue === it.key ? colors.primary : colors.foreground, fontSize: 14 }}>{it.label}</Text>
+              {ISSUE_TYPES.map(opt => (
+                <Pressable
+                  key={opt.key}
+                  onPress={() => setIssue(opt.key)}
+                  style={[
+                    styles.issueOption,
+                    {
+                      borderColor: issue === opt.key ? colors.primary : colors.border,
+                      backgroundColor: issue === opt.key ? colors.primary + "15" : "transparent",
+                    },
+                  ]}
+                >
+                  <Text style={{ color: colors.foreground, fontSize: 14, fontFamily: "Inter_500Medium" }}>
+                    {opt.label}
+                  </Text>
                 </Pressable>
               ))}
             </View>
@@ -159,33 +227,36 @@ export function DisputeReportScreen() {
 
         {/* Description */}
         <Animated.View entering={FadeInDown.delay(150).duration(400)}>
-          <GlassCard style={{ padding: 16, marginBottom: 20 }}>
-            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>📝 Details / Vivran</Text>
+          <GlassCard style={{ padding: 16, marginBottom: 16 }}>
+            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>📝 Detail Likhein</Text>
             <TextInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Kya hua tha? Jitni detail denge, utni jaldi resolve hogi..."
+              style={[styles.textarea, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
+              placeholder="Kya hua? Jitna detail mein bata sakein utna achcha hai..."
               placeholderTextColor={colors.mutedForeground}
               multiline
-              numberOfLines={5}
-              style={[styles.textarea, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
+              value={description}
+              onChangeText={setDescription}
+              maxLength={500}
             />
-            <Text style={{ color: description.length >= 10 ? colors.primary : colors.mutedForeground, fontSize: 11, marginTop: 6 }}>
-              {description.length} characters {description.length < 10 ? `(${10 - description.length} aur chahiye)` : "✓"}
+            <Text style={{ color: description.length < 10 ? "#ef4444" : colors.mutedForeground, fontSize: 11, marginTop: 6, fontFamily: "Inter_400Regular" }}>
+              {description.length} characters{description.length < 10 ? ` (${10 - description.length} aur chahiye)` : " ✓"}
             </Text>
           </GlassCard>
         </Animated.View>
 
-        <PrimaryButton
-          label={submitting ? "Submitting..." : "Submit Report"}
-          onPress={handleSubmit}
-          disabled={submitting}
-        />
+        {/* Submit */}
+        <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+          <PrimaryButton
+            label={submitting ? "Submitting..." : "Submit Report"}
+            onPress={handleSubmit}
+            disabled={submitting}
+          />
+          <Text style={{ color: colors.mutedForeground, fontSize: 12, textAlign: "center", marginTop: 12, lineHeight: 18, fontFamily: "Inter_400Regular" }}>
+            Support team 24 ghante ke andar aapki complaint review karegi.{"\n"}
+            Urgent cases mein +91 9999-RAFTAAR pe call karein.
+          </Text>
+        </Animated.View>
 
-        <Text style={{ color: colors.mutedForeground, fontSize: 12, textAlign: "center", marginTop: 16, lineHeight: 18 }}>
-          Support team 24 ghante ke andar aapki complaint review karegi.{"\n"}
-          Urgent cases mein +91 9999-RAFTAAR pe call karein.
-        </Text>
       </ScrollView>
     </View>
   );
@@ -208,7 +279,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
   backChevron: {
     fontSize: 22,
@@ -230,11 +301,44 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
   },
   sectionLabel: { fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
-  rideOption: { padding: 12, borderRadius: 10, borderWidth: 1 },
+  rideOption:  { padding: 12, borderRadius: 10, borderWidth: 1 },
   issueOption: { padding: 12, borderRadius: 10, borderWidth: 1 },
   textarea: {
     borderWidth: 1, borderRadius: 10, padding: 12,
     fontSize: 14, marginTop: 8, minHeight: 120, textAlignVertical: "top",
     fontFamily: "Inter_400Regular",
+  },
+
+  /* Toast */
+  toastContainer: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    zIndex: 999,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  toastIcon:  { fontSize: 22 },
+  toastTitle: {
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  toastSub: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.6)",
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
   },
 });
