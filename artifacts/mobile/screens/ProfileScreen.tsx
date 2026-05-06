@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useEffect } from "react";
 import {
-  Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Platform,
+  Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Platform, ActivityIndicator,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as ImagePicker from "expo-image-picker";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { useApp } from "@/context/AppContext";
@@ -27,6 +28,8 @@ export function ProfileScreen() {
   const [email, setEmail] = useState(user?.email ?? "");
   const [gender, setGender] = useState(user?.gender ?? "");
   const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [photoUri, setPhotoUri] = useState<string | null>(user?.photoUrl ?? null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -35,6 +38,62 @@ export function ProfileScreen() {
       .then(d => { if (d.success) setReferralCode(d.referralCode ?? null); })
       .catch(() => {});
   }, [token]);
+
+  /* ── Profile Photo Upload ── */
+  const handlePickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission Required", "Gallery access chahiye photo upload karne ke liye.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.45,
+      base64: true,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    const localUri = asset.uri;
+    const b64 = asset.base64;
+    if (!b64) { Alert.alert("Error", "Photo read nahi ho saki"); return; }
+
+    const MAX_B64 = 400000; // ~300KB
+    if (b64.length > MAX_B64) {
+      Alert.alert("Photo Bahut Badi Hai", "Thodi chhoti image choose karein (max ~300KB).");
+      return;
+    }
+
+    setPhotoUri(localUri);
+    if (!token) return;
+
+    setUploadingPhoto(true);
+    try {
+      const ext = localUri.split(".").pop()?.toLowerCase() ?? "jpg";
+      const mimeType = ext === "png" ? "image/png" : "image/jpeg";
+      const dataUri = `data:${mimeType};base64,${b64}`;
+
+      const res = await fetch(`${BASE_URL}users/me`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: user?.name ?? name, photoUrl: dataUri }),
+      });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        updateUser({ ...user!, photoUrl: dataUri });
+        Alert.alert("✅ Photo Updated", "Profile photo save ho gayi!");
+      } else {
+        setPhotoUri(user?.photoUrl ?? null);
+        Alert.alert("Upload Failed", data.error ?? "Dobara koshish karein");
+      }
+    } catch {
+      setPhotoUri(user?.photoUrl ?? null);
+      Alert.alert("Network Error", "Photo upload nahi ho saka");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const handleCancelEdit = () => {
     setEditing(false);
@@ -88,24 +147,27 @@ export function ProfileScreen() {
   };
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
+  const initials = (user?.name ?? "U").charAt(0).toUpperCase();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: colors.border }]}>
+        {/* Back Button — solid golden pill */}
         <Pressable
           onPress={() => setScreen("home")}
           style={({ pressed }) => [
             styles.backBtn,
             {
-              backgroundColor: pressed ? colors.primary + "22" : colors.secondary,
-              borderColor: colors.border,
+              backgroundColor: pressed ? colors.primary : colors.primary + "22",
+              borderColor: colors.primary,
             },
           ]}
-          hitSlop={8}
+          hitSlop={10}
         >
-          <Text style={[styles.backArrow, { color: colors.foreground }]}>←</Text>
-          <Text style={[styles.backLabel, { color: colors.mutedForeground }]}>Back</Text>
+          <Text style={[styles.backChevron, { color: colors.primary }]}>‹</Text>
+          <Text style={[styles.backLabel, { color: colors.primary }]}>Back</Text>
         </Pressable>
 
         <Text style={[styles.title, { color: colors.foreground }]}>My Profile</Text>
@@ -127,22 +189,41 @@ export function ProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40 }}>
-        {/* Avatar row */}
+
+        {/* ── Avatar with Upload ── */}
         <Animated.View entering={FadeInDown.delay(50).duration(400)}>
-          <View style={styles.avatarRow}>
-            <View style={[styles.avatar, { backgroundColor: colors.primary + "25", borderColor: colors.primary + "55", borderWidth: 2 }]}>
-              <Text style={[styles.avatarInitial, { color: colors.primary }]}>
-                {(user?.name ?? "U").charAt(0).toUpperCase()}
-              </Text>
-            </View>
+          <View style={styles.avatarSection}>
+            <Pressable onPress={handlePickPhoto} style={styles.avatarWrapper} disabled={uploadingPhoto}>
+              {photoUri ? (
+                <Image source={{ uri: photoUri }} style={styles.avatarImage} />
+              ) : (
+                <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary + "25", borderColor: colors.primary + "55" }]}>
+                  <Text style={[styles.avatarInitial, { color: colors.primary }]}>{initials}</Text>
+                </View>
+              )}
+
+              {/* Camera overlay */}
+              <View style={[styles.cameraOverlay, { backgroundColor: colors.primary }]}>
+                {uploadingPhoto
+                  ? <ActivityIndicator size="small" color="#000" />
+                  : <Text style={styles.cameraIcon}>📷</Text>
+                }
+              </View>
+            </Pressable>
+
             <View style={{ flex: 1 }}>
               <Text style={[styles.userName, { color: colors.foreground }]}>{user?.name ?? "RaftaarRide User"}</Text>
               <Text style={[styles.userPhone, { color: colors.mutedForeground }]}>{user?.phone ?? ""}</Text>
+              <Pressable onPress={handlePickPhoto} disabled={uploadingPhoto}>
+                <Text style={[styles.uploadHint, { color: colors.primary }]}>
+                  {uploadingPhoto ? "Uploading..." : "📷 Photo change karein"}
+                </Text>
+              </Pressable>
             </View>
           </View>
         </Animated.View>
 
-        {/* Details card */}
+        {/* ── Details Card ── */}
         <Animated.View entering={FadeInDown.delay(100).duration(400)}>
           <GlassCard style={{ padding: 16, marginTop: 20, gap: 16 }}>
             <ProfileField label="Full Name" value={name} onChange={setName} editing={editing} colors={colors} />
@@ -174,7 +255,7 @@ export function ProfileScreen() {
           </Animated.View>
         )}
 
-        {/* Language */}
+        {/* ── Language ── */}
         <Animated.View entering={FadeInDown.delay(200).duration(400)}>
           <GlassCard style={{ padding: 16, marginTop: 16 }}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Language / भाषा</Text>
@@ -194,7 +275,7 @@ export function ProfileScreen() {
           </GlassCard>
         </Animated.View>
 
-        {/* Referral */}
+        {/* ── Referral ── */}
         {referralCode && (
           <Animated.View entering={FadeInDown.delay(250).duration(400)}>
             <GlassCard style={{ padding: 16, marginTop: 16 }}>
@@ -209,17 +290,13 @@ export function ProfileScreen() {
           </Animated.View>
         )}
 
-        {/* Report Issue row */}
+        {/* ── Report Issue ── */}
         <Animated.View entering={FadeInDown.delay(300).duration(400)}>
           <Pressable
             onPress={() => setScreen("dispute_report")}
             style={({ pressed }) => [
               styles.listRow,
-              {
-                borderColor: colors.border,
-                backgroundColor: pressed ? colors.secondary : "transparent",
-                marginTop: 16,
-              },
+              { borderColor: colors.border, backgroundColor: pressed ? colors.secondary : "transparent", marginTop: 16 },
             ]}
           >
             <Text style={{ fontSize: 18 }}>⚠️</Text>
@@ -228,22 +305,20 @@ export function ProfileScreen() {
           </Pressable>
         </Animated.View>
 
-        {/* Logout */}
+        {/* ── Logout — solid red ── */}
         <Animated.View entering={FadeInDown.delay(350).duration(400)} style={{ marginTop: 12, marginBottom: 8 }}>
           <Pressable
             onPress={handleLogout}
             style={({ pressed }) => [
               styles.logoutBtn,
-              {
-                backgroundColor: pressed ? "#ef444433" : "#ef444420",
-                borderColor: "#ef4444",
-              },
+              { backgroundColor: pressed ? "#c53030" : "#ef4444" },
             ]}
           >
             <Text style={styles.logoutIcon}>🚪</Text>
             <Text style={styles.logoutText}>Logout</Text>
           </Pressable>
         </Animated.View>
+
       </ScrollView>
     </View>
   );
@@ -281,6 +356,8 @@ function ProfileField({ label, value, onChange, editing, colors, keyboardType }:
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
+  /* Header */
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -289,26 +366,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     gap: 10,
   },
+
+  /* Back button — golden pill with border */
   backBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
+    gap: 3,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    borderRadius: 22,
+    borderWidth: 1.5,
   },
-  backArrow: {
-    fontSize: 17,
+  backChevron: {
+    fontSize: 22,
     fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    lineHeight: 20,
+    lineHeight: 24,
+    marginTop: -2,
   },
   backLabel: {
     fontSize: 13,
-    fontFamily: "Inter_500Medium",
-    fontWeight: "500",
+    fontFamily: "Inter_700Bold",
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
+
   title: {
     flex: 1,
     fontSize: 19,
@@ -322,9 +404,29 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1.5,
   },
-  avatarRow: { flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 8 },
-  avatar: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center" },
-  avatarInitial: { fontSize: 28, fontFamily: "Inter_700Bold", fontWeight: "800" },
+
+  /* Avatar */
+  avatarSection: { flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 8 },
+  avatarWrapper: { position: "relative", width: 76, height: 76 },
+  avatarImage: { width: 76, height: 76, borderRadius: 38, borderWidth: 2.5, borderColor: "rgba(245,166,35,0.6)" },
+  avatarPlaceholder: {
+    width: 76, height: 76, borderRadius: 38,
+    borderWidth: 2.5, alignItems: "center", justifyContent: "center",
+  },
+  avatarInitial: { fontSize: 32, fontFamily: "Inter_700Bold", fontWeight: "800" },
+  cameraOverlay: {
+    position: "absolute",
+    bottom: 0, right: 0,
+    width: 26, height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#000",
+  },
+  cameraIcon: { fontSize: 13, lineHeight: 16 },
+  uploadHint: { fontSize: 12, fontFamily: "Inter_500Medium", marginTop: 6 },
+
   userName: { fontSize: 18, fontWeight: "700", fontFamily: "Inter_700Bold" },
   userPhone: { fontSize: 14, marginTop: 2, fontFamily: "Inter_400Regular" },
   fieldLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", fontWeight: "600", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 },
@@ -342,21 +444,22 @@ const styles = StyleSheet.create({
     padding: 16, borderRadius: 14, borderWidth: 1,
   },
   listRowText: { flex: 1, fontSize: 15, fontFamily: "Inter_600SemiBold", fontWeight: "600" },
+
+  /* Logout — solid red button */
   logoutBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    paddingVertical: 16,
+    paddingVertical: 17,
     borderRadius: 14,
-    borderWidth: 1.5,
   },
   logoutIcon: { fontSize: 20 },
   logoutText: {
-    color: "#ef4444",
+    color: "#ffffff",
     fontFamily: "Inter_700Bold",
     fontWeight: "700",
     fontSize: 16,
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
 });
