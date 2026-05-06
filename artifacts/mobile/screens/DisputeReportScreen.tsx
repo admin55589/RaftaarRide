@@ -90,18 +90,30 @@ export function DisputeReportScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 12 }]}>
-        <Pressable onPress={() => setScreen("profile")} style={[styles.backBtn, { borderColor: colors.border }]}>
-          <Text style={{ fontSize: 18, color: colors.foreground }}>←</Text>
+      {/* ── Header ── */}
+      <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: colors.border }]}>
+        <Pressable
+          onPress={() => setScreen("profile")}
+          style={({ pressed }) => [
+            styles.backBtn,
+            {
+              backgroundColor: pressed ? colors.primary + "22" : colors.secondary,
+              borderColor: colors.border,
+            },
+          ]}
+          hitSlop={8}
+        >
+          <Text style={[styles.backArrow, { color: colors.foreground }]}>←</Text>
+          <Text style={[styles.backLabel, { color: colors.mutedForeground }]}>Back</Text>
         </Pressable>
-        <Text style={[styles.title, { color: colors.foreground }]}>⚠️ Report an Issue</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>Report an Issue</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40 }}>
         {/* Select Ride */}
         <Animated.View entering={FadeInDown.delay(50).duration(400)}>
           <GlassCard style={{ padding: 16, marginBottom: 16 }}>
-            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>Ride Select Karein</Text>
+            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>🚖 Ride Select Karein</Text>
             {loadingRides ? (
               <Text style={{ color: colors.mutedForeground, fontSize: 13, marginTop: 8 }}>Loading rides...</Text>
             ) : recentRides.length === 0 ? (
@@ -110,8 +122,11 @@ export function DisputeReportScreen() {
               <View style={{ gap: 8, marginTop: 10 }}>
                 {recentRides.map(r => (
                   <Pressable key={r.id} onPress={() => setSelectedRideId(r.id)}
-                    style={[styles.rideOption, { borderColor: selectedRideId === r.id ? colors.primary : colors.border, backgroundColor: selectedRideId === r.id ? colors.primary + "12" : "transparent" }]}>
-                    <Text style={{ color: selectedRideId === r.id ? colors.primary : colors.foreground, fontWeight: "600", fontSize: 13 }}>
+                    style={[styles.rideOption, {
+                      borderColor: selectedRideId === r.id ? colors.primary : colors.border,
+                      backgroundColor: selectedRideId === r.id ? colors.primary + "12" : "transparent",
+                    }]}>
+                    <Text style={{ color: selectedRideId === r.id ? colors.primary : colors.foreground, fontFamily: "Inter_600SemiBold", fontWeight: "600", fontSize: 13 }}>
                       Ride #{r.id} — {r.destination}
                     </Text>
                     <Text style={{ color: colors.mutedForeground, fontSize: 11, marginTop: 2 }}>
@@ -127,11 +142,14 @@ export function DisputeReportScreen() {
         {/* Issue type */}
         <Animated.View entering={FadeInDown.delay(100).duration(400)}>
           <GlassCard style={{ padding: 16, marginBottom: 16 }}>
-            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>Issue Type</Text>
+            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>⚠️ Issue Type</Text>
             <View style={{ gap: 8, marginTop: 10 }}>
               {ISSUE_TYPES.map(it => (
                 <Pressable key={it.key} onPress={() => setIssue(it.key)}
-                  style={[styles.issueOption, { borderColor: issue === it.key ? colors.primary : colors.border, backgroundColor: issue === it.key ? colors.primary + "12" : "transparent" }]}>
+                  style={[styles.issueOption, {
+                    borderColor: issue === it.key ? colors.primary : colors.border,
+                    backgroundColor: issue === it.key ? colors.primary + "12" : "transparent",
+                  }]}>
                   <Text style={{ color: issue === it.key ? colors.primary : colors.foreground, fontSize: 14 }}>{it.label}</Text>
                 </Pressable>
               ))}
@@ -142,7 +160,7 @@ export function DisputeReportScreen() {
         {/* Description */}
         <Animated.View entering={FadeInDown.delay(150).duration(400)}>
           <GlassCard style={{ padding: 16, marginBottom: 20 }}>
-            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>Details / Vivran</Text>
+            <Text style={[styles.sectionLabel, { color: colors.foreground }]}>📝 Details / Vivran</Text>
             <TextInput
               value={description}
               onChangeText={setDescription}
@@ -152,8 +170,8 @@ export function DisputeReportScreen() {
               numberOfLines={5}
               style={[styles.textarea, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
             />
-            <Text style={{ color: colors.mutedForeground, fontSize: 11, marginTop: 6 }}>
-              {description.length} / minimum 10 characters
+            <Text style={{ color: description.length >= 10 ? colors.primary : colors.mutedForeground, fontSize: 11, marginTop: 6 }}>
+              {description.length} characters {description.length < 10 ? `(${10 - description.length} aur chahiye)` : "✓"}
             </Text>
           </GlassCard>
         </Animated.View>
@@ -175,11 +193,46 @@ export function DisputeReportScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingBottom: 12 },
-  backBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: "center", justifyContent: "center", marginRight: 12 },
-  title: { fontSize: 19, fontWeight: "700", fontFamily: "Inter_700Bold" },
-  sectionLabel: { fontSize: 14, fontWeight: "700" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  backBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  backArrow: {
+    fontSize: 17,
+    fontFamily: "Inter_700Bold",
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+  backLabel: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    fontWeight: "500",
+  },
+  title: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "700",
+    fontFamily: "Inter_700Bold",
+  },
+  sectionLabel: { fontSize: 14, fontFamily: "Inter_700Bold", fontWeight: "700" },
   rideOption: { padding: 12, borderRadius: 10, borderWidth: 1 },
   issueOption: { padding: 12, borderRadius: 10, borderWidth: 1 },
-  textarea: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 14, marginTop: 8, minHeight: 120, textAlignVertical: "top" },
+  textarea: {
+    borderWidth: 1, borderRadius: 10, padding: 12,
+    fontSize: 14, marginTop: 8, minHeight: 120, textAlignVertical: "top",
+    fontFamily: "Inter_400Regular",
+  },
 });
