@@ -1001,7 +1001,7 @@ const styles = StyleSheet.create({
   clearBtn: { padding: 4 },
   clearEmoji: { fontSize: 15, lineHeight: 20 },
   micBtn: { padding: 2 },
-  suggestionsScroll: { maxHeight: 280 },
+  suggestionsScroll: { maxHeight: 380 },
   suggestionsContent: {
     paddingHorizontal: 16,
     paddingBottom: 20,
