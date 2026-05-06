@@ -411,28 +411,28 @@ const styles = StyleSheet.create({
     gap: 10,
   },
 
-  /* Back button — golden pill with border */
+  /* Back button — compact golden pill */
   backBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
-    paddingHorizontal: 13,
-    paddingVertical: 9,
-    borderRadius: 22,
-    borderWidth: 1.5,
+    gap: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
   },
   backChevron: {
-    fontSize: 22,
+    fontSize: 15,
     fontFamily: "Inter_700Bold",
     fontWeight: "700",
-    lineHeight: 24,
-    marginTop: -2,
+    lineHeight: 18,
+    marginTop: -1,
   },
   backLabel: {
-    fontSize: 13,
-    fontFamily: "Inter_700Bold",
-    fontWeight: "700",
-    letterSpacing: 0.2,
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+    fontWeight: "600",
+    letterSpacing: 0.1,
   },
 
   title: {
