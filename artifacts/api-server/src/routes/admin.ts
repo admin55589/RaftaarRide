@@ -447,7 +447,7 @@ router.patch("/admin/kyc/:id/verify", authMiddleware, async (req: Request, res: 
     await db.update(driversTable)
       .set({
         kycStatus: newStatus,
-        status: action === "approve" ? "active" : driversTable.status,
+        status: action === "approve" ? "active" : undefined,
       })
       .where(eq(driversTable.id, kyc.driverId));
 

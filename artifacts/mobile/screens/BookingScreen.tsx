@@ -174,10 +174,10 @@ export function BookingScreen() {
   }, [bookingLoading, selectedVehicle, token, pickup, destination, pickupCoords, dropCoords, rideMode, finalPrice, distanceKm, promoApplied, basePrice, paymentMethod]);
 
   const PAYMENT_METHODS = [
-    { label: "UPI", icon: "📱" },
-    { label: "Cash", icon: "💵" },
-    { label: "Card", icon: "💳" },
-    { label: "Wallet", icon: "👛" },
+    { key: "UPI", label: "UPI", icon: "📱" },
+    { key: "Cash", label: "Cash", icon: "💵" },
+    { key: "Card", label: "Card", icon: "💳" },
+    { key: "RaftaarWallet", label: "Wallet", icon: "👛" },
   ];
 
   return (
@@ -261,15 +261,15 @@ export function BookingScreen() {
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>PAYMENT</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.paymentRow}>
-                {PAYMENT_METHODS.map(({ label, icon }) => (
+                {PAYMENT_METHODS.map(({ key, label, icon }) => (
                   <Pressable
-                    key={label}
-                    onPress={() => setPaymentMethod(label)}
+                    key={key}
+                    onPress={() => setPaymentMethod(key)}
                     style={[
                       styles.paymentChip,
                       {
-                        backgroundColor: paymentMethod === label ? colors.primary + "22" : colors.secondary,
-                        borderColor: paymentMethod === label ? colors.primary : colors.border,
+                        backgroundColor: paymentMethod === key ? colors.primary + "22" : colors.secondary,
+                        borderColor: paymentMethod === key ? colors.primary : colors.border,
                       },
                     ]}
                   >
@@ -277,7 +277,7 @@ export function BookingScreen() {
                     <Text
                       style={[
                         styles.paymentLabel,
-                        { color: paymentMethod === label ? colors.primary : colors.mutedForeground },
+                        { color: paymentMethod === key ? colors.primary : colors.mutedForeground },
                       ]}
                     >
                       {label}
@@ -474,27 +474,6 @@ export function BookingScreen() {
                 </View>
               )}
 
-              <View style={[styles.priceRow, { marginTop: 8 }]}>
-                <View style={styles.priceLabelRow}>
-                  <Text style={styles.priceIcon}>🕐</Text>
-                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Duration</Text>
-                </View>
-                <Text style={[styles.priceValue, { color: colors.foreground }]}>{duration} min</Text>
-              </View>
-              <View style={styles.priceRow}>
-                <View style={styles.priceLabelRow}>
-                  <Text style={styles.priceIcon}>📍</Text>
-                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Distance</Text>
-                </View>
-                <Text style={[styles.priceValue, { color: colors.foreground }]}>~{distanceKm} km</Text>
-              </View>
-              <View style={[styles.priceRow, { borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: 8, marginTop: 4 }]}>
-                <View style={styles.priceLabelRow}>
-                  <Text style={{ fontSize: 11 }}>⏱️</Text>
-                  <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Waiting charge</Text>
-                </View>
-                <Text style={[styles.priceValue, { color: colors.mutedForeground }]}>₹0.5/min</Text>
-              </View>
             </View>
 
             <View style={styles.bookBtnContainer}>

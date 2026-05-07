@@ -142,7 +142,7 @@ router.post("/driver-auth/register", async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error("Driver register error:", err);
+    logger.error({ err }, "driver register error");
     res.status(500).json({ message: "Registration failed" });
   }
 });
@@ -236,7 +236,7 @@ router.post("/driver-auth/login", async (req: Request, res: Response) => {
       },
     });
   } catch (err) {
-    console.error("Driver login error:", err);
+    logger.error({ err }, "driver login error");
     res.status(500).json({ message: "Login failed" });
   }
 });

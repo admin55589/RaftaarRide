@@ -117,6 +117,9 @@ router.post("/auth/register", async (req: Request, res: Response) => {
         photoUrl: user.photoUrl ?? null,
         gender: user.gender ?? null,
         isVerified: user.isVerified,
+        preferredLanguage: user.preferredLanguage,
+        walletBalance: parseFloat(user.walletBalance ?? "0"),
+        referralCode: user.referralCode ?? null,
       },
     });
   } catch (err) {
@@ -184,6 +187,9 @@ router.post("/auth/login", async (req: Request, res: Response) => {
         photoUrl: user.photoUrl ?? null,
         gender: user.gender ?? null,
         isVerified: user.isVerified,
+        preferredLanguage: user.preferredLanguage,
+        walletBalance: parseFloat(user.walletBalance ?? "0"),
+        referralCode: user.referralCode ?? null,
       },
     });
   } catch (err) {
@@ -329,6 +335,9 @@ router.post("/auth/verify-otp", async (req: Request, res: Response) => {
         photoUrl: freshUser?.photoUrl ?? null,
         gender: freshUser?.gender ?? null,
         isVerified: true,
+        preferredLanguage: freshUser?.preferredLanguage ?? "hi",
+        walletBalance: parseFloat(freshUser?.walletBalance ?? "0"),
+        referralCode: freshUser?.referralCode ?? null,
       },
     });
   } catch (err) {

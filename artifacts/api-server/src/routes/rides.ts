@@ -173,7 +173,7 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
         await db.update(promoCodesTable)
           .set({ usedCount: existingPromo.usedCount + 1 })
           .where(eq(promoCodesTable.id, existingPromo.id))
-          .catch((err: unknown) => { console.error("[rides] promo usedCount update failed:", err); });
+          .catch((err: unknown) => { req.log.error({ err }, "[rides] promo usedCount update failed"); });
       }
     }
 
