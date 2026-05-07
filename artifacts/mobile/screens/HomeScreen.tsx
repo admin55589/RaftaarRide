@@ -38,6 +38,7 @@ import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
+import { API_BASE } from "@/lib/api";
 
 function getGreeting(t: (k: any) => string, hour: number) {
   if (hour < 12) return t("good_morning");
@@ -181,11 +182,6 @@ export function HomeScreen() {
     setTimeout(() => setToast((t) => ({ ...t, show: false })), 3200);
   };
 
-  const API_BASE = (() => {
-    const domain = process.env.EXPO_PUBLIC_DOMAIN;
-    if (domain) return `https://${domain}/api`;
-    return "https://workspaceapi-server-production-2e22.up.railway.app/api";
-  })();
 
   const handlePickPhoto = async () => {
     if (pickingPhoto) return;

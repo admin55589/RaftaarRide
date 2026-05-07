@@ -13,12 +13,7 @@ import {
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-
-const API_BASE = (() => {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/api`;
-  return "https://workspaceapi-server-production-2e22.up.railway.app/api";
-})();
+import { API_BASE } from "@/lib/api";
 
 type Step = "phone" | "otp" | "password";
 

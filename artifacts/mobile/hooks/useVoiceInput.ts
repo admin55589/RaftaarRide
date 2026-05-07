@@ -2,12 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { Audio } from "expo-av";
 import * as Speech from "expo-speech";
 import { useLanguage } from "@/context/LanguageContext";
-
-const BASE_URL = (() => {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/api`;
-  return "https://workspaceapi-server-production-2e22.up.railway.app/api";
-})();
+import { API_BASE as BASE_URL } from "@/lib/api";
 
 export type VoiceInputState = "idle" | "listening" | "processing";
 

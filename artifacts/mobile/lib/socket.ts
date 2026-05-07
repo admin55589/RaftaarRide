@@ -1,10 +1,6 @@
 import { io, type Socket } from "socket.io-client";
 
-const SOCKET_URL = (() => {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}`;
-  return "https://workspaceapi-server-production-2e22.up.railway.app";
-})();
+import { APP_BASE as SOCKET_URL } from "./api";
 
 let socket: Socket | null = null;
 

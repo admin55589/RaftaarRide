@@ -33,6 +33,7 @@ import { useVoiceAI } from "@/hooks/useVoiceAI";
 import { ridesApi, type DriverInfo } from "@/lib/ridesApi";
 import { connectSocket, joinRideRoom, getSocket } from "@/lib/socket";
 import { useNotification } from "@/context/NotificationContext";
+import { API_BASE } from "@/lib/api";
 
 const { height: SCREEN_H } = Dimensions.get("window");
 
@@ -225,10 +226,7 @@ export function SearchingScreen() {
   const vehicleColor = selectedVehicle === "bike" ? "#F5A623" : selectedVehicle === "auto" ? "#22c55e" : selectedVehicle === "suv" ? "#9333ea" : "#818cf8";
 
   useEffect(() => {
-    const BASE = process.env.EXPO_PUBLIC_DOMAIN
-      ? `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`
-      : "https://workspaceapi-server-production-2e22.up.railway.app/api";
-    fetch(`${BASE}/stats/online-drivers`)
+    fetch(`${API_BASE}/stats/online-drivers`)
       .then((r) => r.json())
       .then((d: { count: number }) => setOnlineDriverCount(d.count))
       .catch(() => {});

@@ -6,6 +6,7 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "migrate-rides": "tsx ./src/migrate-rides.ts",
+    "db-export": "tsx ./src/db-export.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

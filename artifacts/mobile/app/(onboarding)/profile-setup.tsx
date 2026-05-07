@@ -16,18 +16,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
+import { API_BASE } from "@/lib/api";
 
 const GENDERS = [
   { value: "male", label: "👨 Male" },
   { value: "female", label: "👩 Female" },
   { value: "other", label: "🧑 Other" },
 ];
-
-const API_BASE = (() => {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/api`;
-  return "https://workspaceapi-server-production-2e22.up.railway.app/api";
-})();
 
 export default function ProfileSetupScreen() {
   const insets = useSafeAreaInsets();

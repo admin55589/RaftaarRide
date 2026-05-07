@@ -45,6 +45,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { MapView } from "@/components/MapView";
 import { connectSocket, sendChatMessage, emitDriverLocation, joinDriverRoom, getSocket } from "@/lib/socket";
+import { APP_BASE as BASE_URL, API_BASE } from "@/lib/api";
 
 interface ChatMsg {
   id: string;
@@ -509,9 +510,6 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
   const [changePwdError, setChangePwdError] = useState("");
   const [changePwdSuccess, setChangePwdSuccess] = useState("");
 
-  const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
-    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-    : "https://workspaceapi-server-production-2e22.up.railway.app";
 
   const handleChangePwd = async () => {
     setChangePwdError("");
@@ -576,11 +574,6 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
     setTimeout(() => setToast((t) => ({ ...t, show: false })), 3200);
   };
 
-  const API_BASE = (() => {
-    const domain = process.env.EXPO_PUBLIC_DOMAIN;
-    if (domain) return `https://${domain}/api`;
-    return "https://workspaceapi-server-production-2e22.up.railway.app/api";
-  })();
 
   /* On mount: fetch fresh profile so rating/stats are always up to date (not stale cache) */
   useEffect(() => {

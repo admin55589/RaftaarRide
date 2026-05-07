@@ -16,10 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useDriverAuth } from "@/context/DriverAuthContext";
 import { useLanguage } from "@/context/LanguageContext";
-
-const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
-  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-  : "https://workspaceapi-server-production-2e22.up.railway.app";
+import { APP_BASE as BASE_URL } from "@/lib/api";
 
 type Tab = "email" | "phone";
 

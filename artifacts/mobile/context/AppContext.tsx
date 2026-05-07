@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { ridesApi, type RideRecord } from "@/lib/ridesApi";
+import { API_BASE } from "@/lib/api";
 
 /* Haversine straight-line distance (km) */
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -231,8 +232,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   /* Fetch surge multiplier from API on mount */
   useEffect(() => {
-    const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? "https://workspaceapi-server-production-2e22.up.railway.app";
-    fetch(`${API_BASE}/api/surge`)
+    fetch(`${API_BASE}/surge`)
       .then(r => r.json())
       .then((d: { isActive: boolean; multiplier: number; reason: string | null }) => {
         if (d.isActive && d.multiplier > 1) {

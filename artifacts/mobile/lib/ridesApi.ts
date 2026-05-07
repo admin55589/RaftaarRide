@@ -1,8 +1,4 @@
-const BASE_URL = (() => {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/api`;
-  return "https://workspaceapi-server-production-2e22.up.railway.app/api";
-})();
+import { API_BASE as BASE_URL } from "./api";
 
 async function authFetch<T>(path: string, token: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {

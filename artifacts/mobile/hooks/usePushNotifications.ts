@@ -4,6 +4,7 @@ import { Platform, Alert } from "react-native";
 import { useEffect, useRef } from "react";
 import { useRouter } from "expo-router";
 import Constants from "expo-constants";
+import { API_BASE } from "@/lib/api";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -14,12 +15,6 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
-
-const API_BASE = (() => {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/api`;
-  return "https://workspaceapi-server-production-2e22.up.railway.app/api";
-})();
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
   if (!Device.isDevice) {

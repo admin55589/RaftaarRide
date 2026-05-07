@@ -12,6 +12,7 @@ import {
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { RazorpayOrder } from "@/lib/paymentApi";
+import { API_BASE } from "@/lib/api";
 
 interface RazorpayWebViewProps {
   visible: boolean;
@@ -138,8 +139,7 @@ export function RazorpayWebView({
     }
   };
 
-  const domain = process.env.EXPO_PUBLIC_DOMAIN || "workspaceapi-server-production-2e22.up.railway.app";
-  const logoUrl = `https://${domain}/api/assets/logo.png`;
+  const logoUrl = `${API_BASE}/assets/logo.png`;
   const html = buildCheckoutHtml(order, userInfo, logoUrl);
 
   return (

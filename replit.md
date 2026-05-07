@@ -25,6 +25,26 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `pnpm --filter @workspace/db run push-force` — force push (skip interactive prompts)
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
 - `pnpm --filter @workspace/api-server exec tsx src/seed.ts` — seed the database
+- `pnpm --filter @workspace/scripts run db-export > export.sql` — export all DB data as SQL (for migration)
+
+## Replit Independence / External Deployment
+
+The project is fully portable — no Replit-specific code. To deploy externally:
+
+**API Server** — build with Docker (`Dockerfile` at root) or deploy directly to Railway/Render/Fly.io.  
+Environment variables needed: see `.env.example` at project root.
+
+**Database** — currently on Replit PostgreSQL. To migrate:
+1. Run `DATABASE_URL=<replit_db_url> pnpm --filter @workspace/scripts run db-export > export.sql`
+2. Create a new PostgreSQL on Neon (neon.tech free tier) or Supabase
+3. Run schema: `pnpm --filter @workspace/db run push` (with new `DATABASE_URL`)
+4. Import data: `psql $NEW_DATABASE_URL < export.sql`
+5. Update `DATABASE_URL` in Railway (or wherever API server runs)
+
+**API URL** — all mobile/admin files use a single central source:
+- Mobile: `artifacts/mobile/lib/api.ts` → env var `EXPO_PUBLIC_DOMAIN` (e.g. `your-api.railway.app`)
+- Admin: `artifacts/admin/src/lib/apiBase.ts` → env var `VITE_API_URL` (e.g. `https://your-api.railway.app`)
+- Fallback for both: `https://workspaceapi-server-production-2e22.up.railway.app` (Railway production)
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
 

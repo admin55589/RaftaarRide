@@ -18,12 +18,7 @@ import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
-
-const BASE_URL = (() => {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/api`;
-  return "https://workspaceapi-server-production-2e22.up.railway.app/api";
-})();
+import { API_BASE as BASE_URL } from "@/lib/api";
 
 const WEIGHT_OPTIONS = [
   { key: "small",  label: "Small",  sub: "< 1 kg",   icon: "📄", desc: "Documents, letters",       base: 40,  perKm: 8  },
