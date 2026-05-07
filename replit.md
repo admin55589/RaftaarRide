@@ -31,20 +31,32 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 The project is fully portable — no Replit-specific code. To deploy externally:
 
-**API Server** — build with Docker (`Dockerfile` at root) or deploy directly to Railway/Render/Fly.io.  
-Environment variables needed: see `.env.example` at project root.
+**API Server (Railway)** — `railway.json` uses Dockerfile builder. `nixpacks.toml` also present as fallback.
+Required Railway env vars: DATABASE_URL, SESSION_SECRET, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, TWOFACTOR_API_KEY, FAST2SMS_API_KEY, PORT (auto-set by Railway).
+Health check: GET /api/healthz
 
-**Database** — currently on Replit PostgreSQL. To migrate:
-1. Run `DATABASE_URL=<replit_db_url> pnpm --filter @workspace/scripts run db-export > export.sql`
-2. Create a new PostgreSQL on Neon (neon.tech free tier) or Supabase
-3. Run schema: `pnpm --filter @workspace/db run push` (with new `DATABASE_URL`)
-4. Import data: `psql $NEW_DATABASE_URL < export.sql`
-5. Update `DATABASE_URL` in Railway (or wherever API server runs)
+**Admin Panel (Vercel)** — `vercel.json` at root. Builds `artifacts/admin` → outputs to `artifacts/admin/dist/public`.
+Required Vercel env var: `VITE_API_URL=https://workspaceapi-server-production-2e22.up.railway.app`
+
+**Database** — Currently on Replit internal PostgreSQL (host: helium). Must migrate to Neon before cancelling Replit:
+1. Export: `pnpm --filter @workspace/scripts run db-export > export.sql`
+2. Push schema to Neon: `DATABASE_URL=<neon_url> pnpm --filter @workspace/db run push`
+3. Import data: `psql <neon_url> < export.sql`
+4. Set `DATABASE_URL=<neon_url>` in Railway dashboard
+
+**GitHub** — No GitHub remote configured yet. To connect:
+```
+git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
+git push -u origin main
+```
+After pushing: Railway and Vercel auto-deploy via GitHub integration.
+
+**CI** — `.github/workflows/ci.yml` runs typecheck + build checks on every push.
 
 **API URL** — all mobile/admin files use a single central source:
-- Mobile: `artifacts/mobile/lib/api.ts` → env var `EXPO_PUBLIC_DOMAIN` (e.g. `your-api.railway.app`)
-- Admin: `artifacts/admin/src/lib/apiBase.ts` → env var `VITE_API_URL` (e.g. `https://your-api.railway.app`)
-- Fallback for both: `https://workspaceapi-server-production-2e22.up.railway.app` (Railway production)
+- Mobile: `artifacts/mobile/lib/api.ts` → env var `EXPO_PUBLIC_DOMAIN`
+- Admin: `artifacts/admin/src/lib/apiBase.ts` → env var `VITE_API_URL`
+- Fallback for both: `https://workspaceapi-server-production-2e22.up.railway.app`
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
 
