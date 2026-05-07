@@ -126,14 +126,14 @@ export function Sidebar({ isLive = false }: SidebarProps) {
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
         {nav.map(({ label, href, icon: Icon, badge }) => {
           const active = href === "/" ? location === "/" : location.startsWith(href);
           return (
             <Link key={href} href={href}>
               <div
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer",
+                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer",
                   active
                     ? "bg-primary/15 text-primary border border-primary/20"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-accent-foreground"
