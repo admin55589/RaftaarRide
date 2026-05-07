@@ -11,7 +11,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet, MessageSquare, AlertTriangle, RefreshCw, Cloud, CheckCircle, XCircle } from "lucide-react";
+import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet, MessageSquare, AlertTriangle, RefreshCw, Cloud, CheckCircle, XCircle, Settings } from "lucide-react";
 import { StatusBadge, VehicleBadge, formatCurrency, formatDate } from "@/components/shared";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/apiBase";
@@ -251,7 +251,49 @@ function CloudCostCard() {
   }
 
   if (!data?.configured) {
-    return null;
+    return (
+      <div className="bg-card border border-card-border rounded-2xl p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+            <Cloud className="w-4 h-4 text-purple-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Google Cloud Billing</p>
+            <p className="text-xs text-muted-foreground">Real-time cost monitoring</p>
+          </div>
+        </div>
+
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Settings className="w-3.5 h-3.5 text-amber-400" />
+            <p className="text-xs font-semibold text-amber-400">Setup Required — 3 Steps</p>
+          </div>
+          <ol className="space-y-1.5 text-xs text-muted-foreground list-decimal list-inside">
+            <li>
+              <span className="text-foreground font-medium">Service Account banao:</span>{" "}
+              <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noreferrer" className="text-blue-400 underline">GCP Console</a>
+              {" "}→ "Create Service Account" → Name: "billing-reader"
+            </li>
+            <li>
+              <span className="text-foreground font-medium">Role assign karo:</span>{" "}
+              Billing → Account Management → "Add Member" → role: <code className="bg-white/10 px-1 rounded">Billing Account Viewer</code>
+            </li>
+            <li>
+              <span className="text-foreground font-medium">JSON Key download karo</span>{" "}
+              →{" "}
+              <a href="https://railway.com/project" target="_blank" rel="noreferrer" className="text-blue-400 underline">Railway Dashboard</a>
+              {" "}→ Variables →{" "}
+              <code className="bg-white/10 px-1 rounded">GOOGLE_SERVICE_ACCOUNT_KEY</code>{" "}
+              naam se paste karo
+            </li>
+          </ol>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Setup ke baad real-time Google Cloud billing status dikh jayega — account status, budgets, aur current month ka data.
+        </p>
+      </div>
+    );
   }
 
   return (
