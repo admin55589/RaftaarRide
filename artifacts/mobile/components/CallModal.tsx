@@ -130,9 +130,16 @@ export function CallModal({ visible, onClose, driver }: Props) {
               </View>
 
               <View style={cm.actionRow}>
-                <TouchableOpacity onPress={onClose} style={cm.sideBtn} activeOpacity={0.8}>
-                  <Text style={{ fontSize: 22 }}>✕</Text>
-                  <Text style={cm.sideBtnLabel}>Cancel</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                    onClose();
+                  }}
+                  style={cm.cancelBtn}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ fontSize: 26 }}>📵</Text>
+                  <Text style={cm.cancelBtnLabel}>Cancel</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -145,11 +152,11 @@ export function CallModal({ visible, onClose, driver }: Props) {
 
                 <TouchableOpacity
                   onPress={onClose}
-                  style={[cm.sideBtn, { backgroundColor: "rgba(59,130,246,0.15)", borderColor: "rgba(59,130,246,0.35)" }]}
+                  style={cm.chatBtn}
                   activeOpacity={0.8}
                 >
-                  <Text style={{ fontSize: 22 }}>💬</Text>
-                  <Text style={[cm.sideBtnLabel, { color: "#93C5FD" }]}>Chat</Text>
+                  <Text style={{ fontSize: 24 }}>💬</Text>
+                  <Text style={cm.chatBtnLabel}>Chat</Text>
                 </TouchableOpacity>
               </View>
 
@@ -258,21 +265,47 @@ const cm = StyleSheet.create({
     shadowRadius: 20,
     elevation: 15,
   },
-  sideBtn: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.15)",
+  cancelBtn: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(239,68,68,0.18)",
+    borderWidth: 2,
+    borderColor: "rgba(239,68,68,0.55)",
     alignItems: "center",
     justifyContent: "center",
     gap: 3,
+    shadowColor: "#EF4444",
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 10,
   },
-  sideBtnLabel: {
+  cancelBtnLabel: {
     fontSize: 10,
-    fontFamily: "Inter_400Regular",
-    color: "#8A8A9A",
+    fontFamily: "Inter_600SemiBold",
+    color: "#F87171",
+    letterSpacing: 0.3,
+  },
+  chatBtn: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(59,130,246,0.18)",
+    borderWidth: 2,
+    borderColor: "rgba(59,130,246,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    shadowColor: "#3B82F6",
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  chatBtnLabel: {
+    fontSize: 10,
+    fontFamily: "Inter_600SemiBold",
+    color: "#93C5FD",
+    letterSpacing: 0.3,
   },
   phoneLine: {
     fontSize: 13,
