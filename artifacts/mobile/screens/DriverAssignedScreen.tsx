@@ -401,36 +401,23 @@ export function DriverAssignedScreen() {
 
   const handleShareLocation = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const vehicleEmoji = driver.vehicleType === "bike" ? "🏍️" : driver.vehicleType === "auto" ? "🛺" : driver.vehicleType === "suv" ? "🚙" : "🚗";
-
-    let locationLine = `📍 Pickup: ${pickup || "Current location"}`;
-    let mapsLink = "";
-
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === "granted") {
         const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         const { latitude, longitude } = loc.coords;
-        mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
-        locationLine = `📍 Live Location: ${mapsLink}`;
+        const mapsUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
+        await Linking.openURL(mapsUrl);
+        return;
       }
     } catch { }
-
+    const vehicleEmoji = driver.vehicleType === "bike" ? "🏍️" : driver.vehicleType === "auto" ? "🛺" : driver.vehicleType === "suv" ? "🚙" : "🚗";
     const message = [
       `${vehicleEmoji} Main RaftaarRide mein hoon!`,
-      ``,
-      `👤 Driver: ${driver.name} (⭐ ${driver.rating})`,
-      `🚘 Vehicle: ${driver.vehicle}`,
-      `🔢 Number: ${driver.vehicleNumber}`,
-      `⏱️ ETA: ${driver.eta} min`,
-      ``,
-      locationLine,
+      `📍 Pickup: ${pickup || "Current location"}`,
       `🏁 Destination: ${destination || "Unknown"}`,
-      ...(mapsLink ? [``, `🗺️ Google Maps: ${mapsLink}`] : []),
-      ``,
-      `RaftaarRide se book kiya gaya — safe & fast! ⚡`,
+      `👤 Driver: ${driver.name} • ${driver.vehicleNumber}`,
     ].join("\n");
-
     try { await Share.share({ message, title: "Meri Ride Track Karo 🚗" }); } catch { }
   };
 
@@ -500,8 +487,8 @@ export function DriverAssignedScreen() {
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(200).springify()} style={s.bottomActions}>
-              <Pressable onPress={handleCancel} style={[s.cancelBtn, { borderColor: colors.destructive }]}>
-                <Text style={[s.cancelText, { color: colors.destructive }]}>Cancel Ride</Text>
+              <Pressable onPress={handleCancel} style={s.cancelBtn}>
+                <Text style={s.cancelText}>✕  Cancel Ride</Text>
               </Pressable>
               <View style={{ flex: 1 }}>
                 <PrimaryButton label="Track Live" onPress={() => setScreen("live_tracking")} size="md" />
@@ -566,8 +553,14 @@ const s = StyleSheet.create({
   actionBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   actionBtnEmoji: { fontSize: 20 },
   bottomActions: { flexDirection: "row", gap: 12, alignItems: "center" },
-  cancelBtn: { borderRadius: 14, borderWidth: 1.5, paddingVertical: 12, paddingHorizontal: 16 },
-  cancelText: { fontFamily: "Inter_600SemiBold", fontSize: 14 },
+  cancelBtn: {
+    borderRadius: 14, borderWidth: 1.5, borderColor: "#EF4444",
+    paddingVertical: 12, paddingHorizontal: 16,
+    backgroundColor: "rgba(239,68,68,0.13)",
+    shadowColor: "#EF4444", shadowOpacity: 0.35, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 }, elevation: 6,
+  },
+  cancelText: { fontFamily: "Inter_700Bold", fontSize: 14, color: "#F87171" },
   sosRow: { flexDirection: "row", gap: 10 },
   sosBtn: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 12, borderWidth: 1, paddingVertical: 8, paddingHorizontal: 14 },
   sosText: { fontFamily: "Inter_700Bold", fontSize: 13 },

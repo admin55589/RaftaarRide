@@ -82,12 +82,10 @@ export function SOSModal({ visible, onClose }: Props) {
       Alert.alert(`📞 ${label}`, `Calling ${number}...\n\n(On physical device, this dials immediately)`);
       return;
     }
-    const url = `tel:${number}`;
-    const supported = await Linking.canOpenURL(url);
-    if (supported) {
-      await Linking.openURL(url);
-    } else {
-      Alert.alert("Call Failed", `Please dial ${number} manually`);
+    try {
+      await Linking.openURL(`tel:${number}`);
+    } catch {
+      Alert.alert(`📞 ${label}`, `Dial karo: ${number}`);
     }
   };
 
