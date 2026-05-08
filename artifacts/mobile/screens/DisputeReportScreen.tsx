@@ -38,7 +38,7 @@ export function DisputeReportScreen() {
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [recentRides, setRecentRides] = useState<RecentRide[]>([]);
-  const [selectedRideId, setSelectedRideId] = useState<number | null>(currentRideId);
+  const [selectedRideId, setSelectedRideId] = useState<number | null>(pendingDisputeRideId ?? currentRideId);
   const [loadingRides, setLoadingRides] = useState(true);
 
   /* ── Custom Toast ── */
@@ -64,7 +64,7 @@ export function DisputeReportScreen() {
         if (d.success) {
           const completed = (d.rides ?? []).filter((r: any) => r.status === "completed").slice(0, 5);
           setRecentRides(completed);
-          if (!selectedRideId && completed.length > 0) setSelectedRideId(completed[0].id);
+          if (!pendingDisputeRideId && !selectedRideId && completed.length > 0) setSelectedRideId(completed[0].id);
         }
       })
       .catch(() => {})
@@ -95,6 +95,7 @@ export function DisputeReportScreen() {
       const data = await res.json();
       if (data.success) {
         showToast("Report submit ho gayi!", "Support team 24 ghante mein review karegi ✓", "success");
+        setPendingDisputeRideId(null);
         setTimeout(() => setScreen("home"), 2500);
       } else {
         showToast("Submit nahi hua", data.error ?? "Dobara koshish karein", "error");
@@ -144,7 +145,7 @@ export function DisputeReportScreen() {
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: topPad + 12, borderBottomColor: colors.border }]}>
         <Pressable
-          onPress={() => setScreen("profile")}
+          onPress={() => { setPendingDisputeRideId(null); setScreen("home"); }}
           style={({ pressed }) => [
             styles.backBtn,
             {

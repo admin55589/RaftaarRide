@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { ridesTable, scheduledRidesTable, driversTable, usersTable } from "@workspace/db/schema";
-import { eq, and, lte, inArray } from "drizzle-orm";
+import { eq, and, lte, inArray, gte, lt } from "drizzle-orm";
 import { logger } from "./logger";
 import { emitRideUpdate, emitToDriver } from "./socket";
 import { sendPushNotification } from "./expoPush";
@@ -181,8 +181,52 @@ async function autoDispatchScheduledRides() {
   }
 }
 
+async function sendPreRideReminders() {
+  try {
+    const now = new Date();
+    const in30 = new Date(now.getTime() + 30 * 60 * 1000);
+    const in31 = new Date(now.getTime() + 31 * 60 * 1000);
+
+    const upcoming = await db
+      .select()
+      .from(scheduledRidesTable)
+      .where(
+        and(
+          eq(scheduledRidesTable.status, "pending"),
+          gte(scheduledRidesTable.scheduledAt, in30),
+          lt(scheduledRidesTable.scheduledAt, in31)
+        )
+      );
+
+    for (const ride of upcoming) {
+      if (!ride.userId) continue;
+      const [user] = await db
+        .select({ pushToken: usersTable.pushToken })
+        .from(usersTable)
+        .where(eq(usersTable.id, ride.userId))
+        .limit(1);
+      if (!user?.pushToken) continue;
+
+      const rideTime = new Date(ride.scheduledAt).toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      await sendPushNotification({
+        to: user.pushToken,
+        title: "⏰ Aapki Ride 30 Minute Mein!",
+        body: `${ride.pickup} → ${ride.destination} • ${rideTime} pe scheduled hai. Taiyaar raho!`,
+        data: { type: "ride_reminder", scheduledId: ride.id },
+      });
+      logger.info({ scheduledId: ride.id, userId: ride.userId }, "30-min pre-ride reminder sent");
+    }
+  } catch (err) {
+    logger.error({ err }, "sendPreRideReminders error");
+  }
+}
+
 export function startCron() {
   setInterval(autoCancelStaleRides, 5 * 60 * 1000);
   setInterval(autoDispatchScheduledRides, 60 * 1000);
-  logger.info("Cron jobs started: auto-cancel + scheduled-dispatch");
+  setInterval(sendPreRideReminders, 60 * 1000);
+  logger.info("Cron jobs started: auto-cancel + scheduled-dispatch + pre-ride-reminder");
 }

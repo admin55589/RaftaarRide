@@ -86,7 +86,7 @@ export function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setScreen, setDestination, setDropCoords, setPickupCoords, currentLocationAddress, setCurrentLocationAddress, setPickup } = useApp();
+  const { setScreen, setDestination, setDropCoords, setPickupCoords, currentLocationAddress, setCurrentLocationAddress, setPickup, rideHistory } = useApp();
   const { user, token, logout, updateUser } = useAuth();
   const { lang, toggleLanguage, t } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
@@ -619,19 +619,32 @@ export function HomeScreen() {
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 16 }]}>
               {t("recent_rides").toUpperCase()}
             </Text>
-            {[t("recent_dlf"), t("recent_lajpat"), t("recent_hauz")].map((place) => (
-              <Pressable
-                key={place}
-                onPress={() => handleDestinationSelect(place)}
-                style={[styles.recentItem, { borderColor: colors.border }]}
-              >
-                <View style={[styles.recentIcon, { backgroundColor: colors.muted }]}>
-                  <Text style={styles.recentClockEmoji}>🕐</Text>
-                </View>
-                <Text style={[styles.recentLabel, { color: colors.foreground }]}>{place}</Text>
-                <Text style={[styles.chevronEmoji, { color: colors.mutedForeground }]}>›</Text>
-              </Pressable>
-            ))}
+            {(() => {
+              const recentDests = Array.from(
+                new Map(
+                  rideHistory
+                    .filter(r => r.status === "completed" && r.destination)
+                    .map(r => [r.destination, r])
+                ).values()
+              ).slice(0, 3);
+              const fallbacks = [t("recent_dlf"), t("recent_lajpat"), t("recent_hauz")];
+              const items = recentDests.length > 0
+                ? recentDests.map(r => r.destination)
+                : fallbacks;
+              return items.map((place) => (
+                <Pressable
+                  key={place}
+                  onPress={() => handleDestinationSelect(place)}
+                  style={[styles.recentItem, { borderColor: colors.border }]}
+                >
+                  <View style={[styles.recentIcon, { backgroundColor: colors.muted }]}>
+                    <Text style={styles.recentClockEmoji}>{recentDests.length > 0 ? "🕐" : "📍"}</Text>
+                  </View>
+                  <Text style={[styles.recentLabel, { color: colors.foreground }]}>{place}</Text>
+                  <Text style={[styles.chevronEmoji, { color: colors.mutedForeground }]}>›</Text>
+                </Pressable>
+              ));
+            })()}
 
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 16 }]}>
               HELP & SUPPORT
