@@ -154,6 +154,7 @@ interface AppContextType {
   setEstimatedTime: (t: number) => void;
   estimatedDistanceKm: number;
   setEstimatedDistanceKm: (d: number) => void;
+  isDistanceLoading: boolean;
   assignedDriver: Driver | null;
   setAssignedDriver: (d: Driver | null) => void;
   rideHistory: Ride[];
@@ -215,6 +216,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [estimatedPrice, setEstimatedPrice] = useState(180);
   const [estimatedTime, setEstimatedTime] = useState(12);
   const [estimatedDistanceKm, setEstimatedDistanceKm] = useState(8.2);
+  const [isDistanceLoading, setIsDistanceLoading] = useState(false);
   const mapsKeyRef = useRef<string>(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "");
   const [assignedDriver, setAssignedDriver] = useState<Driver | null>(null);
   const [rideHistory, setRideHistory] = useState<Ride[]>([]);
@@ -249,6 +251,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   /* Auto-calculate real distance when both pickup + drop coords are available */
   useEffect(() => {
     if (!pickupCoords || !dropCoords) return;
+    setIsDistanceLoading(true);
     const mapsKey = mapsKeyRef.current || "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q";
     /* Try Google Maps Directions API for accurate road distance */
     const origin = `${pickupCoords.lat},${pickupCoords.lng}`;
@@ -261,27 +264,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (leg?.distance?.value && leg?.duration?.value) {
           const distKm = parseFloat((leg.distance.value / 1000).toFixed(1));
           const timeMin = Math.ceil(leg.duration.value / 60);
-          /* Sanity check: reject if distance > 500 km (geocoding resolved to wrong place) */
-          if (distKm <= 500) {
+          /* Sanity check: reject if road distance > 80 km (geocoding resolved to wrong place) */
+          if (distKm <= 80) {
             setEstimatedDistanceKm(distKm);
             setEstimatedTime(timeMin);
           }
+          /* Even if distance rejected, stop showing loader */
         } else {
           /* Fallback: haversine + road factor */
           const result = calcRealDistance(pickupCoords, dropCoords);
-          if (result && result.distanceKm <= 500) {
+          if (result && result.distanceKm <= 80) {
             setEstimatedDistanceKm(result.distanceKm);
             setEstimatedTime(result.timeMin);
           }
         }
+        setIsDistanceLoading(false);
       })
       .catch(() => {
         /* Network/API error: use haversine fallback */
         const result = calcRealDistance(pickupCoords, dropCoords);
-        if (result && result.distanceKm <= 500) {
+        if (result && result.distanceKm <= 80) {
           setEstimatedDistanceKm(result.distanceKm);
           setEstimatedTime(result.timeMin);
         }
+        setIsDistanceLoading(false);
       });
   }, [pickupCoords, dropCoords]);
 
@@ -334,6 +340,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         estimatedPrice, setEstimatedPrice,
         estimatedTime, setEstimatedTime,
         estimatedDistanceKm, setEstimatedDistanceKm,
+        isDistanceLoading,
         assignedDriver, setAssignedDriver,
         rideHistory,
         addRideToHistory,

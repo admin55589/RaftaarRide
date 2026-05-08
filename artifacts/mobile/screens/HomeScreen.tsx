@@ -116,6 +116,31 @@ export function HomeScreen() {
   const locationPermGranted = useRef<boolean | null>(null);
   /* Stores the user's last known raw GPS position — used as geocoding bias */
   const gpsRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  /* Silently fetch GPS on mount (if permission already granted) so geocoding bias
+     is always available even before the user taps the GPS button */
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status === "granted") {
+          const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          const gps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          gpsRef.current = gps;
+          /* Also set pickupCoords so AppContext distance calc fires correctly */
+          setPickupCoords(gps);
+          const [geo] = await Location.reverseGeocodeAsync({ latitude: gps.lat, longitude: gps.lng });
+          if (geo) {
+            const parts = [geo.name, geo.street, geo.subregion ?? geo.district, geo.city].filter(Boolean);
+            const addr = parts.slice(0, 3).join(", ") || "Current Location";
+            setCurrentLocationAddress(addr);
+            setPickup(addr);
+          }
+        }
+      } catch { /* silent — user will tap GPS button manually if needed */ }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const ensureLocationPermission = useCallback(async (): Promise<boolean> => {
     if (locationPermGranted.current === true) return true;
     const { status: existing } = await Location.getForegroundPermissionsAsync();

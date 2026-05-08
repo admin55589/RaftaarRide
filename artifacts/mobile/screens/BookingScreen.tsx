@@ -49,7 +49,7 @@ export function BookingScreen() {
     selectedVehicle,
     rideMode,
     estimatedTime,
-
+    isDistanceLoading,
     paymentMethod,
     setPaymentMethod,
     estimatedDistanceKm,
@@ -62,7 +62,7 @@ export function BookingScreen() {
 
   /* Sanity guard: if geocoding resolved incorrectly, fall back to default 8.2 km */
   const rawDistKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
-  const distanceKm = rawDistKm > 500 ? DEFAULT_DISTANCE_KM : rawDistKm;
+  const distanceKm = rawDistKm > 80 ? DEFAULT_DISTANCE_KM : rawDistKm;
   const fare = calculateFare(selectedVehicle, distanceKm, 0, getRideModeMultiplier(rideMode) * surgeMultiplier);
   const basePrice = fare.total;
   const timeMultiplier = selectedVehicle === "bike" ? 0.7 : selectedVehicle === "auto" ? 0.9 : 1;
@@ -403,9 +403,16 @@ export function BookingScreen() {
                   <Text style={styles.priceIcon}>📍</Text>
                   <Text style={[styles.priceLabel, { color: colors.mutedForeground }]}>Distance</Text>
                 </View>
-                <Text style={[styles.priceValue, { color: colors.mutedForeground }]}>
-                  {distanceKm.toFixed(1)} km
-                </Text>
+                {isDistanceLoading ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={[styles.priceValue, { color: colors.mutedForeground, fontSize: 12 }]}>Calculating…</Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.priceValue, { color: colors.mutedForeground }]}>
+                    {distanceKm.toFixed(1)} km
+                  </Text>
+                )}
               </View>
 
               <View style={styles.priceRow}>
@@ -475,9 +482,15 @@ export function BookingScreen() {
 
             <View style={styles.bookBtnContainer}>
               <PrimaryButton
-                label={bookingLoading ? "Booking..." : `Book ${selectedVehicle.charAt(0).toUpperCase() + selectedVehicle.slice(1)} — ₹${finalPrice}${promoApplied ? ` (Save ₹${promoApplied.discountAmount})` : ""}`}
+                label={
+                  bookingLoading
+                    ? "Booking..."
+                    : isDistanceLoading
+                      ? "Route calculate ho raha hai…"
+                      : `Book ${selectedVehicle.charAt(0).toUpperCase() + selectedVehicle.slice(1)} — ₹${finalPrice}${promoApplied ? ` (Save ₹${promoApplied.discountAmount})` : ""}`
+                }
                 onPress={handleBookRide}
-                disabled={bookingLoading}
+                disabled={bookingLoading || isDistanceLoading}
               />
             </View>
           </ScrollView>

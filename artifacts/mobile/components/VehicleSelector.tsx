@@ -35,7 +35,7 @@ function VehicleCard({ vehicle }: { vehicle: typeof VEHICLES[0] }) {
 
   /* Sanity cap: if geocoding resolved to wrong place, clamp to max realistic India city ride */
   const rawDistanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
-  const distanceKm = rawDistanceKm > 500 ? DEFAULT_DISTANCE_KM : rawDistanceKm;
+  const distanceKm = rawDistanceKm > 80 ? DEFAULT_DISTANCE_KM : rawDistanceKm;
   const fare = calculateFare(vehicle.type, distanceKm, 0, getRideModeMultiplier(rideMode));
   const rawTime = Math.round(estimatedTime * vehicle.timeMultiplier);
   const time = rawTime > 999 ? Math.round(DEFAULT_DISTANCE_KM * vehicle.timeMultiplier * 2.5) : rawTime;
