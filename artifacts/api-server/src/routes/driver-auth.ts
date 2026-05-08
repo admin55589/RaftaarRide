@@ -515,9 +515,51 @@ router.patch("/driver-auth/rides/:id/status", async (req: Request, res: Response
     }
     await db.update(ridesTable).set({ status }).where(eq(ridesTable.id, rideId));
 
-    /* Re-enable driver when ride completed or cancelled */
-    if (status === "completed" || status === "cancelled") {
+    if (status === "cancelled") {
       await db.update(driversTable).set({ isOnline: true }).where(eq(driversTable.id, payload.driverId));
+    }
+
+    /* Credit driver earnings on ride completion — mirrors /api/rides/:id/status logic */
+    if (status === "completed") {
+      /* Idempotency: skip if earnings already credited (e.g. via verify-pin route) */
+      if (!(ride.driverEarning && parseFloat(String(ride.driverEarning)) > 0)) {
+        const [driver] = await db.select().from(driversTable)
+          .where(eq(driversTable.id, payload.driverId)).limit(1);
+        if (driver) {
+          const price = parseFloat(String(ride.price));
+          const isCash = ride.paymentMethod === "Cash";
+          const vt = String(ride.vehicleType ?? "cab").toLowerCase();
+          const PLATFORM_FEE_MAP: Record<string, number> = { bike: 4, auto: 6, cab: 12, prime: 12, suv: 15 };
+          const platformFee = PLATFORM_FEE_MAP[vt] ?? 12;
+          const earning = parseFloat((price - platformFee).toFixed(2));
+          const currentBalance = parseFloat(String(driver.walletBalance ?? "0"));
+          const newWalletBalance = isCash
+            ? currentBalance - platformFee
+            : currentBalance + earning;
+          const totalEarningsNew = parseFloat(String(driver.totalEarnings ?? "0")) + earning;
+          await db.update(driversTable).set({
+            totalEarnings: String(totalEarningsNew.toFixed(2)),
+            walletBalance: String(newWalletBalance.toFixed(2)),
+            totalRides: (driver.totalRides ?? 0) + 1,
+            isOnline: true,
+          }).where(eq(driversTable.id, payload.driverId));
+          await db.update(ridesTable).set({
+            commissionAmount: "0",
+            driverEarning: String(earning),
+          }).where(eq(ridesTable.id, rideId));
+          await db.insert(walletTransactionsTable).values({
+            driverId: payload.driverId,
+            type: isCash ? "commission_debit" : "earning",
+            amount: String(isCash ? -platformFee : earning),
+            description: isCash
+              ? `Ride #${rideId} — Cash: platform fee ₹${platformFee} admin ko dena hai.`
+              : `Ride #${rideId} — Ride fare ₹${earning.toFixed(2)} credit (platform fee ₹${platformFee} admin ka).`,
+          });
+        }
+      } else {
+        /* Earnings already credited via verify-pin — just put driver back online */
+        await db.update(driversTable).set({ isOnline: true }).where(eq(driversTable.id, payload.driverId));
+      }
     }
 
     /* Emit status change to passenger ride room */

@@ -54,13 +54,13 @@ export function VoiceMicButton({ state, onToggle, size = 36 }: VoiceMicButtonPro
   const isProcessing = state === "processing";
 
   const bgColor = isListening
-    ? "#EF4444"
+    ? colors.destructive
     : isProcessing
     ? colors.border
     : `${colors.primary}22`;
 
   const borderColor = isListening
-    ? "#EF4444"
+    ? colors.destructive
     : isProcessing
     ? colors.border
     : `${colors.primary}66`;
@@ -74,7 +74,7 @@ export function VoiceMicButton({ state, onToggle, size = 36 }: VoiceMicButtonPro
               StyleSheet.absoluteFillObject,
               {
                 borderRadius: size / 2 + 6,
-                backgroundColor: "#EF444444",
+                backgroundColor: `${colors.destructive}44`,
                 margin: -6,
               },
               glowStyle,

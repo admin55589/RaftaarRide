@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     setToken(null);
     setUser(null);
-    Promise.all([
+    await Promise.all([
       AsyncStorage.removeItem(AUTH_TOKEN_KEY),
       AsyncStorage.removeItem(AUTH_USER_KEY),
       authApi.firebaseLogout().catch(() => {}),

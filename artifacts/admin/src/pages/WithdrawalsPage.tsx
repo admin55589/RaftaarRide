@@ -109,6 +109,7 @@ export function WithdrawalsPage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ enabled: newVal }),
       });
+      if (!res.ok) { showToast(`Server error (${res.status})`, "error"); return; }
       const data = await res.json();
       setAutomationOn(data.automationEnabled ?? newVal);
       showToast(data.message ?? (newVal ? "✅ Auto-Processing ON" : "⏸️ Auto-Processing OFF"), "success");

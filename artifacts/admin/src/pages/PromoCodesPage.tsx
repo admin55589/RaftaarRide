@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -101,7 +101,10 @@ export function PromoCodesPage() {
 
   const [form, setForm] = useState({ code: "", discountPct: 10, maxUses: 100, expiresAt: "" });
 
-  if (!fetched) { fetchCodes(); setFetched(true); }
+  useEffect(() => {
+    if (!fetched) { fetchCodes(); setFetched(true); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isExpired = (c: PromoCode) => c.expiresAt ? new Date(c.expiresAt) < new Date() : false;
 

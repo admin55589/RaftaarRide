@@ -102,12 +102,16 @@ export function HomeScreen() {
   useEffect(() => {
     const now = new Date();
     const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+    let intervalId: ReturnType<typeof setInterval> | null = null;
     const timeout = setTimeout(() => {
       setCurrentHour(new Date().getHours());
-      const interval = setInterval(() => setCurrentHour(new Date().getHours()), 60000);
-      return () => clearInterval(interval);
+      intervalId = setInterval(() => setCurrentHour(new Date().getHours()), 60000);
     }, msUntilNextMinute);
-    return () => clearTimeout(timeout);
+    /* Clean up both the initial timeout AND the interval if it was started */
+    return () => {
+      clearTimeout(timeout);
+      if (intervalId !== null) clearInterval(intervalId);
+    };
   }, []);
 
   const [inputValue, setInputValue] = useState("");

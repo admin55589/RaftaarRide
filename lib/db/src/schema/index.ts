@@ -35,7 +35,7 @@ export const driversTable = pgTable("drivers", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  phone: text("phone").notNull(),
+  phone: text("phone").notNull().unique(),
   passwordHash: text("password_hash"),
   licenseNumber: text("license_number"),
   vehicleType: text("vehicle_type").notNull(),

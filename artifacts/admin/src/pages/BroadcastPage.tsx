@@ -21,13 +21,14 @@ export function BroadcastPage() {
   const [target, setTarget] = useState<"users" | "drivers" | "all">("all");
   const [sending, setSending] = useState(false);
   const [lastResult, setLastResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState(false);
 
   const handleSend = async () => {
     if (!title.trim() || !body.trim()) {
       toast({ title: "Title aur message dono required hain", variant: "destructive" });
       return;
     }
-    if (!confirm(`"${title}" notification ${target === "all" ? "sabko" : target === "users" ? "users ko" : "drivers ko"} bhejna chahte ho?`)) return;
+    if (!pendingConfirm) { setPendingConfirm(true); return; }
     setSending(true);
     setLastResult(null);
     try {
@@ -40,7 +41,7 @@ export function BroadcastPage() {
       if (res.ok) {
         setLastResult(data);
         toast({ title: `✅ Notification bhej di! ${data.sent}/${data.total} devices pe pahunchi` });
-        setTitle(""); setBody("");
+        setTitle(""); setBody(""); setPendingConfirm(false);
       } else {
         toast({ title: data.message ?? "Error", variant: "destructive" });
       }
@@ -133,14 +134,39 @@ export function BroadcastPage() {
           </div>
         )}
 
-        <button
-          onClick={handleSend}
-          disabled={sending || !title.trim() || !body.trim()}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all active:scale-95 disabled:opacity-50"
-        >
-          <Send className="w-4 h-4" />
-          {sending ? "Bhej raha hai..." : `Send to ${target === "all" ? "Everyone" : target === "users" ? "Users" : "Drivers"}`}
-        </button>
+        {pendingConfirm ? (
+          <div className="border border-yellow-500/40 bg-yellow-500/10 rounded-xl p-4 space-y-3">
+            <p className="text-sm text-yellow-300 font-medium">
+              ⚠️ "{title}" notification {target === "all" ? "sabko" : target === "users" ? "users ko" : "drivers ko"} bhejna chahte ho?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSend}
+                disabled={sending}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 transition-all"
+              >
+                <Send className="w-4 h-4" />
+                {sending ? "Bhej raha hai..." : "Haan, Bhejo"}
+              </button>
+              <button
+                onClick={() => setPendingConfirm(false)}
+                disabled={sending}
+                className="flex-1 py-2.5 rounded-lg bg-muted/60 text-muted-foreground font-semibold text-sm hover:bg-muted transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={handleSend}
+            disabled={sending || !title.trim() || !body.trim()}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all active:scale-95 disabled:opacity-50"
+          >
+            <Send className="w-4 h-4" />
+            {`Send to ${target === "all" ? "Everyone" : target === "users" ? "Users" : "Drivers"}`}
+          </button>
+        )}
       </div>
 
       <div className="bg-card border border-border rounded-2xl p-5">

@@ -253,6 +253,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!pickupCoords || !dropCoords) return;
     setIsDistanceLoading(true);
+    /* Abort previous fetch if coords change rapidly */
+    const controller = new AbortController();
     /* Safety net: never block the Book button for more than 10 seconds */
     const loadingTimeout = setTimeout(() => setIsDistanceLoading(false), 10000);
     const mapsKey = mapsKeyRef.current || "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q";
@@ -260,7 +262,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const origin = `${pickupCoords.lat},${pickupCoords.lng}`;
     const destination = `${dropCoords.lat},${dropCoords.lng}`;
     const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&mode=driving&key=${mapsKey}`;
-    fetch(url)
+    fetch(url, { signal: controller.signal })
       .then((r) => r.json())
       .then((data: { routes?: Array<{ legs?: Array<{ distance?: { value: number }; duration?: { value: number } }> }> }) => {
         const leg = data?.routes?.[0]?.legs?.[0];
@@ -282,7 +284,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(loadingTimeout);
         setIsDistanceLoading(false);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        /* Ignore aborted fetches (rapid coord changes) */
+        if (err instanceof Error && err.name === "AbortError") return;
         /* Network/API error — fall back to haversine estimate */
         const result = calcRealDistance(pickupCoords, dropCoords);
         if (result) {
@@ -292,6 +296,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(loadingTimeout);
         setIsDistanceLoading(false);
       });
+    return () => {
+      controller.abort();
+      clearTimeout(loadingTimeout);
+    };
   }, [pickupCoords, dropCoords]);
 
   useEffect(() => {
