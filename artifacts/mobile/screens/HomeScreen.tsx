@@ -86,7 +86,7 @@ export function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setScreen, setDestination, setDropCoords, setPickupCoords, currentLocationAddress, setCurrentLocationAddress, setPickup, rideHistory } = useApp();
+  const { setScreen, setDestination, setDropCoords, setPickupCoords, currentLocationAddress, setCurrentLocationAddress, setPickup, rideHistory, setEstimatedDistanceKm, setEstimatedTime } = useApp();
   const { user, token, logout, updateUser } = useAuth();
   const { lang, toggleLanguage, t } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
@@ -239,15 +239,45 @@ export function HomeScreen() {
 
   const MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q";
 
+  /* India bounding box — reject any coordinates outside this range */
+  const INDIA_LAT_MIN = 6.0, INDIA_LAT_MAX = 37.6;
+  const INDIA_LNG_MIN = 67.0, INDIA_LNG_MAX = 98.0;
+  const isInIndia = (lat: number, lng: number) =>
+    lat >= INDIA_LAT_MIN && lat <= INDIA_LAT_MAX &&
+    lng >= INDIA_LNG_MIN && lng <= INDIA_LNG_MAX;
+
+  /* Nominatim (OpenStreetMap) fallback — free, no API key, India-restricted */
+  const geocodeViaNominatim = (address: string, onResult: (lat: number, lng: number) => void) => {
+    const q = encodeURIComponent(address + ", India");
+    fetch(`https://nominatim.openstreetmap.org/search?q=${q}&countrycodes=in&format=json&limit=1`, {
+      headers: { "Accept-Language": "en", "User-Agent": "RaftaarRide/1.0 (raftaarride.app)" },
+    })
+      .then(r => r.json())
+      .then((results: Array<{ lat: string; lon: string }>) => {
+        if (results[0]?.lat && results[0]?.lon) {
+          const lat = parseFloat(results[0].lat);
+          const lng = parseFloat(results[0].lon);
+          if (isInIndia(lat, lng)) onResult(lat, lng);
+        }
+      })
+      .catch(() => {});
+  };
+
   const geocodeAddress = (address: string, onResult: (lat: number, lng: number) => void) => {
     const q = encodeURIComponent(address);
-    fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${q}&region=in&key=${MAPS_KEY}`)
+    /* components=country:IN strictly restricts results to India */
+    fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${q}&components=country:IN&region=in&key=${MAPS_KEY}`)
       .then(r => r.json())
       .then((data: { results?: Array<{ geometry?: { location?: { lat: number; lng: number } } }> }) => {
         const loc = data?.results?.[0]?.geometry?.location;
-        if (loc?.lat && loc?.lng) onResult(loc.lat, loc.lng);
+        if (loc?.lat && loc?.lng && isInIndia(loc.lat, loc.lng)) {
+          onResult(loc.lat, loc.lng);
+        } else {
+          /* Google returned no India result — try Nominatim */
+          geocodeViaNominatim(address, onResult);
+        }
       })
-      .catch(() => {});
+      .catch(() => geocodeViaNominatim(address, onResult));
   };
 
   const handleGpsPickup = async () => {
@@ -308,6 +338,11 @@ export function HomeScreen() {
 
   const handleDestinationSelect = (dest: string) => {
     setDestination(dest);
+    /* Reset distance/time to defaults so BookingScreen shows sane values
+       while geocoding completes asynchronously */
+    setEstimatedDistanceKm(8.2);
+    setEstimatedTime(12);
+    setDropCoords(null);
     /* Geocode drop address */
     geocodeAddress(dest, (lat, lng) => setDropCoords({ lat, lng }));
     /* Geocode pickup too so distance can be calculated accurately */

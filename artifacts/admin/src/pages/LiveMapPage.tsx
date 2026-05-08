@@ -162,7 +162,7 @@ export function LiveMapPage() {
   const statusCounts = {
     searching: rides.filter((r) => r.status === "searching").length,
     accepted: rides.filter((r) => r.status === "accepted").length,
-    ongoing: rides.filter((r) => r.status === "ongoing").length,
+    ongoing: rides.filter((r) => r.status === "onRide").length,
   };
 
   return (

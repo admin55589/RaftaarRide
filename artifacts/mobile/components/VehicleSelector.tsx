@@ -33,9 +33,12 @@ function VehicleCard({ vehicle }: { vehicle: typeof VEHICLES[0] }) {
     vehicle.type === "auto" ? colors.autoColor :
     vehicle.type === "suv" ? "#9333ea" : colors.cabColor;
 
-  const distanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
+  /* Sanity cap: if geocoding resolved to wrong place, clamp to max realistic India city ride */
+  const rawDistanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
+  const distanceKm = rawDistanceKm > 500 ? DEFAULT_DISTANCE_KM : rawDistanceKm;
   const fare = calculateFare(vehicle.type, distanceKm, 0, getRideModeMultiplier(rideMode));
-  const time = Math.round(estimatedTime * vehicle.timeMultiplier);
+  const rawTime = Math.round(estimatedTime * vehicle.timeMultiplier);
+  const time = rawTime > 999 ? Math.round(DEFAULT_DISTANCE_KM * vehicle.timeMultiplier * 2.5) : rawTime;
   const vp = VEHICLE_PRICING[vehicle.type];
 
   const animStyle = useAnimatedStyle(() => ({

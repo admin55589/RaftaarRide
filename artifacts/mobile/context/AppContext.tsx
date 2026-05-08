@@ -261,12 +261,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (leg?.distance?.value && leg?.duration?.value) {
           const distKm = parseFloat((leg.distance.value / 1000).toFixed(1));
           const timeMin = Math.ceil(leg.duration.value / 60);
-          setEstimatedDistanceKm(distKm);
-          setEstimatedTime(timeMin);
+          /* Sanity check: reject if distance > 500 km (geocoding resolved to wrong place) */
+          if (distKm <= 500) {
+            setEstimatedDistanceKm(distKm);
+            setEstimatedTime(timeMin);
+          }
         } else {
           /* Fallback: haversine + road factor */
           const result = calcRealDistance(pickupCoords, dropCoords);
-          if (result) {
+          if (result && result.distanceKm <= 500) {
             setEstimatedDistanceKm(result.distanceKm);
             setEstimatedTime(result.timeMin);
           }
@@ -275,7 +278,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {
         /* Network/API error: use haversine fallback */
         const result = calcRealDistance(pickupCoords, dropCoords);
-        if (result) {
+        if (result && result.distanceKm <= 500) {
           setEstimatedDistanceKm(result.distanceKm);
           setEstimatedTime(result.timeMin);
         }
