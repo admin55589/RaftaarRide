@@ -536,16 +536,14 @@ export function HomeScreen() {
           </Pressable>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(100).springify()}>
-          <GlassCard style={styles.greetCard} padding={16}>
-            <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
-              {getGreeting(t, currentHour)}, {userName} 👋
-            </Text>
-            <Text style={[styles.greetTitle, { color: colors.foreground }]}>
-              {t("where_going")}
-            </Text>
-          </GlassCard>
-        </Animated.View>
+        <GlassCard style={styles.greetCard} padding={16}>
+          <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
+            {getGreeting(t, currentHour)}, {userName} 👋
+          </Text>
+          <Text style={[styles.greetTitle, { color: colors.foreground }]}>
+            {t("where_going")}
+          </Text>
+        </GlassCard>
       </View>
 
       <Modal visible={showProfileEdit} transparent animationType="slide" onRequestClose={() => { setShowProfileEdit(false); setProfileError(""); }}>
