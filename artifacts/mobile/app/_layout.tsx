@@ -17,6 +17,7 @@ import { View } from "react-native";
 
 import { AppSplash } from "@/components/AppSplash";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { useNotificationHandler } from "@/hooks/usePushNotifications";
 import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
@@ -135,6 +136,7 @@ export default function RootLayout() {
                   <DriverAuthProvider>
                     <AppProvider>
                       <NotificationProvider>
+                        <OfflineBanner />
                         <HistorySyncer />
                         <AuthGuard>
                           <RootLayoutNav />

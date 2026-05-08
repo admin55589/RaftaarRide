@@ -10,6 +10,7 @@ import { eq, desc } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { validateAccountDetails, createRazorpayPayout } from "../lib/razorpay-payout";
 import { isAutomationEnabled } from "../lib/automation-state";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
@@ -206,7 +207,7 @@ router.post("/driver/wallet/withdraw", driverAuth, async (req: Request, res: Res
     });
 
     // ── Auto-process asynchronously (don't block the response) ────────────
-    void autoProcessWithdrawal(withdrawal.id, driverId, driverName ?? "Driver", amount, method, accountDetails, validation).catch(console.error);
+    void autoProcessWithdrawal(withdrawal.id, driverId, driverName ?? "Driver", amount, method, accountDetails, validation).catch((err: unknown) => logger.error({ err }, "autoProcessWithdrawal failed"));
 
     res.json({
       success: true,
@@ -305,7 +306,7 @@ async function autoProcessWithdrawal(
       }).where(eq(withdrawalRequestsTable.id, withdrawalId));
     }
   } catch (err: any) {
-    console.error("[autoProcessWithdrawal] Error:", err?.message);
+    logger.error({ err }, "[autoProcessWithdrawal] error");
   }
 }
 

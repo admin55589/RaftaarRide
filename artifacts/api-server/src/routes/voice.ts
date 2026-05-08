@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import multer from "multer";
 import OpenAI from "openai";
 import { toFile } from "openai";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -75,7 +76,7 @@ router.post("/voice/transcribe", upload.single("audio"), async (req: Request, re
 
     res.json({ text: resultText, language: whisperLang, scriptError });
   } catch (err) {
-    console.error("[voice/transcribe] error:", err);
+    logger.error({ err }, "[voice/transcribe] error");
     res.status(500).json({ error: "Transcription failed", text: "" });
   }
 });

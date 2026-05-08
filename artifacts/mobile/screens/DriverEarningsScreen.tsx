@@ -358,6 +358,58 @@ export function DriverEarningsScreen() {
           </Animated.View>
         )}
 
+        {/* 7-Day Earnings Bar Chart */}
+        {transactions.length > 0 && (() => {
+          const days: { label: string; total: number }[] = [];
+          for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const key = d.toISOString().slice(0, 10);
+            const label = d.toLocaleDateString("en-IN", { weekday: "short" });
+            const total = transactions
+              .filter((t) => {
+                const isEarning = t.type !== "commission_debit" && t.type !== "withdrawal";
+                return isEarning && t.createdAt.slice(0, 10) === key;
+              })
+              .reduce((s, t) => s + Math.abs(parseFloat(String(t.amount))), 0);
+            days.push({ label, total });
+          }
+          const maxVal = Math.max(...days.map((d) => d.total), 1);
+          return (
+            <Animated.View entering={FadeInDown.delay(130)} style={{ marginHorizontal: 20, marginBottom: 20 }}>
+              <Text style={[styles.sectionTitle, { marginBottom: 14 }]}>📊 7 Din Ki Kamaai</Text>
+              <View style={{ backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" }}>
+                <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 6, height: 80 }}>
+                  {days.map((d, i) => {
+                    const barH = d.total > 0 ? Math.max(6, (d.total / maxVal) * 72) : 4;
+                    const isToday = i === 6;
+                    return (
+                      <View key={i} style={{ flex: 1, alignItems: "center", gap: 4 }}>
+                        {d.total > 0 && (
+                          <Text style={{ fontSize: 9, color: isToday ? "#F5A623" : "#4ADE80", fontFamily: "Inter_600SemiBold" }}>
+                            ₹{d.total >= 1000 ? `${(d.total / 1000).toFixed(1)}k` : d.total.toFixed(0)}
+                          </Text>
+                        )}
+                        <View style={{
+                          height: barH, width: "100%", borderRadius: 4,
+                          backgroundColor: d.total > 0 ? (isToday ? "#F5A623" : "#4ADE80") : "rgba(255,255,255,0.08)",
+                        }} />
+                      </View>
+                    );
+                  })}
+                </View>
+                <View style={{ flexDirection: "row", gap: 6, marginTop: 8 }}>
+                  {days.map((d, i) => (
+                    <Text key={i} style={{ flex: 1, textAlign: "center", fontSize: 9, color: i === 6 ? "#F5A623" : "rgba(255,255,255,0.4)", fontFamily: "Inter_500Medium" }}>
+                      {d.label}
+                    </Text>
+                  ))}
+                </View>
+              </View>
+            </Animated.View>
+          );
+        })()}
+
         {/* Recent Wallet Transactions */}
         {transactions.length > 0 && (
           <View style={{ marginBottom: 8 }}>

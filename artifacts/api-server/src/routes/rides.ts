@@ -253,8 +253,8 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       driver: driverPayload,
     });
   } catch (err) {
-    console.error("[rides] create error:", err);
-    res.status(500).json({ success: false, error: String(err) });
+    req.log.error({ err }, "[rides] create error");
+    res.status(500).json({ success: false, error: "Server error" });
   }
 });
 

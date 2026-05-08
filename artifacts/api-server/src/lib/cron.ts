@@ -154,6 +154,23 @@ async function autoDispatchScheduledRides() {
         });
       }
 
+      /* Notify user that their scheduled ride has been dispatched */
+      if (scheduled.userId) {
+        const [rideUserRow] = await db
+          .select({ pushToken: usersTable.pushToken })
+          .from(usersTable)
+          .where(eq(usersTable.id, scheduled.userId))
+          .limit(1);
+        if (rideUserRow?.pushToken) {
+          await sendPushNotification({
+            to: rideUserRow.pushToken,
+            title: "🚖 Aapki Scheduled Ride Dispatch Ho Gayi!",
+            body: `Driver ${driver.name} assign hua — ${scheduled.pickup} se. App kholein!`,
+            data: { type: "ride_accepted", rideId: newRide.id },
+          });
+        }
+      }
+
       logger.info(
         { scheduledId: scheduled.id, rideId: newRide.id, driverId: driver.id },
         "Scheduled ride dispatched"
