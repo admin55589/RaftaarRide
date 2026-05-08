@@ -738,7 +738,7 @@ export function HomeScreen() {
               <Text style={{ fontSize: 15 }}>📍</Text>
             )}
             <Text style={[styles.locationChipText, { color: colors.primary }]}>
-              {locating ? "Location dhundh raha hai…" : "Meri Location Use Karo"}
+              {locating ? "Location dhundh raha hai…" : "Current Location Set Karo"}
             </Text>
           </Pressable>
 
