@@ -264,18 +264,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .then((data: { routes?: Array<{ legs?: Array<{ distance?: { value: number }; duration?: { value: number } }> }> }) => {
         const leg = data?.routes?.[0]?.legs?.[0];
         if (leg?.distance?.value && leg?.duration?.value) {
+          /* Always accept Directions API result — it is the authoritative road distance.
+             BookingScreen shows a warning banner if distance looks suspiciously large. */
           const distKm = parseFloat((leg.distance.value / 1000).toFixed(1));
           const timeMin = Math.ceil(leg.duration.value / 60);
-          /* Sanity check: reject if road distance > 80 km (geocoding resolved to wrong place) */
-          if (distKm <= 80) {
-            setEstimatedDistanceKm(distKm);
-            setEstimatedTime(timeMin);
-          }
-          /* Even if distance rejected, stop showing loader */
+          setEstimatedDistanceKm(distKm);
+          setEstimatedTime(timeMin);
         } else {
-          /* Fallback: haversine + road factor */
+          /* No route found — fall back to haversine estimate */
           const result = calcRealDistance(pickupCoords, dropCoords);
-          if (result && result.distanceKm <= 80) {
+          if (result) {
             setEstimatedDistanceKm(result.distanceKm);
             setEstimatedTime(result.timeMin);
           }
@@ -284,9 +282,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setIsDistanceLoading(false);
       })
       .catch(() => {
-        /* Network/API error: use haversine fallback */
+        /* Network/API error — fall back to haversine estimate */
         const result = calcRealDistance(pickupCoords, dropCoords);
-        if (result && result.distanceKm <= 80) {
+        if (result) {
           setEstimatedDistanceKm(result.distanceKm);
           setEstimatedTime(result.timeMin);
         }

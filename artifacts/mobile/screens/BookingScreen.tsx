@@ -60,9 +60,7 @@ export function BookingScreen() {
     surgeReason,
   } = useApp();
 
-  /* Sanity guard: if geocoding resolved incorrectly, fall back to default 8.2 km */
-  const rawDistKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
-  const distanceKm = rawDistKm > 80 ? DEFAULT_DISTANCE_KM : rawDistKm;
+  const distanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
   const fare = calculateFare(selectedVehicle, distanceKm, 0, getRideModeMultiplier(rideMode) * surgeMultiplier);
   const basePrice = fare.total;
   const timeMultiplier = selectedVehicle === "bike" ? 0.7 : selectedVehicle === "auto" ? 0.9 : 1;
