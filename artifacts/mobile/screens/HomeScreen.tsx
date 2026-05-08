@@ -541,7 +541,7 @@ export function HomeScreen() {
           </Pressable>
         </Animated.View>
 
-        <GlassCard style={styles.greetCard} padding={16}>
+        <GlassCard style={styles.greetCard} padding={10}>
           <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
             {getGreeting(t, currentHour)}, {userName} 👋
           </Text>
@@ -1005,16 +1005,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   greetCard: {
-    borderRadius: 20,
+    borderRadius: 16,
   },
   greeting: {
     fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    marginBottom: 2,
+    fontSize: 11,
+    marginBottom: 1,
   },
   greetTitle: {
     fontFamily: "Inter_700Bold",
-    fontSize: 20,
+    fontSize: 16,
   },
   modalOverlay: {
     flex: 1,
