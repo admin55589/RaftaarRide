@@ -375,6 +375,9 @@ export function DriverAssignedScreen() {
   const [showSOS, setShowSOS] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showCall, setShowCall] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelFee, setCancelFee] = useState<number>(30);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const driver = assignedDriver ?? {
     name: "Raj Kumar",
@@ -421,26 +424,31 @@ export function DriverAssignedScreen() {
     try { await Share.share({ message, title: "Meri Ride Track Karo 🚗" }); } catch { }
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    Alert.alert(
-      "❌ Ride Cancel?",
-      "Driver aapki taraf aa raha hai.\n\n₹30 cancellation charge lagega aur aapke wallet se deduct hoga.",
-      [
-        { text: "Nahi, Raho", style: "cancel" },
-        {
-          text: "Haan, Cancel Karo (₹30)",
-          style: "destructive",
-          onPress: async () => {
-            if (currentRideId && token) {
-              try { await ridesApi.cancelRide(token, currentRideId, "Driver assigned — user cancelled"); } catch { }
-              setCurrentRideId(null);
-            }
-            setScreen("home");
-          },
-        },
-      ]
-    );
+    let fee = 30;
+    if (currentRideId && token) {
+      try {
+        const res = await ridesApi.getRide(token, currentRideId);
+        if (res?.ride?.status === "arrived") fee = 50;
+        else if (res?.ride?.status === "accepted") fee = 30;
+      } catch { }
+    }
+    setCancelFee(fee);
+    setShowCancelConfirm(true);
+  };
+
+  const confirmCancel = async () => {
+    setCancelLoading(true);
+    try {
+      if (currentRideId && token) {
+        await ridesApi.cancelRide(token, currentRideId, "Driver assigned — user cancelled");
+        setCurrentRideId(null);
+      }
+    } catch { }
+    setCancelLoading(false);
+    setShowCancelConfirm(false);
+    setScreen("home");
   };
 
   const userName = user?.name ?? user?.email?.split("@")[0] ?? "User";
@@ -519,6 +527,70 @@ export function DriverAssignedScreen() {
         </GlassCard>
       </Animated.View>
 
+      {/* ── Cancel Confirmation Modal ── */}
+      <Modal visible={showCancelConfirm} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setShowCancelConfirm(false)}>
+        <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill}>
+          <Pressable style={s.cancelModalBackdrop} onPress={() => !cancelLoading && setShowCancelConfirm(false)}>
+            <Animated.View entering={FadeInUp.springify().damping(14)} style={s.cancelModalCard}>
+              <Pressable>
+                {/* Icon */}
+                <View style={s.cancelModalIconWrap}>
+                  <View style={s.cancelModalIconOuter}>
+                    <View style={s.cancelModalIconInner}>
+                      <Text style={{ fontSize: 28 }}>🚫</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Title + Body */}
+                <View style={s.cancelModalBody}>
+                  <Text style={s.cancelModalTitle}>Ride Cancel Karo?</Text>
+                  <Text style={s.cancelModalSub}>
+                    Driver <Text style={{ color: "#F5A623", fontFamily: "Inter_700Bold" }}>{driver.name}</Text> aapki taraf aa raha hai.
+                  </Text>
+
+                  {/* Fee Card */}
+                  <View style={s.cancelFeeCard}>
+                    <View style={s.cancelFeeRow}>
+                      <Text style={s.cancelFeeLabel}>Cancellation Charge</Text>
+                      <Text style={s.cancelFeeAmt}>₹{cancelFee}</Text>
+                    </View>
+                    <View style={s.cancelFeeDivider} />
+                    <Text style={s.cancelFeeNote}>
+                      {cancelFee === 50
+                        ? "⚠️ Driver pickup pe pahunch gaya hai — ₹50 charge lagega"
+                        : "Driver raste mein hai — ₹30 charge aapke wallet se katega"}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Buttons */}
+                <View style={s.cancelModalBtns}>
+                  <TouchableOpacity
+                    style={s.cancelModalKeepBtn}
+                    onPress={() => setShowCancelConfirm(false)}
+                    activeOpacity={0.8}
+                    disabled={cancelLoading}
+                  >
+                    <Text style={s.cancelModalKeepText}>← Nahi, Raho</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[s.cancelModalConfirmBtn, cancelLoading && { opacity: 0.7 }]}
+                    onPress={confirmCancel}
+                    activeOpacity={0.85}
+                    disabled={cancelLoading}
+                  >
+                    <Text style={s.cancelModalConfirmText}>
+                      {cancelLoading ? "Cancel Ho Raha..." : `✕  Cancel Karo (₹${cancelFee})`}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </Pressable>
+            </Animated.View>
+          </Pressable>
+        </BlurView>
+      </Modal>
+
       <SOSModal visible={showSOS} onClose={() => setShowSOS(false)} />
       <CallModal visible={showCall} onClose={() => setShowCall(false)} driver={driver} />
       <ChatModal
@@ -566,6 +638,64 @@ const s = StyleSheet.create({
   sosText: { fontFamily: "Inter_700Bold", fontSize: 13 },
   shareBtn: { flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 12, borderWidth: 1, paddingVertical: 8, paddingHorizontal: 14, flex: 1, justifyContent: "center" },
   shareText: { fontFamily: "Inter_500Medium", fontSize: 13 },
+
+  /* ── Cancel Confirm Modal ── */
+  cancelModalBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
+  cancelModalCard: {
+    width: "100%", borderRadius: 28, backgroundColor: "#0F0F17",
+    borderWidth: 1.5, borderColor: "rgba(239,68,68,0.35)",
+    shadowColor: "#EF4444", shadowOpacity: 0.4, shadowRadius: 40,
+    shadowOffset: { width: 0, height: 16 }, elevation: 24,
+    overflow: "hidden",
+  },
+  cancelModalIconWrap: { alignItems: "center", paddingTop: 28, paddingBottom: 12 },
+  cancelModalIconOuter: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: "rgba(239,68,68,0.12)", borderWidth: 2,
+    borderColor: "rgba(239,68,68,0.3)", alignItems: "center", justifyContent: "center",
+  },
+  cancelModalIconInner: {
+    width: 58, height: 58, borderRadius: 29,
+    backgroundColor: "rgba(239,68,68,0.2)", alignItems: "center", justifyContent: "center",
+  },
+  cancelModalBody: { paddingHorizontal: 20, gap: 12, paddingBottom: 16 },
+  cancelModalTitle: {
+    fontSize: 22, fontFamily: "Inter_700Bold", fontWeight: "800",
+    color: "#FFFFFF", textAlign: "center", letterSpacing: -0.3,
+  },
+  cancelModalSub: {
+    fontSize: 14, fontFamily: "Inter_400Regular", color: "#9A9AB0",
+    textAlign: "center", lineHeight: 22,
+  },
+  cancelFeeCard: {
+    borderRadius: 16, backgroundColor: "rgba(239,68,68,0.10)",
+    borderWidth: 1.5, borderColor: "rgba(239,68,68,0.28)",
+    padding: 14, gap: 8, marginTop: 4,
+  },
+  cancelFeeRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  cancelFeeLabel: { fontSize: 13, fontFamily: "Inter_500Medium", color: "#9A9AB0" },
+  cancelFeeAmt: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#F87171", fontWeight: "800" },
+  cancelFeeDivider: { height: 1, backgroundColor: "rgba(239,68,68,0.2)" },
+  cancelFeeNote: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#9A9AB0", lineHeight: 18 },
+  cancelModalBtns: {
+    flexDirection: "row", gap: 10,
+    paddingHorizontal: 20, paddingBottom: 24, paddingTop: 4,
+  },
+  cancelModalKeepBtn: {
+    flex: 1, paddingVertical: 15, borderRadius: 14,
+    borderWidth: 1.5, borderColor: "rgba(255,255,255,0.15)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    alignItems: "center", justifyContent: "center",
+  },
+  cancelModalKeepText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#FFFFFF" },
+  cancelModalConfirmBtn: {
+    flex: 1.6, paddingVertical: 15, borderRadius: 14,
+    backgroundColor: "#EF4444",
+    alignItems: "center", justifyContent: "center",
+    shadowColor: "#EF4444", shadowOpacity: 0.55, shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 }, elevation: 10,
+  },
+  cancelModalConfirmText: { fontSize: 14, fontFamily: "Inter_700Bold", color: "#FFFFFF" },
 
   // SOS Modal — fixed layout (no text overflow/overlap)
   modalBackdrop: {
