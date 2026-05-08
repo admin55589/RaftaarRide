@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Pressable,
   TouchableOpacity,
-  Alert,
   Linking,
 } from "react-native";
 import Animated, {
@@ -96,22 +95,13 @@ export function CallModal({ visible, onClose, driver }: Props) {
 
   const doCall = async () => {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    if (!driver.phone) {
-      Alert.alert(
-        "📞 " + driver.name,
-        "Is ride ka driver number abhi available nahi hai.\n\nPlease chat se contact karein.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
-    const url = `tel:${driver.phone}`;
-    const supported = await Linking.canOpenURL(url);
-    if (supported) {
-      await Linking.openURL(url);
-    } else {
-      Alert.alert("Call", `Please dial ${driver.phone} manually`);
-    }
     onClose();
+    if (!driver.phone) return;
+    try {
+      await Linking.openURL(`tel:${driver.phone}`);
+    } catch {
+      try { await Linking.openURL(`tel:${driver.phone}`); } catch { }
+    }
   };
 
   return (
