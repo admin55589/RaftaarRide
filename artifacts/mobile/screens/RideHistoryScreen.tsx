@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp, Ride } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
+import * as Haptics from "expo-haptics";
 import { useTheme } from "@/context/ThemeContext";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -73,7 +74,7 @@ function StarRating({ rating }: { rating?: number }) {
   );
 }
 
-function RideDetailModal({ ride, onClose }: { ride: Ride; onClose: () => void }) {
+function RideDetailModal({ ride, onClose, onReportIssue }: { ride: Ride; onClose: () => void; onReportIssue: (rideId: number) => void }) {
   const colors = useColors();
   const { isDark } = useTheme();
   const statusColor = getStatusColor(ride.status);
@@ -172,8 +173,19 @@ function RideDetailModal({ ride, onClose }: { ride: Ride; onClose: () => void })
                 </View>
               </View>
 
-              {/* Close Button */}
-              <View style={{ padding: 16, paddingTop: 0 }}>
+              {/* Action Buttons */}
+              <View style={{ padding: 16, paddingTop: 0, gap: 8 }}>
+                {ride.status === "completed" && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      onReportIssue(parseInt(String(ride.id), 10));
+                    }}
+                    style={{ backgroundColor: "rgba(239,68,68,0.1)", borderRadius: 12, padding: 14, alignItems: "center", borderWidth: 1, borderColor: "rgba(239,68,68,0.3)" }}
+                  >
+                    <Text style={{ color: "#ef4444", fontSize: 14, fontFamily: "Inter_600SemiBold", fontWeight: "600" }}>🚨 Issue Report Karo</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   onPress={onClose}
                   style={{ backgroundColor: colors.primary, borderRadius: 12, padding: 14, alignItems: "center" }}
@@ -192,7 +204,7 @@ function RideDetailModal({ ride, onClose }: { ride: Ride; onClose: () => void })
 export function RideHistoryScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { rideHistory, refreshHistoryFromServer, isHistoryLoading } = useApp();
+  const { rideHistory, refreshHistoryFromServer, isHistoryLoading, setScreen, setPendingDisputeRideId } = useApp();
   const { token } = useAuth();
   const { lang } = useLanguage();
   const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
@@ -315,7 +327,15 @@ export function RideHistoryScreen() {
 
       {/* Detail Modal */}
       {selectedRide && (
-        <RideDetailModal ride={selectedRide} onClose={() => setSelectedRide(null)} />
+        <RideDetailModal
+          ride={selectedRide}
+          onClose={() => setSelectedRide(null)}
+          onReportIssue={(rideId) => {
+            setPendingDisputeRideId(rideId);
+            setSelectedRide(null);
+            setScreen("dispute_report");
+          }}
+        />
       )}
     </View>
   );

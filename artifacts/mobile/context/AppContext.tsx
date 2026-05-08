@@ -183,6 +183,8 @@ interface AppContextType {
   setLastPaymentMethod: (m: string) => void;
   surgeMultiplier: number;
   surgeReason: string | null;
+  pendingDisputeRideId: number | null;
+  setPendingDisputeRideId: (id: number | null) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -229,6 +231,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lastPaymentMethod, setLastPaymentMethod] = useState<string>("UPI");
   const [surgeMultiplier, setSurgeMultiplier] = useState<number>(1.0);
   const [surgeReason, setSurgeReason] = useState<string | null>(null);
+  const [pendingDisputeRideId, setPendingDisputeRideId] = useState<number | null>(null);
 
   /* Fetch surge multiplier from API on mount */
   useEffect(() => {
@@ -345,6 +348,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         lastCompletedDriverId, setLastCompletedDriverId,
         lastPaymentMethod, setLastPaymentMethod,
         surgeMultiplier, surgeReason,
+        pendingDisputeRideId, setPendingDisputeRideId,
       }}
     >
       {children}

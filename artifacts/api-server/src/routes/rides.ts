@@ -181,12 +181,17 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       await db.update(driversTable).set({ isOnline: false }).where(eq(driversTable.id, matchedDriver.id));
     }
 
+    const vehicleEmojiMap: Record<string, string> = {
+      bike: "🏍️", auto: "🛺", cab: "🚗", prime: "⭐🚗", suv: "🚐",
+    };
     const driverPayload = matchedDriver ? {
       id: matchedDriver.id,
       name: matchedDriver.name,
       phone: matchedDriver.phone,
+      photoUrl: matchedDriver.photoUrl ?? null,
       vehicleType: matchedDriver.vehicleType,
       vehicleNumber: matchedDriver.vehicleNumber,
+      vehicle: vehicleEmojiMap[matchedDriver.vehicleType] ?? "🚗",
       rating: matchedDriver.rating,
       eta: driverEta,
     } : null;

@@ -32,7 +32,7 @@ export function DisputeReportScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { token } = useAuth();
-  const { setScreen, currentRideId } = useApp();
+  const { setScreen, currentRideId, pendingDisputeRideId, setPendingDisputeRideId } = useApp();
 
   const [issue, setIssue] = useState("");
   const [description, setDescription] = useState("");
