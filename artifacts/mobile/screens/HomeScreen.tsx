@@ -482,9 +482,14 @@ export function HomeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <MapView />
+      {/* Map fills entire screen as background */}
+      <View style={StyleSheet.absoluteFillObject}>
+        <MapView />
+      </View>
 
-      <View style={[styles.topOverlay, { paddingTop: topPad + 8 }]}>
+      {/* Single full-screen flex column — top content + transparent spacer + bottom content */}
+      <View style={styles.overlayLayout} pointerEvents="box-none">
+        <View style={[styles.topSection, { paddingTop: topPad + 8 }]} pointerEvents="box-none">
         <Animated.View entering={FadeInDown.springify()} style={styles.topBar}>
           <Pressable style={[styles.locationRow, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={handleLocateMe}>
             {locating ? (
@@ -544,9 +549,9 @@ export function HomeScreen() {
             {t("where_going")}
           </Text>
         </GlassCard>
-      </View>
+        </View>
 
-      <Modal visible={showProfileEdit} transparent animationType="slide" onRequestClose={() => { setShowProfileEdit(false); setProfileError(""); }}>
+        <Modal visible={showProfileEdit} transparent animationType="slide" onRequestClose={() => { setShowProfileEdit(false); setProfileError(""); }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <View style={styles.modalOverlay}>
             <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -689,9 +694,12 @@ export function HomeScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
+        </Modal>
 
-      <View style={[styles.bottomSheet, { paddingBottom: insets.bottom + 16 }]}>
+        {/* Transparent spacer — map visible and touchable in this region */}
+        <View style={{ flex: 1 }} pointerEvents="none" />
+
+        <View style={[styles.bottomSection, { paddingBottom: insets.bottom + 16 }]} pointerEvents="box-none">
         <GlassCard style={styles.bottomCard} padding={0}>
           <View style={styles.searchContainer}>
             <View style={[styles.searchBar, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
@@ -824,6 +832,7 @@ export function HomeScreen() {
             <View style={{ height: 12 }} />
           </ScrollView>
         </GlassCard>
+        </View>
       </View>
 
       {toast.show && (
@@ -897,14 +906,17 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   container: { flex: 1 },
-  topOverlay: {
+  overlayLayout: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
+    bottom: 0,
+    flexDirection: "column",
+  },
+  topSection: {
     paddingHorizontal: 16,
     gap: 10,
-    zIndex: 20,
   },
   topBar: {
     flexDirection: "row",
@@ -1115,13 +1127,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginTop: 2,
   },
-  bottomSheet: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
+  bottomSection: {
     padding: 16,
-    zIndex: 10,
   },
   bottomCard: {
     borderRadius: 24,
