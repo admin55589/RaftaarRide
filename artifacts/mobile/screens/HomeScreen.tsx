@@ -86,7 +86,7 @@ export function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setScreen, setDestination, setDropCoords, setPickupCoords, currentLocationAddress, setCurrentLocationAddress, setPickup, rideHistory, setEstimatedDistanceKm, setEstimatedTime } = useApp();
+  const { setScreen, setDestination, setDropCoords, setPickupCoords, pickupCoords, currentLocationAddress, setCurrentLocationAddress, setPickup, rideHistory, setEstimatedDistanceKm, setEstimatedTime } = useApp();
   const { user, token, logout, updateUser } = useAuth();
   const { lang, toggleLanguage, t } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
@@ -114,6 +114,8 @@ export function HomeScreen() {
   const [locating, setLocating] = useState(false);
 
   const locationPermGranted = useRef<boolean | null>(null);
+  /* Stores the user's last known raw GPS position — used as geocoding bias */
+  const gpsRef = useRef<{ lat: number; lng: number } | null>(null);
   const ensureLocationPermission = useCallback(async (): Promise<boolean> => {
     if (locationPermGranted.current === true) return true;
     const { status: existing } = await Location.getForegroundPermissionsAsync();
@@ -246,38 +248,79 @@ export function HomeScreen() {
     lat >= INDIA_LAT_MIN && lat <= INDIA_LAT_MAX &&
     lng >= INDIA_LNG_MIN && lng <= INDIA_LNG_MAX;
 
-  /* Nominatim (OpenStreetMap) fallback — free, no API key, India-restricted */
-  const geocodeViaNominatim = (address: string, onResult: (lat: number, lng: number) => void) => {
+  /* Straight-line distance in km (Haversine) */
+  const haversineKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  /* Nominatim (OpenStreetMap) fallback — free, no API key, India-restricted + location bias */
+  const geocodeViaNominatim = (
+    address: string,
+    onResult: (lat: number, lng: number) => void,
+    bias?: { lat: number; lng: number },
+  ) => {
     const q = encodeURIComponent(address + ", India");
-    fetch(`https://nominatim.openstreetmap.org/search?q=${q}&countrycodes=in&format=json&limit=1`, {
+    /* viewbox gives a soft location bias — bounded=0 means results outside box still returned if nothing inside */
+    const biasParam = bias
+      ? `&viewbox=${bias.lng - 1},${bias.lat + 1},${bias.lng + 1},${bias.lat - 1}&bounded=0`
+      : "";
+    fetch(`https://nominatim.openstreetmap.org/search?q=${q}&countrycodes=in&format=json&limit=5${biasParam}`, {
       headers: { "Accept-Language": "en", "User-Agent": "RaftaarRide/1.0 (raftaarride.app)" },
     })
       .then(r => r.json())
       .then((results: Array<{ lat: string; lon: string }>) => {
-        if (results[0]?.lat && results[0]?.lon) {
-          const lat = parseFloat(results[0].lat);
-          const lng = parseFloat(results[0].lon);
-          if (isInIndia(lat, lng)) onResult(lat, lng);
+        if (!results?.length) return;
+        /* If bias given, prefer the result closest to bias point */
+        let best = results[0];
+        if (bias && results.length > 1) {
+          let minDist = Infinity;
+          for (const r of results) {
+            const d = haversineKm(bias.lat, bias.lng, parseFloat(r.lat), parseFloat(r.lon));
+            if (d < minDist) { minDist = d; best = r; }
+          }
         }
+        const lat = parseFloat(best.lat);
+        const lng = parseFloat(best.lon);
+        if (isInIndia(lat, lng)) onResult(lat, lng);
       })
       .catch(() => {});
   };
 
-  const geocodeAddress = (address: string, onResult: (lat: number, lng: number) => void) => {
+  const geocodeAddress = (
+    address: string,
+    onResult: (lat: number, lng: number) => void,
+    bias?: { lat: number; lng: number },
+  ) => {
     const q = encodeURIComponent(address);
+    /* location + radius gives a soft bias — Google still returns results outside radius */
+    const biasParam = bias ? `&location=${bias.lat},${bias.lng}&radius=50000` : "";
     /* components=country:IN strictly restricts results to India */
-    fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${q}&components=country:IN&region=in&key=${MAPS_KEY}`)
+    fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${q}&components=country:IN&region=in${biasParam}&key=${MAPS_KEY}`)
       .then(r => r.json())
       .then((data: { results?: Array<{ geometry?: { location?: { lat: number; lng: number } } }> }) => {
-        const loc = data?.results?.[0]?.geometry?.location;
-        if (loc?.lat && loc?.lng && isInIndia(loc.lat, loc.lng)) {
-          onResult(loc.lat, loc.lng);
+        if (!data?.results?.length) { geocodeViaNominatim(address, onResult, bias); return; }
+        /* If bias given, pick the Google result closest to it (not always index 0) */
+        let best = data.results[0].geometry?.location;
+        if (bias && data.results.length > 1) {
+          let minDist = Infinity;
+          for (const r of data.results) {
+            const loc = r.geometry?.location;
+            if (!loc) continue;
+            const d = haversineKm(bias.lat, bias.lng, loc.lat, loc.lng);
+            if (d < minDist) { minDist = d; best = loc; }
+          }
+        }
+        if (best?.lat && best?.lng && isInIndia(best.lat, best.lng)) {
+          onResult(best.lat, best.lng);
         } else {
-          /* Google returned no India result — try Nominatim */
-          geocodeViaNominatim(address, onResult);
+          geocodeViaNominatim(address, onResult, bias);
         }
       })
-      .catch(() => geocodeViaNominatim(address, onResult));
+      .catch(() => geocodeViaNominatim(address, onResult, bias));
   };
 
   const handleGpsPickup = async () => {
@@ -286,8 +329,10 @@ export function HomeScreen() {
       const granted = await ensureLocationPermission();
       if (!granted) { setGpsLoading(false); return; }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const gps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      gpsRef.current = gps;
       /* Set pickup coords from GPS immediately — no geocoding delay */
-      setPickupCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      setPickupCoords(gps);
       const [geo] = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
       if (geo) {
         const parts = [geo.name, geo.street, geo.subregion ?? geo.district, geo.city].filter(Boolean);
@@ -304,8 +349,8 @@ export function HomeScreen() {
     setCurrentLocationAddress(val);
     setPickup(val);
     setShowPickupEdit(false);
-    /* Geocode the manually-entered pickup so distanceKm can be calculated accurately */
-    geocodeAddress(val, (lat, lng) => setPickupCoords({ lat, lng }));
+    /* Geocode the manually-entered pickup — bias toward last GPS fix if available */
+    geocodeAddress(val, (lat, lng) => setPickupCoords({ lat, lng }), gpsRef.current ?? undefined);
   };
 
   const dotScale = useSharedValue(1);
@@ -323,8 +368,10 @@ export function HomeScreen() {
       const granted = await ensureLocationPermission();
       if (!granted) { setLocating(false); return; }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const gps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      gpsRef.current = gps;
       /* Set pickup coords immediately from GPS */
-      setPickupCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      setPickupCoords(gps);
       const [geo] = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
       if (geo) {
         const parts = [geo.name, geo.street, geo.subregion ?? geo.district, geo.city].filter(Boolean);
@@ -336,6 +383,9 @@ export function HomeScreen() {
     setLocating(false);
   };
 
+  /* Maximum straight-line distance (km) for an intra-city ride-hailing booking */
+  const MAX_RIDE_KM = 60;
+
   const handleDestinationSelect = (dest: string) => {
     setDestination(dest);
     /* Reset distance/time to defaults so BookingScreen shows sane values
@@ -343,10 +393,45 @@ export function HomeScreen() {
     setEstimatedDistanceKm(8.2);
     setEstimatedTime(12);
     setDropCoords(null);
-    /* Geocode drop address */
-    geocodeAddress(dest, (lat, lng) => setDropCoords({ lat, lng }));
-    /* Geocode pickup too so distance can be calculated accurately */
-    geocodeAddress(currentLocationAddress, (lat, lng) => setPickupCoords({ lat, lng }));
+
+    /* Use current pickup coords (or last GPS fix) as bias so ambiguous names like
+       "Barka" resolve to the locality closest to the user, not a random Indian town */
+    const bias = pickupCoords ?? gpsRef.current ?? undefined;
+
+    /* Geocode drop address with location bias */
+    geocodeAddress(dest, (dropLat, dropLng) => {
+      /* Distance sanity check — warn user if destination is suspiciously far */
+      if (bias) {
+        const straightLine = haversineKm(bias.lat, bias.lng, dropLat, dropLng);
+        if (straightLine > MAX_RIDE_KM) {
+          Alert.alert(
+            "Bahut Door Hai 🚗",
+            `"${dest}" aapke pickup se ~${Math.round(straightLine)} km door lag raha hai.\n\nRaftaarRide sirf shahar ke andar ki rides ke liye hai. Kya destination sahi hai?`,
+            [
+              {
+                text: "Haan, sahi destination hai",
+                onPress: () => setDropCoords({ lat: dropLat, lng: dropLng }),
+              },
+              {
+                text: "Destination badlo",
+                style: "cancel",
+                onPress: () => {
+                  setDropCoords(null);
+                  setEstimatedDistanceKm(8.2);
+                  setEstimatedTime(12);
+                  setScreen("home");
+                },
+              },
+            ],
+          );
+          return;
+        }
+      }
+      setDropCoords({ lat: dropLat, lng: dropLng });
+    }, bias);
+
+    /* Geocode pickup too with GPS bias */
+    geocodeAddress(currentLocationAddress, (lat, lng) => setPickupCoords({ lat, lng }), gpsRef.current ?? undefined);
     setScreen("booking");
   };
 
