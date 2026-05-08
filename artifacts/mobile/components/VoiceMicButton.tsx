@@ -66,7 +66,7 @@ export function VoiceMicButton({ state, onToggle, size = 36 }: VoiceMicButtonPro
     : `${colors.primary}66`;
 
   return (
-    <Pressable onPress={onToggle} disabled={isProcessing} accessibilityLabel={lang === "hi" ? "Voice input" : "Voice input"}>
+    <Pressable onPress={onToggle} disabled={isProcessing} android_ripple={null} accessibilityLabel={lang === "hi" ? "Voice input" : "Voice input"}>
       <View style={{ position: "relative", alignItems: "center", justifyContent: "center" }}>
         {isListening && (
           <Animated.View
