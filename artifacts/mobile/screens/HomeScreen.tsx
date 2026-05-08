@@ -86,7 +86,7 @@ export function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setScreen, setDestination, setDropCoords, setPickupCoords, pickupCoords, currentLocationAddress, setCurrentLocationAddress, setPickup, rideHistory, setEstimatedDistanceKm, setEstimatedTime } = useApp();
+  const { setScreen, setDestination, setDropCoords, setPickupCoords, pickupCoords, currentLocationAddress, setCurrentLocationAddress, setPickup, rideHistory, setEstimatedDistanceKm, setEstimatedTime, setIsDistanceLoading } = useApp();
   const { user, token, logout, updateUser } = useAuth();
   const { lang, toggleLanguage, t } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
@@ -372,21 +372,40 @@ export function HomeScreen() {
   const handleLocateMe = async () => {
     setLocating(true);
     try {
-      const granted = await ensureLocationPermission();
-      if (!granted) { setLocating(false); return; }
+      /* Always ask for permission — handles first-time and previously-denied cases */
+      const { status: existing } = await Location.getForegroundPermissionsAsync();
+      let permStatus = existing;
+      if (existing !== "granted") {
+        const result = await Location.requestForegroundPermissionsAsync();
+        permStatus = result.status;
+      }
+      if (permStatus !== "granted") {
+        /* Guide user to settings if permission denied */
+        Alert.alert(
+          "Location Permission Chahiye 📍",
+          "Sahi pickup ke liye RaftaarRide ko aapki location access chahiye.\n\nPhone Settings mein jaake Location ko 'Allow' karein.",
+          [
+            { text: "Settings Kholein", onPress: () => Linking.openSettings() },
+            { text: "Baad Mein", style: "cancel" },
+          ]
+        );
+        setLocating(false);
+        return;
+      }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const gps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       gpsRef.current = gps;
-      /* Set pickup coords immediately from GPS */
       setPickupCoords(gps);
-      const [geo] = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      const [geo] = await Location.reverseGeocodeAsync({ latitude: gps.lat, longitude: gps.lng });
       if (geo) {
         const parts = [geo.name, geo.street, geo.subregion ?? geo.district, geo.city].filter(Boolean);
         const addr = parts.slice(0, 3).join(", ") || "Current Location";
         setCurrentLocationAddress(addr);
         setPickup(addr);
       }
-    } catch (_) {}
+    } catch {
+      Alert.alert("Location Error", "GPS se location nahi mili. Phone ki location service on hai? Dobara try karein.");
+    }
     setLocating(false);
   };
 
@@ -395,11 +414,9 @@ export function HomeScreen() {
 
   const handleDestinationSelect = (dest: string) => {
     setDestination(dest);
-    /* Reset distance/time to defaults so BookingScreen shows sane values
-       while geocoding completes asynchronously */
-    setEstimatedDistanceKm(8.2);
-    setEstimatedTime(12);
     setDropCoords(null);
+    /* Show distance spinner immediately so BookingScreen never shows stale 8.2 km */
+    setIsDistanceLoading(true);
 
     /* Use current pickup coords (or last GPS fix) as bias so ambiguous names like
        "Barka" resolve to the locality closest to the user, not a random Indian town */
@@ -424,8 +441,7 @@ export function HomeScreen() {
                 style: "cancel",
                 onPress: () => {
                   setDropCoords(null);
-                  setEstimatedDistanceKm(8.2);
-                  setEstimatedTime(12);
+                  setIsDistanceLoading(false);
                   setScreen("home");
                 },
               },
@@ -437,10 +453,15 @@ export function HomeScreen() {
       setDropCoords({ lat: dropLat, lng: dropLng });
     }, bias);
 
-    /* Only geocode pickup if we don't already have GPS coords — avoids double-triggering
-       the AppContext distance calculation and keeps the loading state clean */
-    if (!gpsRef.current && !pickupCoords) {
-      geocodeAddress(currentLocationAddress, (lat, lng) => setPickupCoords({ lat, lng }));
+    /* Ensure pickupCoords is set — needed for AppContext distance calculation to fire.
+       If GPS ref available but state not yet updated, use it directly (faster than geocoding).
+       If neither, geocode the current address. */
+    if (!pickupCoords) {
+      if (gpsRef.current) {
+        setPickupCoords(gpsRef.current);
+      } else {
+        geocodeAddress(currentLocationAddress, (lat, lng) => setPickupCoords({ lat, lng }));
+      }
     }
     setScreen("booking");
   };
@@ -699,6 +720,21 @@ export function HomeScreen() {
               )}
             </View>
           </View>
+
+          {/* Location chip — visible button so user can tap to get GPS pickup */}
+          <Pressable
+            onPress={handleLocateMe}
+            style={[styles.locationChip, { backgroundColor: colors.primary + "15", borderColor: colors.primary + "44" }]}
+          >
+            {locating ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={{ fontSize: 15 }}>📍</Text>
+            )}
+            <Text style={[styles.locationChipText, { color: colors.primary }]}>
+              {locating ? "Location dhundh raha hai…" : "Meri Location Use Karo"}
+            </Text>
+          </Pressable>
 
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -1091,6 +1127,22 @@ const styles = StyleSheet.create({
   },
   bottomCard: {
     borderRadius: 24,
+  },
+  locationChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  locationChipText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    flex: 1,
   },
   searchContainer: { padding: 16, paddingBottom: 12 },
   searchBar: {

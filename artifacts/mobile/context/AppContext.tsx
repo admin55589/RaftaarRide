@@ -155,6 +155,7 @@ interface AppContextType {
   estimatedDistanceKm: number;
   setEstimatedDistanceKm: (d: number) => void;
   isDistanceLoading: boolean;
+  setIsDistanceLoading: (b: boolean) => void;
   assignedDriver: Driver | null;
   setAssignedDriver: (d: Driver | null) => void;
   rideHistory: Ride[];
@@ -342,7 +343,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         estimatedPrice, setEstimatedPrice,
         estimatedTime, setEstimatedTime,
         estimatedDistanceKm, setEstimatedDistanceKm,
-        isDistanceLoading,
+        isDistanceLoading, setIsDistanceLoading,
         assignedDriver, setAssignedDriver,
         rideHistory,
         addRideToHistory,
