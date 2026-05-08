@@ -185,18 +185,23 @@ function CancelModal({ visible, onConfirm, onDismiss }: { visible: boolean; onCo
                   </TouchableOpacity>
                 ))}
               </View>
-              <View style={[styles.modalDivider, { backgroundColor: colors.border }]} />
-              <Animated.View entering={FadeInDown.delay(140)} style={styles.modalBtnRow}>
-                <TouchableOpacity style={[styles.modalBtn, styles.modalBtnKeep, { borderRightColor: colors.border }]} onPress={onDismiss} activeOpacity={0.8}>
-                  <Text style={[styles.modalBtnKeepText, { color: colors.foreground }]}>⬅  Nahi, Wapas Jao</Text>
+              <Animated.View entering={FadeInDown.delay(140)} style={[styles.modalBtnRow, { borderTopColor: colors.border }]}>
+                <TouchableOpacity
+                  style={[styles.modalBtnKeep, { borderColor: colors.border }]}
+                  onPress={onDismiss}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ fontSize: 15 }}>←</Text>
+                  <Text style={[styles.modalBtnKeepText, { color: colors.foreground }]}>Wapas Jao</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.modalBtn, styles.modalBtnCancel, { opacity: selectedReason ? 1 : 0.5 }]}
+                  style={[styles.modalBtnCancel, { opacity: selectedReason ? 1 : 0.45 }]}
                   onPress={() => selectedReason && onConfirm(selectedReason)}
                   activeOpacity={0.8}
                   disabled={!selectedReason}
                 >
-                  <Text style={styles.modalBtnCancelText}>✕  Cancel Karo</Text>
+                  <Text style={{ fontSize: 15 }}>✕</Text>
+                  <Text style={styles.modalBtnCancelText}>Cancel Karo</Text>
                 </TouchableOpacity>
               </Animated.View>
             </Pressable>
@@ -798,11 +803,27 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 22, fontWeight: "800", textAlign: "center", fontFamily: "Inter_700Bold", letterSpacing: -0.3 },
   modalSubtitle: { fontSize: 14, textAlign: "center", fontFamily: "Inter_400Regular", lineHeight: 22 },
   modalNote: { color: "#F87171", fontSize: 12, fontFamily: "Inter_500Medium" },
-  modalDivider: { height: 1 },
-  modalBtnRow: { flexDirection: "row", gap: 0 },
-  modalBtn: { flex: 1, paddingVertical: 18, alignItems: "center", justifyContent: "center" },
-  modalBtnKeep: { borderRightWidth: 1 },
+  modalBtnRow: {
+    flexDirection: "row", gap: 10,
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 20,
+    borderTopWidth: 1,
+  },
+  modalBtnKeep: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    paddingVertical: 14, borderRadius: 14,
+    borderWidth: 1.5,
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
   modalBtnKeepText: { fontSize: 14, fontWeight: "600", fontFamily: "Inter_600SemiBold" },
-  modalBtnCancel: { backgroundColor: "rgba(239,68,68,0.10)" },
-  modalBtnCancelText: { fontSize: 14, fontWeight: "700", color: "#F87171", fontFamily: "Inter_700Bold" },
+  modalBtnCancel: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    paddingVertical: 14, borderRadius: 14,
+    backgroundColor: "#EF4444",
+    shadowColor: "#EF4444",
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  modalBtnCancelText: { fontSize: 14, fontWeight: "700", color: "#FFFFFF", fontFamily: "Inter_700Bold" },
 });
