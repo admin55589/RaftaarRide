@@ -904,7 +904,7 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 16,
     gap: 10,
-    zIndex: 10,
+    zIndex: 20,
   },
   topBar: {
     flexDirection: "row",
