@@ -252,6 +252,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!pickupCoords || !dropCoords) return;
     setIsDistanceLoading(true);
+    /* Safety net: never block the Book button for more than 10 seconds */
+    const loadingTimeout = setTimeout(() => setIsDistanceLoading(false), 10000);
     const mapsKey = mapsKeyRef.current || "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q";
     /* Try Google Maps Directions API for accurate road distance */
     const origin = `${pickupCoords.lat},${pickupCoords.lng}`;
@@ -278,6 +280,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setEstimatedTime(result.timeMin);
           }
         }
+        clearTimeout(loadingTimeout);
         setIsDistanceLoading(false);
       })
       .catch(() => {
@@ -287,6 +290,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setEstimatedDistanceKm(result.distanceKm);
           setEstimatedTime(result.timeMin);
         }
+        clearTimeout(loadingTimeout);
         setIsDistanceLoading(false);
       });
   }, [pickupCoords, dropCoords]);

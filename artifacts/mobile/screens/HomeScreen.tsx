@@ -117,17 +117,20 @@ export function HomeScreen() {
   /* Stores the user's last known raw GPS position — used as geocoding bias */
   const gpsRef = useRef<{ lat: number; lng: number } | null>(null);
 
-  /* Silently fetch GPS on mount (if permission already granted) so geocoding bias
-     is always available even before the user taps the GPS button */
+  /* On mount: request location permission and auto-set pickup from GPS */
   useEffect(() => {
     (async () => {
       try {
-        const { status } = await Location.getForegroundPermissionsAsync();
+        let { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== "granted") {
+          /* Request permission on first open */
+          const result = await Location.requestForegroundPermissionsAsync();
+          status = result.status;
+        }
         if (status === "granted") {
           const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
           const gps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           gpsRef.current = gps;
-          /* Also set pickupCoords so AppContext distance calc fires correctly */
           setPickupCoords(gps);
           const [geo] = await Location.reverseGeocodeAsync({ latitude: gps.lat, longitude: gps.lng });
           if (geo) {
@@ -137,7 +140,7 @@ export function HomeScreen() {
             setPickup(addr);
           }
         }
-      } catch { /* silent — user will tap GPS button manually if needed */ }
+      } catch { /* location unavailable — user enters manually */ }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -199,7 +202,6 @@ export function HomeScreen() {
 
   const [showPickupEdit, setShowPickupEdit] = useState(false);
   const [editPickup, setEditPickup] = useState(currentLocationAddress);
-  const [gpsLoading, setGpsLoading] = useState(false);
 
   const [toast, setToast] = useState<{ show: boolean; title: string; subtitle: string; type: "success" | "error" }>({
     show: false, title: "", subtitle: "", type: "success",
@@ -348,26 +350,6 @@ export function HomeScreen() {
       .catch(() => geocodeViaNominatim(address, onResult, bias));
   };
 
-  const handleGpsPickup = async () => {
-    setGpsLoading(true);
-    try {
-      const granted = await ensureLocationPermission();
-      if (!granted) { setGpsLoading(false); return; }
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const gps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      gpsRef.current = gps;
-      /* Set pickup coords from GPS immediately — no geocoding delay */
-      setPickupCoords(gps);
-      const [geo] = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-      if (geo) {
-        const parts = [geo.name, geo.street, geo.subregion ?? geo.district, geo.city].filter(Boolean);
-        const addr = parts.slice(0, 3).join(", ") || "Current Location";
-        setEditPickup(addr);
-      }
-    } catch (_) {}
-    setGpsLoading(false);
-  };
-
   const handleSavePickup = () => {
     const val = editPickup.trim();
     if (!val) { Alert.alert("Error", "Pickup location khali nahi ho sakta"); return; }
@@ -455,8 +437,11 @@ export function HomeScreen() {
       setDropCoords({ lat: dropLat, lng: dropLng });
     }, bias);
 
-    /* Geocode pickup too with GPS bias */
-    geocodeAddress(currentLocationAddress, (lat, lng) => setPickupCoords({ lat, lng }), gpsRef.current ?? undefined);
+    /* Only geocode pickup if we don't already have GPS coords — avoids double-triggering
+       the AppContext distance calculation and keeps the loading state clean */
+    if (!gpsRef.current && !pickupCoords) {
+      geocodeAddress(currentLocationAddress, (lat, lng) => setPickupCoords({ lat, lng }));
+    }
     setScreen("booking");
   };
 
@@ -675,21 +660,6 @@ export function HomeScreen() {
                 numberOfLines={2}
                 autoFocus
               />
-
-              <Pressable
-                onPress={handleGpsPickup}
-                disabled={gpsLoading}
-                style={[styles.gpsBtn, { backgroundColor: colors.secondary, borderColor: colors.border }]}
-              >
-                {gpsLoading ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <>
-                    <Text style={{ fontSize: 16 }}>📡</Text>
-                    <Text style={[styles.gpsBtnText, { color: colors.foreground }]}>{t("gps_label")}</Text>
-                  </>
-                )}
-              </Pressable>
 
               <Pressable
                 onPress={handleSavePickup}
@@ -1062,20 +1032,6 @@ const styles = StyleSheet.create({
   pickupInput: {
     minHeight: 56,
     textAlignVertical: "top",
-  },
-  gpsBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  gpsBtnText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 14,
-    flex: 1,
   },
   modalSaveBtn: {
     borderRadius: 14,
