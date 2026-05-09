@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Dimensions,
   Modal,
   Pressable,
@@ -324,6 +325,38 @@ export function SearchingScreen() {
         setScreen("home");
       });
 
+      /* Women safety: no female driver found — ask user preference */
+      socket.on("ride:no_female_driver", (data: { rideId: number; message: string }) => {
+        if (data.rideId !== currentRideId) return;
+        if (cleanedUp) return;
+        Alert.alert(
+          "👩 Female Driver Nahi Mili",
+          data.message,
+          [
+            {
+              text: "Nahi, Cancel Karo",
+              style: "destructive",
+              onPress: () => {
+                if (currentRideId && token) {
+                  ridesApi.cancelRide(token, currentRideId, "Female driver nahi mili").catch(() => {});
+                  setCurrentRideId(null);
+                }
+                setScreen("home");
+              },
+            },
+            {
+              text: "Haan, Male Driver Chalega",
+              onPress: () => {
+                if (currentRideId && token) {
+                  ridesApi.allowMaleDriver(token, currentRideId).catch(() => {});
+                }
+              },
+            },
+          ],
+          { cancelable: false },
+        );
+      });
+
       /* Progressive radius expansion notification */
       socket.on("ride:radius_expanded", (data: { rideId: number; prevRadiusKm: number; newRadiusKm: number | null; message: string }) => {
         if (data.rideId !== currentRideId) return;
@@ -361,6 +394,7 @@ export function SearchingScreen() {
       const s = getSocket();
       s.off("ride:status");
       s.off("ride:no_driver");
+      s.off("ride:no_female_driver");
       s.off("ride:radius_expanded");
     };
   }, [currentRideId, token]);

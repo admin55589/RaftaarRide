@@ -1,16 +1,16 @@
 /**
- * rideQueue.ts — Driver Re-broadcast Queue with Progressive Radius Expansion
+ * rideQueue.ts — Driver Re-broadcast Queue with Progressive Radius + Women Safety Mode
  *
  * Flow:
  *  1. POST /rides creates ride in "searching" status
  *  2. startRideBroadcast() begins at RADIUS_TIERS_KM[0] = 5km
  *  3. findNextDriver() filters candidates within current radius
  *  4. If no driver within radius → expand to next tier, emit ride:radius_expanded to user
- *  5. Driver taps Accept → POST /driver-auth/rides/:id/accept → onDriverAccept()
- *     → assigns driver in DB, emits ride:status "accepted" to user
- *  6. Driver taps Reject (or 20s timeout) → onDriverReject()
- *     → tries next nearest driver (skipping rejected), up to MAX_ATTEMPTS
- *  7. After MAX_ATTEMPTS with no takers → emit ride:no_driver
+ *  5. Women Safety Mode: prefers female drivers first; after FEMALE_ONLY_MAX_ATTEMPTS
+ *     with no female found → emits ride:no_female_driver asking user preference
+ *  6. Driver taps Accept → onDriverAccept() → assigns driver, emits ride:status accepted
+ *  7. Driver taps Reject (or 20s timeout) → onDriverReject() → tries next
+ *  8. After MAX_ATTEMPTS → emit ride:no_driver
  */
 
 import { db } from "@workspace/db";
@@ -21,12 +21,12 @@ import { sendPushNotification } from "./expoPush";
 import type { Server as IOServer } from "socket.io";
 
 const MAX_ATTEMPTS = 5;
-const DRIVER_TIMEOUT_MS = 20_000; // 20 seconds per driver offer
-
-/* Progressive radius tiers in km — after last tier, search is unlimited */
+const DRIVER_TIMEOUT_MS = 20_000;
 const RADIUS_TIERS_KM = [5, 10, 20];
 
-/* Injected by index.ts after socket is initialised */
+/* After this many female-only search cycles with no result → ask user */
+const FEMALE_ONLY_MAX_ATTEMPTS = 3;
+
 let _io: IOServer | null = null;
 export function setSocketIO(io: IOServer) { _io = io; }
 
@@ -54,11 +54,14 @@ interface QueueEntry {
   attempt: number;
   timer: NodeJS.Timeout | null;
   /* Radius expansion */
-  radiusTierIndex: number;   // index into RADIUS_TIERS_KM (starts at 0 = 5km)
-  searchRadiusKm: number;    // current max radius in km (Infinity = unlimited)
+  radiusTierIndex: number;
+  searchRadiusKm: number;
+  /* Women safety */
+  womenSafetyMode: boolean;
+  maleFallbackEnabled: boolean;
+  femaleOnlyAttempts: number;
 }
 
-/* rideId → active queue entry */
 const queues = new Map<number, QueueEntry>();
 
 /* ─── Cancel / cleanup ─────────────────────────────────────────────── */
@@ -66,7 +69,6 @@ export function cancelQueue(rideId: number) {
   const entry = queues.get(rideId);
   if (!entry) return;
   if (entry.timer) clearTimeout(entry.timer);
-  /* Put currently-offered driver back online */
   if (entry.currentDriverId) {
     db.update(driversTable)
       .set({ isOnline: true })
@@ -95,6 +97,7 @@ async function findNextDriver(
   pickupLng?: number,
   excludeIds: number[] = [],
   maxRadiusKm?: number,
+  femaleOnly?: boolean,
 ): Promise<{ driver: typeof driversTable.$inferSelect; etaMinutes: number; distKm: number } | null> {
   const candidates = await db
     .select()
@@ -106,13 +109,18 @@ async function findNextDriver(
     ))
     .limit(50);
 
-  const eligible = candidates.filter((d) => !excludeIds.includes(d.id));
+  let eligible = candidates.filter((d) => !excludeIds.includes(d.id));
+
+  /* Women safety mode: filter to female drivers only */
+  if (femaleOnly) {
+    eligible = eligible.filter((d) => (d as any).gender?.toLowerCase() === "female");
+  }
+
   if (eligible.length === 0) return null;
 
   const DEFAULT_ETA = 5;
 
   if (pickupLat && pickupLng) {
-    /* Calculate distance for each candidate and filter by radius */
     const withDist = eligible.map((d) => {
       if (!d.driverLat || !d.driverLng) return { driver: d, distKm: Infinity };
       const dLat = parseFloat(String(d.driverLat));
@@ -121,14 +129,12 @@ async function findNextDriver(
       return { driver: d, distKm };
     });
 
-    /* Apply radius filter if specified */
     const inRadius = maxRadiusKm !== undefined && isFinite(maxRadiusKm)
       ? withDist.filter((x) => x.distKm <= maxRadiusKm)
       : withDist;
 
     if (inRadius.length === 0) return null;
 
-    /* Pick nearest */
     inRadius.sort((a, b) => a.distKm - b.distKm);
     const { driver, distKm } = inRadius[0];
     const etaMinutes = isFinite(distKm)
@@ -138,7 +144,6 @@ async function findNextDriver(
     return { driver, etaMinutes, distKm };
   }
 
-  /* No GPS → return first eligible (no radius filter possible) */
   return { driver: eligible[0], etaMinutes: DEFAULT_ETA, distKm: 0 };
 }
 
@@ -156,27 +161,70 @@ async function broadcastToNext(rideId: number): Promise<void> {
 
   const currentRadius = isFinite(entry.searchRadiusKm) ? entry.searchRadiusKm : undefined;
 
+  /* Determine if we should search female-only */
+  const femaleOnly = entry.womenSafetyMode && !entry.maleFallbackEnabled;
+
   const result = await findNextDriver(
     entry.vehicleType,
     entry.pickupLat,
     entry.pickupLng,
     [...entry.rejectedIds],
     currentRadius,
+    femaleOnly,
   );
 
   if (!result) {
-    /* No driver within current radius */
+    /* ── Women Safety: no female driver found ── */
+    if (femaleOnly) {
+      entry.femaleOnlyAttempts++;
+
+      if (entry.femaleOnlyAttempts >= FEMALE_ONLY_MAX_ATTEMPTS) {
+        /* Exhausted female-only search — ask user if male driver is OK */
+        logger.info({ rideId, attempts: entry.femaleOnlyAttempts }, "[rideQueue] no female drivers, asking user");
+        emitRideUpdate(rideId, "ride:no_female_driver", {
+          rideId,
+          message: "Is waqt aapke area mein koi female driver available nahi hai. Kya aap male driver se ride lena chahenge?",
+        });
+        /* Pause — wait for user response (allowMaleDrivers or cancel) */
+        /* Do NOT start timer — queue stays alive but dormant */
+        return;
+      }
+
+      /* Still within female-only attempts: try radius expansion or wait */
+      if (entry.pickupLat && entry.pickupLng && entry.radiusTierIndex < RADIUS_TIERS_KM.length - 1) {
+        const prevRadius = RADIUS_TIERS_KM[entry.radiusTierIndex];
+        entry.radiusTierIndex++;
+        const newRadius = RADIUS_TIERS_KM[entry.radiusTierIndex];
+        entry.searchRadiusKm = newRadius;
+
+        emitRideUpdate(rideId, "ride:radius_expanded", {
+          rideId,
+          prevRadiusKm: prevRadius,
+          newRadiusKm: newRadius,
+          message: `${prevRadius}km mein koi female driver nahi, ${newRadius}km tak dhundh rahe hain...`,
+        });
+
+        await broadcastToNext(rideId);
+        return;
+      }
+
+      /* Retry after 10s without counting as main attempt */
+      entry.timer = setTimeout(() => {
+        broadcastToNext(rideId).catch((err) =>
+          logger.error({ err, rideId }, "[rideQueue] broadcastToNext error"),
+        );
+      }, 10_000);
+      return;
+    }
+
+    /* ── Regular: no driver within current radius ── */
     if (entry.pickupLat && entry.pickupLng && entry.radiusTierIndex < RADIUS_TIERS_KM.length - 1) {
-      /* Expand to next radius tier */
       const prevRadius = RADIUS_TIERS_KM[entry.radiusTierIndex];
       entry.radiusTierIndex++;
       const newRadius = RADIUS_TIERS_KM[entry.radiusTierIndex];
       entry.searchRadiusKm = newRadius;
 
-      logger.info(
-        { rideId, prevRadius, newRadius },
-        "[rideQueue] no drivers in radius, expanding search",
-      );
+      logger.info({ rideId, prevRadius, newRadius }, "[rideQueue] no drivers in radius, expanding search");
 
       emitRideUpdate(rideId, "ride:radius_expanded", {
         rideId,
@@ -185,17 +233,13 @@ async function broadcastToNext(rideId: number): Promise<void> {
         message: `${prevRadius}km mein koi ${entry.vehicleType} nahi, ${newRadius}km tak dhundh rahe hain...`,
       });
 
-      /* Retry immediately with expanded radius (no attempt count increment) */
       await broadcastToNext(rideId);
       return;
     }
 
     if (entry.pickupLat && entry.pickupLng && entry.searchRadiusKm === RADIUS_TIERS_KM[RADIUS_TIERS_KM.length - 1]) {
-      /* All tiers exhausted — go unlimited for remaining attempts */
       const prevRadius = entry.searchRadiusKm;
       entry.searchRadiusKm = Infinity;
-
-      logger.info({ rideId, prevRadius }, "[rideQueue] all radius tiers exhausted, searching unlimited");
 
       emitRideUpdate(rideId, "ride:radius_expanded", {
         rideId,
@@ -205,7 +249,6 @@ async function broadcastToNext(rideId: number): Promise<void> {
       });
     }
 
-    /* No drivers anywhere — wait 10s and retry (count as attempt) */
     entry.attempt++;
     entry.timer = setTimeout(() => {
       broadcastToNext(rideId).catch((err) =>
@@ -223,15 +266,13 @@ async function broadcastToNext(rideId: number): Promise<void> {
   entry.attempt++;
   entry.currentDriverId = driver.id;
 
-  /* Take driver temporarily offline so they can't get double-assigned */
   await db.update(driversTable).set({ isOnline: false }).where(eq(driversTable.id, driver.id));
 
   logger.info(
-    { rideId, driverId: driver.id, attempt: entry.attempt, eta: etaMinutes, distKm: distKm.toFixed(1), radiusKm: entry.searchRadiusKm },
+    { rideId, driverId: driver.id, attempt: entry.attempt, eta: etaMinutes, distKm: distKm.toFixed(1), radius: entry.searchRadiusKm, femaleOnly },
     "[rideQueue] offer sent to driver",
   );
 
-  /* Emit ride card to driver's socket room */
   emitToDriver(driver.id, "driver:new_ride", {
     id: String(rideId),
     rideId,
@@ -245,7 +286,6 @@ async function broadcastToNext(rideId: number): Promise<void> {
     pickupLng: entry.pickupLng ?? null,
   });
 
-  /* Push notification to driver */
   if (driver.pushToken) {
     await sendPushNotification({
       to: driver.pushToken,
@@ -256,7 +296,6 @@ async function broadcastToNext(rideId: number): Promise<void> {
     });
   }
 
-  /* 20-second timeout — treat non-response as reject */
   entry.timer = setTimeout(() => {
     logger.info({ rideId, driverId: driver.id }, "[rideQueue] driver 20s timeout, trying next");
     onDriverReject(rideId, driver.id).catch((err) =>
@@ -278,20 +317,43 @@ export async function startRideBroadcast(
     price: number;
     userId: number;
     distanceKm?: string;
+    womenSafetyMode?: boolean;
   },
 ): Promise<void> {
   cancelQueue(rideId);
 
   queues.set(rideId, {
-    ...details,
+    vehicleType: details.vehicleType,
+    pickupLat: details.pickupLat,
+    pickupLng: details.pickupLng,
+    pickupAddress: details.pickupAddress,
+    dropAddress: details.dropAddress,
+    price: details.price,
+    userId: details.userId,
+    distanceKm: details.distanceKm,
     rejectedIds: new Set(),
     currentDriverId: null,
     attempt: 0,
     timer: null,
     radiusTierIndex: 0,
-    searchRadiusKm: RADIUS_TIERS_KM[0], // start at 5km
+    searchRadiusKm: RADIUS_TIERS_KM[0],
+    womenSafetyMode: details.womenSafetyMode ?? false,
+    maleFallbackEnabled: false,
+    femaleOnlyAttempts: 0,
   });
 
+  await broadcastToNext(rideId);
+}
+
+/* Called when user confirms "yes, male driver is OK" */
+export async function allowMaleDrivers(rideId: number): Promise<void> {
+  const entry = queues.get(rideId);
+  if (!entry) return;
+  entry.maleFallbackEnabled = true;
+  /* Reset radius to search fresh */
+  entry.radiusTierIndex = 0;
+  entry.searchRadiusKm = RADIUS_TIERS_KM[0];
+  logger.info({ rideId }, "[rideQueue] user allowed male drivers, resuming search");
   await broadcastToNext(rideId);
 }
 

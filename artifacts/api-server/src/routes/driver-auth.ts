@@ -64,7 +64,7 @@ const router: IRouter = Router();
 const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
 
 router.post("/driver-auth/register", async (req: Request, res: Response) => {
-  const { name, phone, email, password, vehicleType, vehicleNumber, licenseNumber } = req.body as {
+  const { name, phone, email, password, vehicleType, vehicleNumber, licenseNumber, gender } = req.body as {
     name: string;
     phone: string;
     email: string;
@@ -72,6 +72,7 @@ router.post("/driver-auth/register", async (req: Request, res: Response) => {
     vehicleType: string;
     vehicleNumber: string;
     licenseNumber?: string;
+    gender?: string;
   };
 
   if (!name || !phone || !email || !password || !vehicleType || !vehicleNumber) {
@@ -114,6 +115,7 @@ router.post("/driver-auth/register", async (req: Request, res: Response) => {
         vehicleType,
         vehicleNumber,
         licenseNumber: licenseNumber || null,
+        gender: gender || null,
         status: "active",
         isOnline: false,
       })

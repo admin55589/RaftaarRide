@@ -5,7 +5,7 @@ import { eq, desc, and, inArray, avg, isNotNull } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { emitRideUpdate, emitAdminUpdate } from "../lib/socket";
 import { sendPushNotification } from "../lib/expoPush";
-import { startRideBroadcast, cancelQueue } from "../lib/rideQueue";
+import { startRideBroadcast, cancelQueue, allowMaleDrivers } from "../lib/rideQueue";
 
 const router: IRouter = Router();
 const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
@@ -59,6 +59,7 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
     pickup, drop, destination, vehicleType, rideType, rideMode, price, fare, distanceKm,
     promoCode, discountAmount, originalPrice,
     senderName, receiverName, receiverPhone, itemWeight, packageDetails,
+    womenSafetyMode,
   } = req.body as {
     pickup: GeoPoint | string;
     drop?: GeoPoint | string;
@@ -68,6 +69,7 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
     promoCode?: string; discountAmount?: number; originalPrice?: number;
     senderName?: string; receiverName?: string; receiverPhone?: string;
     itemWeight?: string; packageDetails?: string;
+    womenSafetyMode?: boolean;
   };
 
   const dropPoint = drop ?? destination;
@@ -141,6 +143,7 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       price: finalPrice,
       userId,
       distanceKm: distanceKm ? String(distanceKm) : undefined,
+      womenSafetyMode: womenSafetyMode === true,
     }).catch((err: unknown) => req.log.error({ err, rideId: ride.id }, "[rides] startRideBroadcast error"));
 
     res.status(200).json({
@@ -152,6 +155,19 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
     });
   } catch (err) {
     req.log.error({ err }, "[rides] create error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+/* PATCH /rides/:id/allow-male — user confirms male driver is OK after women safety mode */
+router.patch("/rides/:id/allow-male", userAuth, async (req: Request, res: Response) => {
+  const rideId = parseInt(String(req.params.id), 10);
+  if (isNaN(rideId)) { res.status(400).json({ success: false, error: "Invalid rideId" }); return; }
+  try {
+    await allowMaleDrivers(rideId);
+    res.json({ success: true, message: "Male driver search shuru kar diya gaya hai" });
+  } catch (err) {
+    req.log.error({ err, rideId }, "[rides] allow-male error");
     res.status(500).json({ success: false, error: "Server error" });
   }
 });

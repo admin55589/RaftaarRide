@@ -43,6 +43,7 @@ export const driversTable = pgTable("drivers", {
   vehicleType: text("vehicle_type").notNull(),
   vehicleNumber: text("vehicle_number").notNull(),
   photoUrl: text("photo_url"),
+  gender: text("gender"),
   rating: numeric("rating", { precision: 3, scale: 2 }),
   status: text("status").notNull().default("pending"),
   kycStatus: text("kyc_status").notNull().default("pending"),

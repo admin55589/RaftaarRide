@@ -39,7 +39,7 @@ export function BookingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { lang, toggleLanguage } = useLanguage();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const {
     setScreen,
     destination,
@@ -76,6 +76,9 @@ export function BookingScreen() {
   const [promoExpanded, setPromoExpanded] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [womenSafetyMode, setWomenSafetyMode] = useState(false);
+
+  const isFemaleUser = user?.gender?.toLowerCase() === "female";
 
   const finalPrice = promoApplied ? promoApplied.finalFare : basePrice;
 
@@ -162,6 +165,7 @@ export function BookingScreen() {
         discountAmount: promoApplied?.discountAmount,
         originalPrice: promoApplied ? basePrice : undefined,
         paymentMethod: paymentMethod as PaymentMethod,
+        womenSafetyMode: isFemaleUser && womenSafetyMode,
       });
       setCurrentRideId(result.rideId);
       setScreen("searching");
@@ -379,6 +383,36 @@ export function BookingScreen() {
                 </Animated.View>
               ) : null}
             </View>
+
+            {/* ── Women's Safety Mode toggle (female users only) ── */}
+            {isFemaleUser && (
+              <Pressable
+                onPress={() => setWomenSafetyMode((v) => !v)}
+                style={[styles.safetyToggle, {
+                  backgroundColor: womenSafetyMode ? "rgba(236,72,153,0.12)" : colors.secondary,
+                  borderColor: womenSafetyMode ? "rgba(236,72,153,0.5)" : colors.border,
+                }]}
+              >
+                <Text style={{ fontSize: 20 }}>🛡️</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.safetyTitle, { color: womenSafetyMode ? "#ec4899" : colors.foreground }]}>
+                    Women's Safety Mode
+                  </Text>
+                  <Text style={[styles.safetySubtitle, { color: colors.mutedForeground }]}>
+                    {womenSafetyMode
+                      ? "Pehle female driver dhundha jayega"
+                      : "Female driver prefer karein (optional)"}
+                  </Text>
+                </View>
+                <View style={[styles.toggleTrack, {
+                  backgroundColor: womenSafetyMode ? "#ec4899" : colors.border,
+                }]}>
+                  <View style={[styles.toggleThumb, {
+                    transform: [{ translateX: womenSafetyMode ? 18 : 2 }],
+                  }]} />
+                </View>
+              </Pressable>
+            )}
 
             {surgeMultiplier > 1 && (
               <View style={[styles.surgeBanner, { backgroundColor: "rgba(245,158,11,0.13)", borderColor: "rgba(245,158,11,0.33)" }]}>
@@ -746,5 +780,41 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     fontSize: 11,
     marginTop: 1,
+  },
+  safetyToggle: {
+    marginHorizontal: 20,
+    marginBottom: 4,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  safetyTitle: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13.5,
+  },
+  safetySubtitle: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  toggleTrack: {
+    width: 40,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: "center",
+  },
+  toggleThumb: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
   },
 });

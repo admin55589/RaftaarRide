@@ -53,6 +53,7 @@ export interface CreateRideParams {
   promoCode?: string;
   discountAmount?: number;
   originalPrice?: number;
+  womenSafetyMode?: boolean;
 }
 
 export type RideStatus = "searching" | "accepted" | "arrived" | "onRide" | "completed" | "cancelled";
@@ -99,5 +100,11 @@ export const ridesApi = {
   async getMyRides(token: string): Promise<RideRecord[]> {
     const data = await authFetch<{ success: boolean; rides: RideRecord[] }>("/rides/my", token, { method: "GET" });
     return data.rides;
+  },
+
+  async allowMaleDriver(token: string, rideId: number): Promise<void> {
+    await authFetch<{ success: boolean }>(`/rides/${rideId}/allow-male`, token, {
+      method: "PATCH",
+    });
   },
 };
