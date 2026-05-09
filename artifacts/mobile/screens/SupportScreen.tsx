@@ -52,7 +52,7 @@ const FAQ_ITEMS = [
     id: "driver_cancelled",
     question: "🚗 Driver ne last moment mein cancel kar diya",
     answer:
-      "Ye frustrating hota hai — hum samajhte hain.\n\n• Driver ko ₹10 penalty lagti hai\n• Aapki booking pe zero charge\n• Dobara book karo — 2–3 min mein next driver milta hai\n\nPeak hours (7–10am, 5–9pm) mein thoda zyada time lag sakta hai.",
+      "Ye frustrating hota hai — hum samajhte hain.\n\n• Aapki booking pe zero charge — koi paise nahi katenge\n• Dobara book karo — 2–3 min mein next driver milta hai\n• Repeat cancellation drivers pe platform action leta hai\n\nPeak hours (7–10am, 5–9pm) mein thoda zyada time lag sakta hai.",
     action: null,
   },
   {
