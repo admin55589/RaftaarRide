@@ -35,6 +35,8 @@ export interface RideRecord {
   price: string;
   distanceKm: string | null;
   status: string;
+  acceptedAt: string | null;
+  arrivedAt: string | null;
   createdAt: string;
 }
 

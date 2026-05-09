@@ -221,10 +221,18 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
 
     const { cancelReason } = req.body as { cancelReason?: string };
 
-    /* ── Cancellation Fee Logic ── */
+    /* ── Cancellation Fee Logic (2-min grace period for "accepted") ── */
+    const GRACE_PERIOD_MS = 2 * 60 * 1000; // 2 minutes
     let cancelFee = 0;
-    if (ride.status === "arrived")  cancelFee = 50; // driver was waiting at pickup
-    else if (ride.status === "accepted") cancelFee = 30; // driver was on the way
+    let withinGrace = false;
+    if (ride.status === "arrived") {
+      cancelFee = 50; // driver waiting at pickup — no grace
+    } else if (ride.status === "accepted") {
+      const acceptedAt = ride.acceptedAt ? new Date(ride.acceptedAt).getTime() : null;
+      const elapsedMs = acceptedAt ? Date.now() - acceptedAt : GRACE_PERIOD_MS + 1;
+      withinGrace = elapsedMs <= GRACE_PERIOD_MS;
+      cancelFee = withinGrace ? 0 : 30;
+    }
 
     /* Stop re-broadcast queue if ride was still searching */
     cancelQueue(rideId);
@@ -393,8 +401,9 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
       cancellationFee: cancelFee,
       feeDeducted,
       feePending,
+      withinGrace,
       message: cancelFee === 0
-        ? "Ride cancelled successfully"
+        ? withinGrace ? "Ride cancel ho gayi — grace period mein tha, koi charge nahi." : "Ride cancelled successfully"
         : feePending > 0
           ? `Ride cancel ho gayi. ₹${feeDeducted.toFixed(2)} wallet se kata + ₹${feePending.toFixed(2)} pending (next topup se katega).`
           : `Ride cancel ho gayi. ₹${cancelFee} cancellation charge wallet se kat gaya.`,
@@ -434,6 +443,11 @@ router.patch("/rides/:id/status", flexAuth, async (req: Request, res: Response) 
     const updateData: Record<string, any> = { status };
     if (pmUpdate && ["Cash","UPI","Card","RaftaarWallet"].includes(pmUpdate)) {
       updateData.paymentMethod = pmUpdate;
+    }
+
+    /* ── Accepted: record timestamp for grace-period tracking ── */
+    if (status === "accepted") {
+      updateData.acceptedAt = new Date();
     }
 
     /* ── Arrived: record timestamp for wait-time tracking ── */

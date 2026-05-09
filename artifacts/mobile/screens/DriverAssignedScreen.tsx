@@ -291,6 +291,8 @@ export function DriverAssignedScreen() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelFee, setCancelFee] = useState<number>(30);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [graceSecondsLeft, setGraceSecondsLeft] = useState<number | null>(null);
+  const graceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const driver = assignedDriver ?? {
     name: "Raj Kumar",
@@ -340,18 +342,53 @@ export function DriverAssignedScreen() {
   const handleCancel = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     let fee = 30;
+    let graceLeft: number | null = null;
     if (currentRideId && token) {
       try {
         const res = await ridesApi.getRide(token, currentRideId);
-        if (res?.ride?.status === "arrived") fee = 50;
-        else if (res?.ride?.status === "accepted") fee = 30;
+        const ride = res?.ride;
+        if (ride?.status === "arrived") {
+          fee = 50;
+        } else if (ride?.status === "accepted") {
+          const acceptedAt = ride.acceptedAt ? new Date(ride.acceptedAt).getTime() : null;
+          if (acceptedAt) {
+            const elapsedMs = Date.now() - acceptedAt;
+            const GRACE_MS = 2 * 60 * 1000;
+            if (elapsedMs < GRACE_MS) {
+              fee = 0;
+              graceLeft = Math.ceil((GRACE_MS - elapsedMs) / 1000);
+            } else {
+              fee = 30;
+            }
+          }
+        }
       } catch { }
     }
     setCancelFee(fee);
+    setGraceSecondsLeft(graceLeft);
+    if (graceLeft !== null) {
+      if (graceTimerRef.current) clearInterval(graceTimerRef.current);
+      graceTimerRef.current = setInterval(() => {
+        setGraceSecondsLeft((prev) => {
+          if (prev === null || prev <= 1) {
+            if (graceTimerRef.current) clearInterval(graceTimerRef.current);
+            setCancelFee(30);
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
     setShowCancelConfirm(true);
   };
 
+  const closeCancelModal = () => {
+    if (graceTimerRef.current) { clearInterval(graceTimerRef.current); graceTimerRef.current = null; }
+    setShowCancelConfirm(false);
+  };
+
   const confirmCancel = async () => {
+    if (graceTimerRef.current) { clearInterval(graceTimerRef.current); graceTimerRef.current = null; }
     setCancelLoading(true);
     try {
       if (currentRideId && token) {
@@ -452,9 +489,9 @@ export function DriverAssignedScreen() {
       </Animated.View>
 
       {/* ── Cancel Confirmation Modal ── */}
-      <Modal visible={showCancelConfirm} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setShowCancelConfirm(false)}>
+      <Modal visible={showCancelConfirm} transparent animationType="fade" statusBarTranslucent onRequestClose={closeCancelModal}>
         <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill}>
-          <Pressable style={s.cancelModalBackdrop} onPress={() => !cancelLoading && setShowCancelConfirm(false)}>
+          <Pressable style={s.cancelModalBackdrop} onPress={() => !cancelLoading && closeCancelModal()}>
             <Animated.View entering={FadeInUp.springify().damping(14)} style={s.cancelModalCard}>
               <Pressable>
                 {/* Icon */}
@@ -474,25 +511,38 @@ export function DriverAssignedScreen() {
                   </Text>
 
                   {/* Fee Card */}
-                  <View style={s.cancelFeeCard}>
-                    <View style={s.cancelFeeRow}>
-                      <Text style={s.cancelFeeLabel}>Cancellation Charge</Text>
-                      <Text style={s.cancelFeeAmt}>₹{cancelFee}</Text>
+                  {graceSecondsLeft !== null ? (
+                    <View style={[s.cancelFeeCard, { borderColor: "rgba(34,197,94,0.4)", backgroundColor: "rgba(34,197,94,0.07)" }]}>
+                      <View style={s.cancelFeeRow}>
+                        <Text style={s.cancelFeeLabel}>Cancellation Charge</Text>
+                        <Text style={[s.cancelFeeAmt, { color: "#22c55e" }]}>₹0</Text>
+                      </View>
+                      <View style={s.cancelFeeDivider} />
+                      <Text style={[s.cancelFeeNote, { color: "#22c55e" }]}>
+                        ✅ Free cancel window — {Math.floor(graceSecondsLeft / 60)}:{String(graceSecondsLeft % 60).padStart(2, "0")} bacha hai
+                      </Text>
                     </View>
-                    <View style={s.cancelFeeDivider} />
-                    <Text style={s.cancelFeeNote}>
-                      {cancelFee === 50
-                        ? "⚠️ Driver pickup pe pahunch gaya hai — ₹50 charge lagega"
-                        : "Driver raste mein hai — ₹30 charge aapke wallet se katega"}
-                    </Text>
-                  </View>
+                  ) : (
+                    <View style={s.cancelFeeCard}>
+                      <View style={s.cancelFeeRow}>
+                        <Text style={s.cancelFeeLabel}>Cancellation Charge</Text>
+                        <Text style={s.cancelFeeAmt}>₹{cancelFee}</Text>
+                      </View>
+                      <View style={s.cancelFeeDivider} />
+                      <Text style={s.cancelFeeNote}>
+                        {cancelFee === 50
+                          ? "⚠️ Driver pickup pe pahunch gaya hai — ₹50 charge lagega"
+                          : "⚠️ 2 min free window khatam — ₹30 charge wallet se katega"}
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* Buttons */}
                 <View style={s.cancelModalBtns}>
                   <TouchableOpacity
                     style={s.cancelModalKeepBtn}
-                    onPress={() => setShowCancelConfirm(false)}
+                    onPress={closeCancelModal}
                     activeOpacity={0.8}
                     disabled={cancelLoading}
                   >
