@@ -19,7 +19,7 @@ export function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, token, logout, updateUser } = useAuth();
-  const { setScreen } = useApp();
+  const { setScreen, referralEnabled } = useApp();
   const { lang, toggleLanguage } = useLanguage();
 
   const [editing, setEditing] = useState(false);
@@ -364,7 +364,7 @@ export function ProfileScreen() {
         </Animated.View>
 
         {/* ── Referral ── */}
-        {referralCode && (
+        {referralCode && referralEnabled && (
           <Animated.View entering={FadeInDown.delay(250).duration(400)}>
             <GlassCard style={{ padding: 16, marginTop: 16 }}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>🎁 Your Referral Code</Text>

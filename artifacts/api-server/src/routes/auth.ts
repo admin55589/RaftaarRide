@@ -5,6 +5,7 @@ import { eq, or } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { logger } from "../lib/logger";
+import { referralConfig } from "../lib/referral-config";
 
 function generateReferralCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -450,6 +451,11 @@ router.post("/auth/reset-password", async (req: Request, res: Response) => {
 
 /* ─── REFERRAL SYSTEM ─────────────────────────────────────────────────────── */
 
+/* Public: GET /auth/referral-config — mobile reads this to show/hide referral UI */
+router.get("/auth/referral-config", (_req: Request, res: Response) => {
+  res.json({ success: true, enabled: referralConfig.enabled, bonusAmount: referralConfig.bonusAmount });
+});
+
 router.get("/auth/referral", async (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
@@ -507,6 +513,11 @@ router.post("/auth/apply-referral", async (req: Request, res: Response) => {
   try {
     const payload = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { userId: number; role: string };
     if (payload.role !== "user") { res.status(403).json({ success: false, message: "User token required" }); return; }
+
+    if (!referralConfig.enabled) {
+      res.status(403).json({ success: false, message: "Referral program abhi band hai. Admin ne ise temporarily disable kiya hai." });
+      return;
+    }
 
     const [me] = await db
       .select({ id: usersTable.id, referredBy: usersTable.referredBy, referralCode: usersTable.referralCode, walletBalance: usersTable.walletBalance })

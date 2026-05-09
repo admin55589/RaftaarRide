@@ -18,6 +18,7 @@ import { validateAccountDetails, createRazorpayPayout } from "../lib/razorpay-pa
 import { sendPushNotification } from "../lib/expoPush";
 import { isAutomationEnabled, setAutomationEnabled } from "../lib/automation-state";
 import { calculateAiSurge, generateNext24hForecast } from "../lib/surgeAi";
+import { referralConfig } from "../lib/referral-config";
 
 const router: IRouter = Router();
 
@@ -1858,6 +1859,21 @@ router.patch("/admin/loyalty/config", authMiddleware, async (req: Request, res: 
   if (redemptionRupees != null && redemptionRupees >= 1 && redemptionRupees <= 500) loyaltyConfig.redemptionRupees = redemptionRupees;
 
   res.json({ success: true, config: loyaltyConfig, message: "Loyalty config update ho gaya" });
+});
+
+/* ─── REFERRAL PROGRAM CONFIG ────────────────────────────────────────────── */
+
+/* GET /api/admin/referral/config — get current referral config */
+router.get("/admin/referral/config", authMiddleware, (_req: Request, res: Response) => {
+  res.json({ success: true, config: referralConfig });
+});
+
+/* PATCH /api/admin/referral/config — toggle referral program on/off + update bonus */
+router.patch("/admin/referral/config", authMiddleware, (req: Request, res: Response) => {
+  const { enabled, bonusAmount } = req.body as { enabled?: boolean; bonusAmount?: number };
+  if (typeof enabled === "boolean") referralConfig.enabled = enabled;
+  if (bonusAmount != null && bonusAmount >= 0 && bonusAmount <= 500) referralConfig.bonusAmount = bonusAmount;
+  res.json({ success: true, config: referralConfig, message: `Referral program ${referralConfig.enabled ? "ON" : "OFF"} kar diya` });
 });
 
 export default router;

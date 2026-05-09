@@ -188,6 +188,7 @@ interface AppContextType {
   surgeReason: string | null;
   pendingDisputeRideId: number | null;
   setPendingDisputeRideId: (id: number | null) => void;
+  referralEnabled: boolean;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -236,6 +237,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [surgeMultiplier, setSurgeMultiplier] = useState<number>(1.0);
   const [surgeReason, setSurgeReason] = useState<string | null>(null);
   const [pendingDisputeRideId, setPendingDisputeRideId] = useState<number | null>(null);
+  const [referralEnabled, setReferralEnabled] = useState<boolean>(true);
 
   /* Fetch surge multiplier from API on mount */
   useEffect(() => {
@@ -248,6 +250,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch(() => {/* surge fetch fail = default 1x */});
+  }, []);
+
+  /* Fetch referral program config on mount — admin can toggle on/off */
+  useEffect(() => {
+    fetch(`${API_BASE}/auth/referral-config`)
+      .then(r => r.json())
+      .then((d: { enabled: boolean }) => { setReferralEnabled(d.enabled); })
+      .catch(() => {/* referral config fetch fail = keep default true */});
   }, []);
 
   /* Auto-calculate real distance when both pickup + drop coords are available */
@@ -370,6 +380,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         lastPaymentMethod, setLastPaymentMethod,
         surgeMultiplier, surgeReason,
         pendingDisputeRideId, setPendingDisputeRideId,
+        referralEnabled,
       }}
     >
       {children}

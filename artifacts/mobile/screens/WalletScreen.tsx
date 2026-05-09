@@ -21,6 +21,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
+import { useApp } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useNotification } from "@/context/NotificationContext";
@@ -45,6 +46,7 @@ export function WalletScreen() {
   const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const { token, user } = useAuth();
+  const { referralEnabled } = useApp();
   const { t, lang } = useLanguage();
   const { showNotification } = useNotification();
 
@@ -451,7 +453,7 @@ export function WalletScreen() {
           </GlassCard>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(170)}>
+        {referralEnabled && <Animated.View entering={FadeInDown.delay(170)}>
           <TouchableOpacity
             style={[s.referralCard, { backgroundColor: colors.glassBackground, borderColor: colors.border }]}
             onPress={() => setShowReferral(!showReferral)}
@@ -538,7 +540,7 @@ export function WalletScreen() {
               </GlassCard>
             </Animated.View>
           )}
-        </Animated.View>
+        </Animated.View>}
 
         <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
           <Text style={s.sectionTitle}>💳 {t("transaction_history")}</Text>

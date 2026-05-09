@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { Gift, Users, TrendingUp, RefreshCw, Phone } from "lucide-react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Gift, Users, TrendingUp, RefreshCw, Phone, ToggleLeft, ToggleRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/apiBase";
 
@@ -23,6 +24,11 @@ interface ReferralData {
   success: boolean;
   stats: ReferralStats;
   topReferrers: TopReferrer[];
+}
+
+interface ReferralConfig {
+  enabled: boolean;
+  bonusAmount: number;
 }
 
 function StatCard({ icon: Icon, label, value, sub, color }: {
@@ -51,6 +57,8 @@ function formatDate(dateStr?: string) {
 
 export function ReferralPage() {
   const { token } = useAuth();
+  const queryClient = useQueryClient();
+  const [bonusInput, setBonusInput] = useState<string>("");
 
   const { data, isLoading, refetch, isFetching } = useQuery<ReferralData>({
     queryKey: ["admin-referrals"],
@@ -65,6 +73,49 @@ export function ReferralPage() {
     refetchInterval: 5 * 60 * 1000,
   });
 
+  const { data: configData, isLoading: configLoading } = useQuery<{ success: boolean; config: ReferralConfig }>({
+    queryKey: ["admin-referral-config"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/admin/referral/config`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch referral config");
+      return res.json();
+    },
+    enabled: !!token,
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await fetch(`${API_BASE}/api/admin/referral/config`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (!res.ok) throw new Error("Toggle failed");
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-referral-config"] }),
+  });
+
+  const bonusMutation = useMutation({
+    mutationFn: async (bonusAmount: number) => {
+      const res = await fetch(`${API_BASE}/api/admin/referral/config`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ bonusAmount }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-referral-config"] });
+      setBonusInput("");
+    },
+  });
+
+  const config = configData?.config;
+  const isEnabled = config?.enabled ?? true;
   const stats = data?.stats;
 
   return (
@@ -75,7 +126,7 @@ export function ReferralPage() {
             🎁 Referral Program
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Users jo dusron ko invite kar rahe hain — aur kiski referral codes chalti hain
+            Users jo dusron ko invite kar rahe hain — aur admin control
           </p>
         </div>
         <button
@@ -86,6 +137,76 @@ export function ReferralPage() {
           <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
           Refresh
         </button>
+      </div>
+
+      {/* ── Admin Control Card ── */}
+      <div className={`rounded-xl border-2 p-5 transition-all ${isEnabled ? "border-green-500/40 bg-green-500/5" : "border-red-500/40 bg-red-500/5"}`}>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+              {isEnabled ? "🟢" : "🔴"} Referral Program — {isEnabled ? "Active" : "Disabled"}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {isEnabled
+                ? "Mobile app mein referral section dikh raha hai. Users invite kar sakte hain."
+                : "Referral section mobile app se completely hat gaya hai. Users ko koi invite UI nahi dikhega."}
+            </p>
+          </div>
+          <button
+            onClick={() => toggleMutation.mutate(!isEnabled)}
+            disabled={toggleMutation.isPending || configLoading}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md ${
+              isEnabled
+                ? "bg-red-500 hover:bg-red-600 text-white"
+                : "bg-green-500 hover:bg-green-600 text-white"
+            }`}
+          >
+            {isEnabled ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+            {toggleMutation.isPending ? "Updating..." : isEnabled ? "Turn OFF" : "Turn ON"}
+          </button>
+        </div>
+
+        {!isEnabled && (
+          <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <p className="text-sm text-red-400 font-medium">
+              ⚠️ Referral program OFF hai — mobile app mein kisi ko bhi referral card, code, ya invite feature nahi dikhega.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Bonus Amount Config ── */}
+      <div className="bg-card border border-border rounded-xl p-5">
+        <h3 className="font-semibold text-foreground mb-3">💰 Bonus Amount Config</h3>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3">
+            <span className="text-sm text-muted-foreground">Current bonus (per referral):</span>
+            <span className="text-xl font-bold text-amber-400">₹{config?.bonusAmount ?? 50}</span>
+            <span className="text-xs text-muted-foreground">(dono ko milega)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={0}
+              max={500}
+              value={bonusInput}
+              onChange={e => setBonusInput(e.target.value)}
+              placeholder="New amount (₹)"
+              className="w-36 px-3 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <button
+              onClick={() => {
+                const v = parseInt(bonusInput);
+                if (!isNaN(v) && v >= 0 && v <= 500) bonusMutation.mutate(v);
+              }}
+              disabled={bonusMutation.isPending || !bonusInput}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {bonusMutation.isPending ? "Saving..." : "Update"}
+            </button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">Range: ₹0 – ₹500 per referral. Dono (referrer + new user) ko same amount milega.</p>
       </div>
 
       {isLoading ? (
@@ -197,12 +318,12 @@ export function ReferralPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-3">
                 <p className="text-xs text-muted-foreground mb-1">Referrer Bonus</p>
-                <p className="text-lg font-bold text-green-400">₹50</p>
-                <p className="text-xs text-muted-foreground">Jab referred user pehli ride complete kare</p>
+                <p className="text-lg font-bold text-green-400">₹{config?.bonusAmount ?? 50}</p>
+                <p className="text-xs text-muted-foreground">Jab koi unka code use kare</p>
               </div>
               <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3">
                 <p className="text-xs text-muted-foreground mb-1">New User Bonus</p>
-                <p className="text-lg font-bold text-blue-400">₹50</p>
+                <p className="text-lg font-bold text-blue-400">₹{config?.bonusAmount ?? 50}</p>
                 <p className="text-xs text-muted-foreground">Referral code lagane par wallet mein</p>
               </div>
               <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-3">
