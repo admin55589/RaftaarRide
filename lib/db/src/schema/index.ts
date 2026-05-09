@@ -21,6 +21,7 @@ export const usersTable = pgTable("users", {
   isVerified: boolean("is_verified").notNull().default(false),
   status: text("status").notNull().default("active"),
   walletBalance: numeric("wallet_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  pendingCancellationFee: numeric("pending_cancellation_fee", { precision: 8, scale: 2 }).notNull().default("0"),
   preferredLanguage: text("preferred_language").notNull().default("hi"),
   pushToken: text("push_token"),
   referralCode: text("referral_code").unique(),

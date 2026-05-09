@@ -71,19 +71,52 @@ router.post("/wallet/topup", userAuth, async (req: Request, res: Response) => {
   }
 
   try {
-    const [user] = await db.select({ walletBalance: usersTable.walletBalance })
-      .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    const [user] = await db.select({
+      walletBalance: usersTable.walletBalance,
+      pendingCancellationFee: usersTable.pendingCancellationFee,
+    }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { res.status(404).json({ success: false, error: "User not found" }); return; }
-
-    const newBalance = Number(user.walletBalance) + Number(amount);
-    await db.update(usersTable).set({ walletBalance: String(newBalance) }).where(eq(usersTable.id, userId));
 
     const txnDesc = method === "razorpay" && paymentId
       ? `Razorpay Wallet Top-up — ₹${amount} (ID: ${paymentId})`
       : `Wallet top-up via ${method.toUpperCase()} — ₹${amount}`;
 
     await db.insert(walletTransactionsTable).values({ userId, type: "topup", amount: String(amount), description: txnDesc });
-    res.json({ success: true, newBalance, message: `₹${amount} wallet mein add ho gaye!` });
+
+    /* ── Auto-recover pending cancellation fee ── */
+    const pendingFee = parseFloat(String(user.pendingCancellationFee ?? "0"));
+    const creditedBalance = parseFloat(String(user.walletBalance)) + Number(amount);
+    let finalBalance = creditedBalance;
+    let recoveredFee = 0;
+
+    if (pendingFee > 0 && creditedBalance > 0) {
+      recoveredFee = parseFloat(Math.min(pendingFee, creditedBalance).toFixed(2));
+      finalBalance = parseFloat((creditedBalance - recoveredFee).toFixed(2));
+      const remainingPending = parseFloat((pendingFee - recoveredFee).toFixed(2));
+
+      await db.update(usersTable).set({
+        walletBalance: String(finalBalance),
+        pendingCancellationFee: String(remainingPending),
+      }).where(eq(usersTable.id, userId));
+
+      await db.insert(walletTransactionsTable).values({
+        userId,
+        type: "debit",
+        amount: String(-recoveredFee),
+        description: `Pending cancellation fee auto-recovered — ₹${recoveredFee.toFixed(2)} kata gaya`,
+      });
+    } else {
+      await db.update(usersTable).set({ walletBalance: String(finalBalance) }).where(eq(usersTable.id, userId));
+    }
+
+    res.json({
+      success: true,
+      newBalance: finalBalance,
+      recoveredCancellationFee: recoveredFee > 0 ? recoveredFee : undefined,
+      message: recoveredFee > 0
+        ? `₹${amount} add hue. ₹${recoveredFee.toFixed(2)} pending cancellation fee auto-recover hua.`
+        : `₹${amount} wallet mein add ho gaye!`,
+    });
   } catch { res.status(500).json({ success: false, error: "Server error" }); }
 });
 

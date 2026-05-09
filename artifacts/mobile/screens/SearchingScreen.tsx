@@ -158,6 +158,11 @@ function CancelModal({ visible, onConfirm, onDismiss }: { visible: boolean; onCo
                 <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>
                   Ek reason select karo (analytics ke liye)
                 </Text>
+                <View style={{ marginTop: 8, backgroundColor: "rgba(34,197,94,0.1)", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: "rgba(34,197,94,0.25)" }}>
+                  <Text style={{ color: "#22c55e", fontSize: 12, fontWeight: "600", textAlign: "center" }}>
+                    ✅ Abhi cancel karo — koi charge nahi lagega
+                  </Text>
+                </View>
               </Animated.View>
               <View style={{ paddingHorizontal: 16, gap: 8, marginBottom: 12 }}>
                 {CANCEL_REASONS.map((reason) => (

@@ -355,8 +355,19 @@ export function DriverAssignedScreen() {
     setCancelLoading(true);
     try {
       if (currentRideId && token) {
-        await ridesApi.cancelRide(token, currentRideId, "Driver assigned — user cancelled");
+        const res = await ridesApi.cancelRide(token, currentRideId, "Driver assigned — user cancelled");
         setCurrentRideId(null);
+        setCancelLoading(false);
+        setShowCancelConfirm(false);
+        if (res?.cancellationFee > 0) {
+          const msg = res.feePending > 0
+            ? `₹${res.feeDeducted?.toFixed(2) ?? res.feeDeducted} wallet se kata.\n₹${res.feePending.toFixed(2)} pending — next topup se automatically katega.`
+            : `₹${res.cancellationFee} cancellation charge wallet se kat gaya.`;
+          Alert.alert("❌ Ride Cancel", msg, [{ text: "Theek Hai", onPress: () => setScreen("home") }]);
+        } else {
+          setScreen("home");
+        }
+        return;
       }
     } catch { }
     setCancelLoading(false);

@@ -238,8 +238,11 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
 
     /* ── Cancellation Fee Deduction / Wallet Refund ── */
     const ridePrice = parseFloat(String(ride.price));
-    const [rideUser] = await db.select({ walletBalance: usersTable.walletBalance, pushToken: usersTable.pushToken })
-      .from(usersTable).where(eq(usersTable.id, ride.userId)).limit(1);
+    const [rideUser] = await db.select({
+      walletBalance: usersTable.walletBalance,
+      pendingCancellationFee: usersTable.pendingCancellationFee,
+      pushToken: usersTable.pushToken,
+    }).from(usersTable).where(eq(usersTable.id, ride.userId)).limit(1);
 
     if (rideUser) {
       const currentBal = parseFloat(String(rideUser.walletBalance ?? "0"));
@@ -279,23 +282,36 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
           });
         }
       } else if (cancelFee > 0) {
-        /* Non-wallet payment — try to deduct cancelFee from wallet */
-        if (currentBal >= cancelFee) {
-          const newBal = parseFloat((currentBal - cancelFee).toFixed(2));
-          await db.update(usersTable).set({ walletBalance: String(newBal) }).where(eq(usersTable.id, ride.userId));
+        /* Non-wallet payment — deduct cancelFee from wallet; if insufficient, track as pending */
+        const deducted = Math.min(currentBal, cancelFee);
+        const pendingAmt = parseFloat((cancelFee - deducted).toFixed(2));
+        const newBal = parseFloat((currentBal - deducted).toFixed(2));
+        const existingPending = parseFloat(String(rideUser.pendingCancellationFee ?? "0"));
+        const newPending = parseFloat((existingPending + pendingAmt).toFixed(2));
+
+        await db.update(usersTable).set({
+          walletBalance: String(newBal),
+          pendingCancellationFee: String(newPending),
+        }).where(eq(usersTable.id, ride.userId));
+
+        if (deducted > 0) {
           await db.insert(walletTransactionsTable).values({
             userId: ride.userId,
             type: "debit",
-            amount: String(-cancelFee),
-            description: `Ride #${rideId} cancellation charge — driver ${ride.status === "arrived" ? "wait kar raha tha" : "aa raha tha"}`,
+            amount: String(-deducted),
+            description: `Ride #${rideId} cancellation charge — driver ${ride.status === "arrived" ? "wait kar raha tha" : "aa raha tha"}${pendingAmt > 0 ? ` (₹${pendingAmt.toFixed(2)} pending — next topup se katega)` : ""}`,
           });
         }
+
         if (rideUser.pushToken) {
+          const pushBody = pendingAmt > 0
+            ? `₹${deducted.toFixed(2)} wallet se kata + ₹${pendingAmt.toFixed(2)} pending — next topup se automatically katega`
+            : `₹${cancelFee} cancellation fee wallet se kat gayi`;
           await sendPushNotification({
             to: rideUser.pushToken,
             title: "❌ Cancellation Charge",
-            body: `₹${cancelFee} cancellation fee lagi — driver aapke paas tha`,
-            data: { type: "cancellation_fee", rideId, amount: cancelFee },
+            body: pushBody,
+            data: { type: "cancellation_fee", rideId, amount: cancelFee, deducted, pendingAmt },
           });
         }
       }
@@ -321,13 +337,30 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
     emitRideUpdate(rideId, "ride:status", { rideId, status: "cancelled" });
     emitAdminUpdate("admin:ride:updated", { rideId, status: "cancelled" });
 
+    /* ── Build fee summary for mobile ── */
+    let feeDeducted = 0;
+    let feePending = 0;
+    if (rideUser && cancelFee > 0) {
+      const currentBal = parseFloat(String(rideUser.walletBalance ?? "0"));
+      if (ride.paymentMethod === "RaftaarWallet") {
+        feeDeducted = cancelFee;
+      } else {
+        feeDeducted = Math.min(currentBal, cancelFee);
+        feePending = parseFloat((cancelFee - feeDeducted).toFixed(2));
+      }
+    }
+
     res.json({
       success: true,
       ride: updated,
       cancellationFee: cancelFee,
-      message: cancelFee > 0
-        ? `Ride cancel ho gayi. ₹${cancelFee} cancellation charge laga.`
-        : "Ride cancelled successfully",
+      feeDeducted,
+      feePending,
+      message: cancelFee === 0
+        ? "Ride cancelled successfully"
+        : feePending > 0
+          ? `Ride cancel ho gayi. ₹${feeDeducted.toFixed(2)} wallet se kata + ₹${feePending.toFixed(2)} pending (next topup se katega).`
+          : `Ride cancel ho gayi. ₹${cancelFee} cancellation charge wallet se kat gaya.`,
     });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });

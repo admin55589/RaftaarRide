@@ -79,8 +79,8 @@ export const ridesApi = {
     });
   },
 
-  async cancelRide(token: string, rideId: number, cancelReason?: string): Promise<{ ride: RideRecord }> {
-    return authFetch<{ success: boolean; ride: RideRecord }>(`/rides/${rideId}/cancel`, token, {
+  async cancelRide(token: string, rideId: number, cancelReason?: string): Promise<{ ride: RideRecord; cancellationFee: number; feeDeducted: number; feePending: number; message: string }> {
+    return authFetch<{ success: boolean; ride: RideRecord; cancellationFee: number; feeDeducted: number; feePending: number; message: string }>(`/rides/${rideId}/cancel`, token, {
       method: "POST",
       body: JSON.stringify({ cancelReason }),
     });
