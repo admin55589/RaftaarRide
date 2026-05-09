@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { ridesTable, driversTable, usersTable, walletTransactionsTable, promoCodesTable, surgeSettingsTable } from "@workspace/db/schema";
-import { eq, desc, and, inArray, avg, isNotNull } from "drizzle-orm";
+import { eq, desc, and, inArray, avg, isNotNull, sql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { emitRideUpdate, emitAdminUpdate } from "../lib/socket";
 import { sendPushNotification } from "../lib/expoPush";
@@ -794,8 +794,19 @@ router.post("/rides/:id/verify-pin", async (req: Request, res: Response) => {
       }
     }
 
+    /* Award loyalty points to user: 1 point per ₹10 of ride fare */
+    if (ride.userId) {
+      const ridePrice = parseFloat(String(updated.price ?? "0"));
+      const pointsEarned = Math.floor(ridePrice / 10);
+      if (pointsEarned > 0) {
+        await db.update(usersTable)
+          .set({ loyaltyPoints: sql`${usersTable.loyaltyPoints} + ${pointsEarned}` })
+          .where(eq(usersTable.id, ride.userId));
+      }
+    }
+
     /* Notify passenger: PIN confirmed → go to payment */
-    emitRideUpdate(rideId, "ride:pin:confirmed", { rideId });
+    emitRideUpdate(rideId, "ride:pin:confirmed", { rideId, loyaltyPoints: Math.floor(parseFloat(String(updated.price ?? "0")) / 10) });
     emitRideUpdate(rideId, "ride:status", { rideId, status: "completed" });
     emitAdminUpdate("admin:ride:updated", { rideId, status: "completed" });
 

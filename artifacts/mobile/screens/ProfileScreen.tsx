@@ -27,6 +27,10 @@ export function ProfileScreen() {
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [gender, setGender] = useState(user?.gender ?? "");
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [redeemableRupees, setRedeemableRupees] = useState(0);
+  const [pointsToNext, setPointsToNext] = useState(100);
+
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [photoUri, setPhotoUri] = useState<string | null>(user?.photoUrl ?? null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -44,6 +48,20 @@ export function ProfileScreen() {
       RNAnimated.timing(toastAnim, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => setToast(null));
     }, 3000);
   }, [toastAnim]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${BASE_URL}users/loyalty`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          setLoyaltyPoints(d.points);
+          setRedeemableRupees(d.redeemableRupees);
+          setPointsToNext(d.pointsToNext);
+        }
+      })
+      .catch(() => {});
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -298,6 +316,32 @@ export function ProfileScreen() {
             <PrimaryButton label={saving ? "Saving..." : "Save Changes"} onPress={handleSave} disabled={saving} />
           </Animated.View>
         )}
+
+        {/* ── RaftaarPoints Loyalty Card ── */}
+        <Animated.View entering={FadeInDown.delay(160).duration(400)}>
+          <GlassCard style={{ padding: 16, marginTop: 16, borderWidth: 1, borderColor: colors.primary + "30", backgroundColor: colors.primary + "08" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <View>
+                <Text style={{ fontSize: 14, fontWeight: "700", fontFamily: "Inter_700Bold", color: colors.foreground }}>🏆 RaftaarPoints</Text>
+                <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2, fontFamily: "Inter_400Regular" }}>Har ₹10 ki ride pe 1 point · 100 pts = ₹10</Text>
+              </View>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={{ fontSize: 26, fontWeight: "800", color: colors.primary, fontFamily: "Inter_700Bold" }}>{loyaltyPoints}</Text>
+                <Text style={{ fontSize: 10, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>points</Text>
+              </View>
+            </View>
+            <View style={{ height: 5, backgroundColor: colors.border, borderRadius: 3, marginBottom: 8 }}>
+              <View style={{ width: `${Math.min(100, ((100 - pointsToNext) / 100) * 100)}%`, height: "100%", backgroundColor: colors.primary, borderRadius: 3 }} />
+            </View>
+            <Text style={{ fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
+              {redeemableRupees > 0
+                ? `✅ ₹${redeemableRupees} redeem available — Wallet screen mein jao`
+                : loyaltyPoints === 0
+                  ? "Pehli ride book karo — points milenge!"
+                  : `${pointsToNext} aur points → ₹10 wallet credit`}
+            </Text>
+          </GlassCard>
+        </Animated.View>
 
         {/* ── Language ── */}
         <Animated.View entering={FadeInDown.delay(200).duration(400)}>

@@ -57,6 +57,11 @@ export function WalletScreen() {
   const [razorpayOrder, setRazorpayOrder] = useState<RazorpayOrder | null>(null);
   const [showRazorpay, setShowRazorpay] = useState(false);
 
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [redeemableRupees, setRedeemableRupees] = useState(0);
+  const [pointsToNext, setPointsToNext] = useState(100);
+  const [redeemingPoints, setRedeemingPoints] = useState(false);
+
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referredCount, setReferredCount] = useState(0);
   const [alreadyReferred, setAlreadyReferred] = useState(false);
@@ -87,6 +92,45 @@ export function WalletScreen() {
   }, [token]);
 
   useEffect(() => { fetchWallet(); }, [fetchWallet]);
+
+  const fetchLoyalty = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${BASE_URL}users/loyalty`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) {
+        setLoyaltyPoints(data.points);
+        setRedeemableRupees(data.redeemableRupees);
+        setPointsToNext(data.pointsToNext);
+      }
+    } catch { }
+  }, [token]);
+
+  useEffect(() => { fetchLoyalty(); }, [fetchLoyalty]);
+
+  const handleRedeemPoints = async () => {
+    if (redeemableRupees <= 0) return;
+    setRedeemingPoints(true);
+    try {
+      const res = await fetch(`${BASE_URL}wallet/redeem-points`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLoyaltyPoints(data.newPoints);
+        setBalance(data.newBalance);
+        setRedeemableRupees(0);
+        setPointsToNext(100 - (data.newPoints % 100));
+        showNotification({ title: `₹${data.rupees} Wallet Mein! 🏆`, body: `${data.pointsRedeemed} points redeem ho gaye`, type: "success", icon: "🎁" });
+        await fetchWallet();
+      } else {
+        showNotification({ title: "Redeem nahi hua", body: data.error ?? "Kuch galat hua", type: "error", icon: "❌" });
+      }
+    } catch {
+      showNotification({ title: "Network Error", body: "Dobara try karein", type: "error", icon: "📵" });
+    } finally { setRedeemingPoints(false); }
+  };
 
   const fetchReferral = useCallback(async () => {
     if (!token) return;
@@ -357,6 +401,55 @@ export function WalletScreen() {
             </GlassCard>
           </Animated.View>
         )}
+
+        {/* ── RaftaarPoints Loyalty Card ── */}
+        <Animated.View entering={FadeInDown.delay(165)} style={{ marginHorizontal: 20, marginBottom: 16 }}>
+          <GlassCard style={{ padding: 18, borderWidth: 1, borderColor: "rgba(245,166,35,0.25)", backgroundColor: "rgba(245,166,35,0.06)" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <View>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text, fontFamily: "Inter_700Bold" }}>🏆 RaftaarPoints</Text>
+                <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2, fontFamily: "Inter_400Regular" }}>Har ₹10 ki ride pe 1 point · 100 pts = ₹10</Text>
+              </View>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={{ fontSize: 28, fontWeight: "800", color: colors.primary, fontFamily: "Inter_700Bold" }}>{loyaltyPoints}</Text>
+                <Text style={{ fontSize: 10, color: colors.textSecondary, fontFamily: "Inter_400Regular" }}>points</Text>
+              </View>
+            </View>
+
+            {/* Progress bar to next redemption */}
+            <View style={{ marginBottom: 12 }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: "Inter_400Regular" }}>
+                  {pointsToNext === 100 ? "Koi points nahi abhi" : `Agle ₹10 ke liye ${pointsToNext} aur points chahiye`}
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.primary, fontFamily: "Inter_600SemiBold" }}>
+                  {100 - pointsToNext}/100
+                </Text>
+              </View>
+              <View style={{ height: 6, backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 3 }}>
+                <View style={{ width: `${Math.min(100, ((100 - pointsToNext) / 100) * 100)}%`, height: "100%", backgroundColor: colors.primary, borderRadius: 3 }} />
+              </View>
+            </View>
+
+            {redeemableRupees > 0 ? (
+              <TouchableOpacity
+                onPress={handleRedeemPoints}
+                disabled={redeemingPoints}
+                style={{ backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: "center" }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "#000", fontFamily: "Inter_700Bold" }}>
+                  {redeemingPoints ? "Redeeming..." : `🎁 ₹${redeemableRupees} Redeem Karo`}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={{ backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 10, paddingVertical: 10, alignItems: "center" }}>
+                <Text style={{ fontSize: 12, color: colors.textSecondary, fontFamily: "Inter_400Regular" }}>
+                  {loyaltyPoints === 0 ? "Pehli ride book karo — points milenge!" : `${pointsToNext} aur points collect karo`}
+                </Text>
+              </View>
+            )}
+          </GlassCard>
+        </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(170)}>
           <TouchableOpacity

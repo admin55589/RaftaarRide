@@ -198,6 +198,59 @@ router.post("/wallet/spend", userAuth, async (req: Request, res: Response) => {
   } catch { res.status(500).json({ success: false, error: "Server error" }); }
 });
 
+/* GET /api/users/loyalty — user's loyalty points balance */
+router.get("/users/loyalty", userAuth, async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  try {
+    const [user] = await db.select({ loyaltyPoints: usersTable.loyaltyPoints, walletBalance: usersTable.walletBalance })
+      .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!user) { res.status(404).json({ success: false, error: "User not found" }); return; }
+    const pts = user.loyaltyPoints ?? 0;
+    res.json({
+      success: true,
+      points: pts,
+      nextRedemptionAt: 100,
+      pointsToNext: Math.max(0, 100 - (pts % 100)),
+      redeemableRupees: Math.floor(pts / 100) * 10,
+    });
+  } catch { res.status(500).json({ success: false, error: "Server error" }); }
+});
+
+/* POST /api/wallet/redeem-points — redeem 100 points = ₹10 wallet credit */
+router.post("/wallet/redeem-points", userAuth, async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  try {
+    const [user] = await db.select({ loyaltyPoints: usersTable.loyaltyPoints, walletBalance: usersTable.walletBalance })
+      .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!user) { res.status(404).json({ success: false, error: "User not found" }); return; }
+
+    const pts = user.loyaltyPoints ?? 0;
+    const redeemableSets = Math.floor(pts / 100);
+    if (redeemableSets < 1) {
+      res.status(400).json({ success: false, error: `Abhi sirf ${pts} points hain. 100 points pe ₹10 milenge.` }); return;
+    }
+
+    const pointsToRedeem = redeemableSets * 100;
+    const rupees = redeemableSets * 10;
+    const newPoints = pts - pointsToRedeem;
+    const newBalance = parseFloat(String(user.walletBalance ?? "0")) + rupees;
+
+    await db.update(usersTable).set({
+      loyaltyPoints: newPoints,
+      walletBalance: String(newBalance.toFixed(2)),
+    }).where(eq(usersTable.id, userId));
+
+    await db.insert(walletTransactionsTable).values({
+      userId,
+      type: "loyalty_redeem",
+      amount: String(rupees),
+      description: `🏆 ${pointsToRedeem} RaftaarPoints redeem kiye → ₹${rupees} wallet mein credit`,
+    });
+
+    res.json({ success: true, pointsRedeemed: pointsToRedeem, rupees, newPoints, newBalance, message: `₹${rupees} wallet mein add ho gaye!` });
+  } catch { res.status(500).json({ success: false, error: "Server error" }); }
+});
+
 router.patch("/wallet/language", userAuth, async (req: Request, res: Response) => {
   const userId = (req as any).userId;
   const { language } = req.body as { language: string };

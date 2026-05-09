@@ -27,6 +27,7 @@ export const usersTable = pgTable("users", {
   pushToken: text("push_token"),
   referralCode: text("referral_code").unique(),
   referredBy: text("referred_by"),
+  loyaltyPoints: integer("loyalty_points").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
   Text,
@@ -97,12 +98,48 @@ export function DriverEarningsScreen() {
   const [withdrawals, setWithdrawals] = useState<WithdrawalReq[]>([]);
   const [loading, setLoading] = useState(true);
   const [driverRating, setDriverRating] = useState<number | null>(null);
+  const [totalRides, setTotalRides] = useState(0);
 
   const [ratingsData, setRatingsData] = useState<RatingsData | null>(null);
   const [ratingsLoading, setRatingsLoading] = useState(false);
 
   const [perfData, setPerfData] = useState<PerfData | null>(null);
   const [perfLoading, setPerfLoading] = useState(false);
+
+  const [dailyGoal, setDailyGoal] = useState(500);
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState("500");
+
+  useEffect(() => {
+    AsyncStorage.getItem("driver_daily_goal").then(v => {
+      if (v) { setDailyGoal(Number(v)); setGoalInput(v); }
+    }).catch(() => {});
+  }, []);
+
+  const saveDailyGoal = async () => {
+    const g = Number(goalInput);
+    if (!g || g < 100) return;
+    setDailyGoal(g);
+    setEditingGoal(false);
+    await AsyncStorage.setItem("driver_daily_goal", String(g));
+  };
+
+  const todayEarnings = useMemo(() => {
+    const today = new Date().toDateString();
+    return transactions
+      .filter(t => t.type === "earning" && new Date(t.createdAt).toDateString() === today)
+      .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+  }, [transactions]);
+
+  const goalProgress = Math.min(100, Math.round((todayEarnings / dailyGoal) * 100));
+
+  const achievementBadge = useMemo(() => {
+    const rating = driverRating;
+    if (totalRides >= 500 && rating && rating >= 4.5) return { icon: "💎", label: "Elite Driver", color: "#818CF8" };
+    if (totalRides >= 200) return { icon: "🏆", label: "Veteran Driver", color: "#F59E0B" };
+    if (totalRides >= 50) return { icon: "⭐", label: "Experienced Driver", color: "#F5A623" };
+    return { icon: "🌟", label: "Rising Star", color: "#4ADE80" };
+  }, [totalRides, driverRating]);
 
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -137,6 +174,7 @@ export function DriverEarningsScreen() {
       const data = await res.json();
       if (data.success && data.driver) {
         setDriverRating(data.driver.rating ? Number(data.driver.rating) : null);
+        setTotalRides(data.driver.totalRides ?? 0);
       }
     } catch { }
   }, [driverToken]);
@@ -289,15 +327,57 @@ export function DriverEarningsScreen() {
 
   const renderEarningsTab = () => (
     <>
-      <Animated.View entering={FadeInDown.delay(100)} style={styles.statsRow}>
-        <GlassCard style={styles.statCard}>
-          <Text style={[styles.statValue, { color: "#22c55e" }]}>0%</Text>
+      {/* Achievement Badge + Stats */}
+      <Animated.View entering={FadeInDown.delay(95)} style={{ marginHorizontal: 20, marginBottom: 14, flexDirection: "row", gap: 12, alignItems: "center" }}>
+        <View style={{ flex: 1, borderRadius: 14, padding: 14, backgroundColor: achievementBadge.color + "15", borderWidth: 1, borderColor: achievementBadge.color + "40", flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <Text style={{ fontSize: 24 }}>{achievementBadge.icon}</Text>
+          <View>
+            <Text style={{ fontSize: 13, fontWeight: "700", color: achievementBadge.color, fontFamily: "Inter_700Bold" }}>{achievementBadge.label}</Text>
+            <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: "Inter_400Regular" }}>{totalRides} rides complete</Text>
+          </View>
+        </View>
+        <GlassCard style={{ flex: 1, padding: 14, alignItems: "center" }}>
+          <Text style={[styles.statValue, { color: "#22c55e", fontSize: 18 }]}>0%</Text>
           <Text style={styles.statLabel}>{t("commission_label")}</Text>
         </GlassCard>
-        <GlassCard style={styles.statCard}>
-          <Text style={styles.statValue}>₹{totalEarnings.toFixed(0)}</Text>
-          <Text style={styles.statLabel}>{t("total_earned")}</Text>
-        </GlassCard>
+      </Animated.View>
+
+      {/* Daily Goal Progress */}
+      <Animated.View entering={FadeInDown.delay(105)} style={{ marginHorizontal: 20, marginBottom: 14, borderRadius: 16, padding: 16, backgroundColor: "rgba(255,255,255,0.04)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <View>
+            <Text style={{ fontSize: 13, fontWeight: "700", color: colors.text, fontFamily: "Inter_700Bold" }}>🎯 Aaj Ka Goal</Text>
+            <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: "Inter_400Regular" }}>₹{todayEarnings.toFixed(0)} / ₹{dailyGoal} earned today</Text>
+          </View>
+          <TouchableOpacity onPress={() => setEditingGoal(!editingGoal)}>
+            <Text style={{ fontSize: 11, color: "#F5A623", fontFamily: "Inter_600SemiBold" }}>{editingGoal ? "Cancel" : "✏️ Edit"}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {editingGoal ? (
+          <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+            <TextInput
+              value={goalInput}
+              onChangeText={setGoalInput}
+              keyboardType="numeric"
+              placeholder="e.g. 800"
+              placeholderTextColor={colors.textSecondary}
+              style={{ flex: 1, borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", paddingHorizontal: 12, paddingVertical: 10, color: colors.text, fontSize: 15, fontFamily: "Inter_600SemiBold", backgroundColor: "rgba(255,255,255,0.05)" }}
+            />
+            <TouchableOpacity onPress={saveDailyGoal} style={{ backgroundColor: "#F5A623", borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 }}>
+              <Text style={{ fontSize: 13, fontWeight: "700", color: "#0A0A0F", fontFamily: "Inter_700Bold" }}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <View style={{ height: 8, backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 4, marginBottom: 6 }}>
+              <View style={{ width: `${goalProgress}%`, height: "100%", borderRadius: 4, backgroundColor: goalProgress >= 100 ? "#4ADE80" : goalProgress >= 60 ? "#F5A623" : "#F87171" }} />
+            </View>
+            <Text style={{ fontSize: 11, color: goalProgress >= 100 ? "#4ADE80" : colors.textSecondary, fontFamily: "Inter_400Regular" }}>
+              {goalProgress >= 100 ? "🎉 Goal pura ho gaya! Aaj ka din zabardast raha" : goalProgress >= 60 ? `${goalProgress}% — thoda aur mehnat! ₹${(dailyGoal - todayEarnings).toFixed(0)} baaki` : `${goalProgress}% — chalo niklo, peak hours mein kamaai zyada hoti hai 💪`}
+            </Text>
+          </>
+        )}
       </Animated.View>
 
       {driverRating && driverRating < 4.0 && (
