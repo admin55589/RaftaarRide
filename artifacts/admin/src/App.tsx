@@ -24,6 +24,7 @@ import { SurgePage } from "@/pages/SurgePage";
 import { EarningsPage } from "@/pages/EarningsPage";
 import { SupportChatPage } from "@/pages/SupportChatPage";
 import { LoyaltyPage } from "@/pages/LoyaltyPage";
+import { FinancialHealthPage } from "@/pages/FinancialHealthPage";
 import { TermsPage } from "@/pages/TermsPage";
 import { PrivacyPage } from "@/pages/PrivacyPage";
 import NotFound from "@/pages/not-found";
@@ -82,6 +83,7 @@ function AppLayout() {
           <Route path="/earnings" component={EarningsPage} />
           <Route path="/support" component={SupportChatPage} />
           <Route path="/loyalty" component={LoyaltyPage} />
+          <Route path="/financial-health" component={FinancialHealthPage} />
           <Route component={NotFound} />
         </Switch>
       </main>

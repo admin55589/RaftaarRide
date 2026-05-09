@@ -20,6 +20,7 @@ import {
   TrendingUp,
   HeadphonesIcon,
   Trophy,
+  PieChart,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
@@ -113,6 +114,7 @@ export function Sidebar({ isLive = false }: SidebarProps) {
     { label: "Disputes", href: "/disputes", icon: AlertTriangle, badge: 0 },
     { label: "Surge Pricing", href: "/surge", icon: Zap, badge: 0 },
     { label: "Earnings Report", href: "/earnings", icon: TrendingUp, badge: 0 },
+    { label: "Financial Health", href: "/financial-health", icon: PieChart, badge: 0 },
     { label: "Live Map", href: "/live-map", icon: Map, badge: 0 },
     { label: "Support Chat", href: "/support", icon: HeadphonesIcon, badge: supportOpen },
     { label: "Chat History", href: "/chat-history", icon: MessageSquare, badge: 0 },

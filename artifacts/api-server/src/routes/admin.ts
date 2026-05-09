@@ -1608,6 +1608,159 @@ router.post("/admin/pending-commissions/:driverId/collect", authMiddleware, asyn
    LOYALTY PROGRAM MANAGEMENT
    ───────────────────────────────────────────────────────────────────────── */
 
+/* ─────────────────────────────────────────────────────────────────────────
+   FINANCIAL HEALTH — P&L Overview
+   ───────────────────────────────────────────────────────────────────────── */
+router.get("/admin/financial-health", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    /* ── Revenue ── */
+    /* 1. Commission from completed rides (all time + this month) */
+    const [commissionAll] = await db
+      .select({ total: sum(ridesTable.commissionAmount), cnt: count() })
+      .from(ridesTable)
+      .where(and(eq(ridesTable.status, "completed"), isNotNull(ridesTable.commissionAmount)));
+    const [commissionMonth] = await db
+      .select({ total: sum(ridesTable.commissionAmount) })
+      .from(ridesTable)
+      .where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, startOfMonth)));
+
+    /* 2. Driver plan subscriptions */
+    const [planAll] = await db
+      .select({ total: sum(planTransactionsTable.amountRupees), cnt: count() })
+      .from(planTransactionsTable);
+    const [planMonth] = await db
+      .select({ total: sum(planTransactionsTable.amountRupees) })
+      .from(planTransactionsTable)
+      .where(gte(planTransactionsTable.createdAt, startOfMonth));
+
+    /* 3. Wallet topups (for Razorpay fee calc) */
+    const [topupAll] = await db
+      .select({ total: sum(walletTransactionsTable.amount), cnt: count() })
+      .from(walletTransactionsTable)
+      .where(eq(walletTransactionsTable.type, "topup"));
+    const [topupMonth] = await db
+      .select({ total: sum(walletTransactionsTable.amount) })
+      .from(walletTransactionsTable)
+      .where(and(eq(walletTransactionsTable.type, "topup"), gte(walletTransactionsTable.createdAt, startOfMonth)));
+
+    /* ── Platform Expenses (DB-tracked) ── */
+    /* 4. Loyalty redemptions */
+    const [loyaltyAll] = await db
+      .select({ total: sum(walletTransactionsTable.amount), cnt: count() })
+      .from(walletTransactionsTable)
+      .where(eq(walletTransactionsTable.type, "loyalty_redeem"));
+    const [loyaltyMonth] = await db
+      .select({ total: sum(walletTransactionsTable.amount) })
+      .from(walletTransactionsTable)
+      .where(and(eq(walletTransactionsTable.type, "loyalty_redeem"), gte(walletTransactionsTable.createdAt, startOfMonth)));
+
+    /* 5. Referral bonuses */
+    const [referralAll] = await db
+      .select({ total: sum(walletTransactionsTable.amount), cnt: count() })
+      .from(walletTransactionsTable)
+      .where(eq(walletTransactionsTable.type, "referral_credit"));
+    const [referralMonth] = await db
+      .select({ total: sum(walletTransactionsTable.amount) })
+      .from(walletTransactionsTable)
+      .where(and(eq(walletTransactionsTable.type, "referral_credit"), gte(walletTransactionsTable.createdAt, startOfMonth)));
+
+    /* 6. Driver withdrawals paid out */
+    const [withdrawalAll] = await db
+      .select({ total: sum(withdrawalRequestsTable.amount), cnt: count() })
+      .from(withdrawalRequestsTable)
+      .where(eq(withdrawalRequestsTable.status, "approved"));
+
+    /* ── Totals ── */
+    const commissionTotal = parseFloat(String(commissionAll?.total ?? "0"));
+    const commissionThisMonth = parseFloat(String(commissionMonth?.total ?? "0"));
+    const planTotal = parseFloat(String(planAll?.total ?? "0"));
+    const planThisMonth = parseFloat(String(planMonth?.total ?? "0"));
+    const topupTotal = parseFloat(String(topupAll?.total ?? "0"));
+    const topupThisMonth = parseFloat(String(topupMonth?.total ?? "0"));
+
+    const loyaltyTotal = parseFloat(String(loyaltyAll?.total ?? "0"));
+    const loyaltyThisMonth = parseFloat(String(loyaltyMonth?.total ?? "0"));
+    const referralTotal = parseFloat(String(referralAll?.total ?? "0"));
+    const referralThisMonth = parseFloat(String(referralMonth?.total ?? "0"));
+    const withdrawalTotal = parseFloat(String(withdrawalAll?.total ?? "0"));
+
+    /* Razorpay fee estimate: 2% + 18% GST = 2.36% of topups */
+    const razorpayFeeTotal = parseFloat((topupTotal * 0.0236).toFixed(2));
+    const razorpayFeeMonth = parseFloat((topupThisMonth * 0.0236).toFixed(2));
+
+    const totalRides = Number(commissionAll?.cnt ?? 0);
+    const totalTopups = Number(topupAll?.cnt ?? 0);
+    const totalUsers = (await db.select({ cnt: count() }).from(usersTable))[0]?.cnt ?? 0;
+
+    /* SMS cost estimate: ~₹0.30 per OTP (avg 1.5 OTPs per user login session) */
+    const estimatedSmsOtps = Number(totalUsers) * 3; /* signup + ~2 logins */
+    const estimatedSmsCostTotal = parseFloat((estimatedSmsOtps * 0.30).toFixed(2));
+    const estimatedSmsCostMonth = parseFloat((estimatedSmsCostTotal / 12).toFixed(2));
+
+    /* Maps cost: each ride ~5 API calls (autocomplete×2 + geocode + distance + directions) */
+    /* Google gives $200/mo free = ~40,000 calls free. At $5/1000 calls (directions) */
+    const mapsCallsPerRide = 5;
+    const totalMapsCalls = totalRides * mapsCallsPerRide;
+    const freeMapsCalls = 40000;
+    const billableMapsCalls = Math.max(0, totalMapsCalls - freeMapsCalls);
+    const estimatedMapsCost = parseFloat((billableMapsCalls / 1000 * 5 * 83).toFixed(2)); /* $5/1000 * ₹83 */
+
+    /* Server costs (monthly estimates) */
+    const serverCosts = {
+      railway: { name: "Railway (API Server)", monthlyInr: 1200, note: "Hobby plan ~$14.99/mo" },
+      vercel: { name: "Vercel (Admin Panel)", monthlyInr: 0, note: "Free tier — sufficient" },
+      neon: { name: "Neon PostgreSQL", monthlyInr: 0, note: "Free tier — 512MB storage" },
+    };
+    const totalServerMonthly = Object.values(serverCosts).reduce((s, c) => s + c.monthlyInr, 0);
+
+    /* ── Revenue totals ── */
+    const revenueTotal = commissionTotal + planTotal;
+    const revenueThisMonth = commissionThisMonth + planThisMonth;
+
+    /* ── Expense totals (DB-tracked) ── */
+    const dbExpenseTotal = loyaltyTotal + referralTotal + razorpayFeeTotal;
+    const dbExpenseMonth = loyaltyThisMonth + referralThisMonth + razorpayFeeMonth;
+
+    /* ── Net P&L ── */
+    const netPnlTotal = revenueTotal - dbExpenseTotal;
+    const netPnlThisMonth = revenueThisMonth - dbExpenseMonth - totalServerMonthly;
+
+    res.json({
+      success: true,
+      revenue: {
+        commission: { total: commissionTotal, thisMonth: commissionThisMonth, count: totalRides },
+        plans: { total: planTotal, thisMonth: planThisMonth, count: Number(planAll?.cnt ?? 0) },
+        total: revenueTotal,
+        thisMonth: revenueThisMonth,
+      },
+      expenses: {
+        loyalty: { total: loyaltyTotal, thisMonth: loyaltyThisMonth, count: Number(loyaltyAll?.cnt ?? 0) },
+        referral: { total: referralTotal, thisMonth: referralThisMonth, count: Number(referralAll?.cnt ?? 0) },
+        razorpay: { total: razorpayFeeTotal, thisMonth: razorpayFeeMonth, count: totalTopups, note: "2.36% of wallet topups (estimated)" },
+        withdrawals: { total: withdrawalTotal, count: Number(withdrawalAll?.cnt ?? 0) },
+        dbTrackedTotal: dbExpenseTotal,
+        dbTrackedThisMonth: dbExpenseMonth,
+      },
+      infrastructure: {
+        sms: { estimatedTotalSpent: estimatedSmsCostTotal, estimatedMonthly: estimatedSmsCostMonth, otpsEstimated: estimatedSmsOtps, note: "₹0.30/OTP via 2Factor — approximate" },
+        maps: { totalCalls: totalMapsCalls, freeCallsLimit: freeMapsCalls, billableCalls: billableMapsCalls, estimatedCostInr: estimatedMapsCost, note: "5 API calls per ride, $200/mo free credit" },
+        server: { monthly: totalServerMonthly, breakdown: serverCosts },
+      },
+      netPnl: {
+        total: netPnlTotal,
+        thisMonth: netPnlThisMonth,
+        profitMarginPct: revenueTotal > 0 ? parseFloat(((netPnlTotal / revenueTotal) * 100).toFixed(1)) : 0,
+      },
+      meta: { generatedAt: new Date().toISOString(), totalRides, totalUsers: Number(totalUsers), totalTopupAmount: topupTotal },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
+});
+
 /* In-memory loyalty config — persists until server restart.
    In production this should live in a DB settings table.              */
 let loyaltyConfig = {
