@@ -956,6 +956,66 @@ router.delete("/driver-auth/account", async (req: Request, res: Response) => {
   }
 });
 
+/* GET /api/driver-auth/ratings — driver's rating summary + recent rated rides */
+router.get("/driver-auth/ratings", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) { res.status(401).json({ message: "Token required" }); return; }
+  try {
+    const payload = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { driverId: number; role: string };
+    if (payload.role !== "driver") { res.status(403).json({ message: "Driver token required" }); return; }
+
+    /* Recalculate and update driver average from all rated rides (self-healing) */
+    const [avgRow] = await db
+      .select({ avgRating: avg(ridesTable.userRating), ratingCount: count() })
+      .from(ridesTable)
+      .where(and(eq(ridesTable.driverId, payload.driverId), isNotNull(ridesTable.userRating)));
+
+    const currentAvg = avgRow?.avgRating ? parseFloat(avgRow.avgRating).toFixed(2) : null;
+    const ratingCount = avgRow?.ratingCount ?? 0;
+
+    if (currentAvg) {
+      await db
+        .update(driversTable)
+        .set({ rating: currentAvg })
+        .where(eq(driversTable.id, payload.driverId));
+    }
+
+    /* Distribution: count of each star value 1-5 */
+    const distribution = await db
+      .select({ star: ridesTable.userRating, cnt: count() })
+      .from(ridesTable)
+      .where(and(eq(ridesTable.driverId, payload.driverId), isNotNull(ridesTable.userRating)))
+      .groupBy(ridesTable.userRating)
+      .orderBy(desc(ridesTable.userRating));
+
+    /* Recent 20 rated rides */
+    const recentRatings = await db
+      .select({
+        rideId: ridesTable.id,
+        userRating: ridesTable.userRating,
+        pickupAddress: ridesTable.pickup,
+        dropAddress: ridesTable.destination,
+        createdAt: ridesTable.createdAt,
+        price: ridesTable.price,
+      })
+      .from(ridesTable)
+      .where(and(eq(ridesTable.driverId, payload.driverId), isNotNull(ridesTable.userRating)))
+      .orderBy(desc(ridesTable.createdAt))
+      .limit(20);
+
+    res.json({
+      success: true,
+      rating: currentAvg ? parseFloat(currentAvg) : null,
+      ratingCount,
+      distribution: distribution.map((d) => ({ star: d.star, count: d.cnt })),
+      recentRatings,
+    });
+  } catch (err) {
+    logger.error({ err }, "driver ratings fetch error");
+    res.status(401).json({ message: "Invalid token" });
+  }
+});
+
 /* GET /api/driver-auth/earnings — driver's earnings history (last 50 completed rides) */
 router.get("/driver-auth/earnings", async (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
