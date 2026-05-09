@@ -1,3 +1,4 @@
+import React from "react";
 import { useGetAdminStats, useGetRecentRides, useGetDailyAnalytics } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -11,7 +12,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet, MessageSquare, AlertTriangle, RefreshCw, Cloud, CheckCircle, XCircle, Settings } from "lucide-react";
+import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet, MessageSquare, AlertTriangle, RefreshCw, Cloud, CheckCircle, XCircle, Settings, Clock } from "lucide-react";
 import { StatusBadge, VehicleBadge, formatCurrency, formatDate } from "@/components/shared";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/apiBase";
@@ -394,6 +395,126 @@ function CloudCostCard() {
   );
 }
 
+type PendingCommissionsData = {
+  success: boolean;
+  totalPending: number;
+  pendingRides: number;
+  drivers: Array<{
+    driverId: number;
+    name: string;
+    phone: string;
+    pendingCommission: number;
+    walletBalance: number;
+  }>;
+};
+
+function PendingCommissionsCard() {
+  const { token } = useAuth();
+  const [collecting, setCollecting] = React.useState<number | null>(null);
+
+  const { data, isLoading, refetch } = useQuery<PendingCommissionsData>({
+    queryKey: ["pending-commissions"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/admin/pending-commissions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.json();
+    },
+    enabled: !!token,
+    refetchInterval: 60 * 1000,
+  });
+
+  const handleCollect = async (driverId: number, name: string) => {
+    if (!confirm(`${name} ki saari pending commission collected mark karein?`)) return;
+    setCollecting(driverId);
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/pending-commissions/${driverId}/collect`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert(`✅ ${result.message}`);
+        refetch();
+      } else {
+        alert(`❌ ${result.error}`);
+      }
+    } finally {
+      setCollecting(null);
+    }
+  };
+
+  const hasPending = (data?.totalPending ?? 0) > 0;
+
+  return (
+    <div>
+      <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+        <Clock className={`w-4 h-4 ${hasPending ? "text-red-400" : "text-muted-foreground"}`} />
+        Pending Cash Commissions
+        {hasPending && (
+          <span className="ml-1 px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-xs font-bold">
+            {data!.pendingRides} rides
+          </span>
+        )}
+      </h2>
+
+      {isLoading ? (
+        <div className="h-24 bg-card border border-card-border rounded-2xl animate-pulse" />
+      ) : !hasPending ? (
+        <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-4 flex items-center gap-3">
+          <CheckCircle className="w-5 h-5 text-green-400 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-green-400">Sab clear hai!</p>
+            <p className="text-xs text-muted-foreground">Koi bhi pending cash commission nahi hai.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-2xl overflow-hidden">
+          {/* Summary row */}
+          <div className="p-4 flex items-center gap-4 border-b border-red-500/20">
+            <div className="flex-1">
+              <p className="text-xs text-red-400 font-medium uppercase tracking-wide">Total Pending Commission</p>
+              <p className="text-2xl font-bold text-red-400 mt-0.5">{formatCurrency(data!.totalPending)}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{data!.pendingRides} rides mein pending</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6 text-red-400" />
+            </div>
+          </div>
+
+          {/* Per-driver list */}
+          <div className="divide-y divide-red-500/10">
+            {data!.drivers.map((d) => (
+              <div key={d.driverId} className="px-4 py-3 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">{d.name}</p>
+                  <p className="text-xs text-muted-foreground">{d.phone}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Wallet: <span className={d.walletBalance < 0 ? "text-red-400" : "text-muted-foreground"}>
+                      {formatCurrency(d.walletBalance)}
+                    </span>
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-bold text-red-400">{formatCurrency(d.pendingCommission)}</p>
+                  <p className="text-xs text-muted-foreground">pending</p>
+                </div>
+                <button
+                  onClick={() => handleCollect(d.driverId, d.name)}
+                  disabled={collecting === d.driverId}
+                  className="shrink-0 px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-semibold transition-colors disabled:opacity-50"
+                >
+                  {collecting === d.driverId ? "..." : "Collected ✓"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const { data: stats, isLoading: statsLoading } = useGetAdminStats();
   const { data: recentRides } = useGetRecentRides();
@@ -520,6 +641,9 @@ export function DashboardPage() {
           <CloudCostCard />
         </div>
       </div>
+
+      {/* Pending Cash Commissions */}
+      <PendingCommissionsCard />
 
       {/* Convenience Fee Section */}
       <div>

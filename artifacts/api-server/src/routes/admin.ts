@@ -12,7 +12,7 @@ import {
   planTransactionsTable,
   surgeSettingsTable,
 } from "@workspace/db/schema";
-import { eq, desc, sql, and, gte, lte, isNotNull, ne, inArray, count, max } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lte, isNotNull, ne, inArray, count, max, sum } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { validateAccountDetails, createRazorpayPayout } from "../lib/razorpay-payout";
 import { sendPushNotification } from "../lib/expoPush";
@@ -1446,6 +1446,84 @@ router.get("/admin/referrals", authMiddleware, async (_req: Request, res: Respon
         referredCount: Number(u.referredCount),
       })),
     });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
+});
+
+/* GET /api/admin/pending-commissions — list drivers with pending cash commissions */
+router.get("/admin/pending-commissions", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    /* Total pending amount across all rides */
+    const [totalRow] = await db
+      .select({ total: sum(ridesTable.commissionAmount) })
+      .from(ridesTable)
+      .where(eq(ridesTable.commissionStatus, "pending"));
+
+    const [countRow] = await db
+      .select({ count: count() })
+      .from(ridesTable)
+      .where(eq(ridesTable.commissionStatus, "pending"));
+
+    /* Per-driver breakdown */
+    const driverRows = await db
+      .select({
+        driverId: driversTable.id,
+        name: driversTable.name,
+        phone: driversTable.phone,
+        pendingCommission: driversTable.pendingCommission,
+        walletBalance: driversTable.walletBalance,
+      })
+      .from(driversTable)
+      .where(sql`CAST(${driversTable.pendingCommission} AS NUMERIC) > 0`)
+      .orderBy(desc(driversTable.pendingCommission));
+
+    res.json({
+      success: true,
+      totalPending: Number(totalRow?.total ?? 0),
+      pendingRides: Number(countRow?.count ?? 0),
+      drivers: driverRows.map((d) => ({
+        ...d,
+        pendingCommission: Number(d.pendingCommission ?? 0),
+        walletBalance: Number(d.walletBalance ?? 0),
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
+});
+
+/* POST /api/admin/pending-commissions/:driverId/collect — mark driver's pending commission as collected */
+router.post("/admin/pending-commissions/:driverId/collect", authMiddleware, async (req: Request, res: Response) => {
+  const driverId = Number(req.params.driverId);
+  if (!driverId) { res.status(400).json({ success: false, error: "Invalid driverId" }); return; }
+
+  try {
+    const [driver] = await db.select().from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
+    if (!driver) { res.status(404).json({ success: false, error: "Driver nahi mila" }); return; }
+
+    const pendingAmt = parseFloat(String(driver.pendingCommission ?? "0"));
+    if (pendingAmt <= 0) { res.json({ success: true, message: "Koi pending commission nahi hai" }); return; }
+
+    /* Mark all pending rides as manually_collected */
+    await db.update(ridesTable)
+      .set({ commissionStatus: "manually_collected" })
+      .where(and(eq(ridesTable.driverId, driverId), eq(ridesTable.commissionStatus, "pending")));
+
+    /* Clear driver's pendingCommission */
+    await db.update(driversTable)
+      .set({ pendingCommission: "0.00" })
+      .where(eq(driversTable.id, driverId));
+
+    /* Wallet transaction record */
+    await db.insert(walletTransactionsTable).values({
+      driverId,
+      type: "commission_collected",
+      amount: String(-pendingAmt),
+      description: `Admin ne manually ₹${pendingAmt.toFixed(2)} pending commission collect ki`,
+    });
+
+    res.json({ success: true, message: `₹${pendingAmt.toFixed(2)} pending commission collected`, collected: pendingAmt });
   } catch (err) {
     res.status(500).json({ success: false, error: String(err) });
   }
