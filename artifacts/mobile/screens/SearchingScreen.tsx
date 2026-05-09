@@ -300,6 +300,23 @@ export function SearchingScreen() {
         if (data.status === "accepted") handleDriverFound(data.driver ?? null);
         else if (data.status === "cancelled") handleCancelled();
       });
+
+      /* All broadcast attempts exhausted — no driver available */
+      socket.on("ride:no_driver", (data: { rideId: number }) => {
+        if (data.rideId !== currentRideId) return;
+        if (cleanedUp) return;
+        cleanedUp = true;
+        if (pollRef.current) clearInterval(pollRef.current);
+        clearInterval(timerRef.current!);
+        clearInterval(msgTimer);
+        showNotification({
+          title: "Koi Driver Nahi Mila 😔",
+          body: "Is area mein abhi koi driver available nahi. Thodi der baad dobara try karein.",
+          type: "error", icon: "😔", duration: 6000,
+        });
+        setScreen("home");
+      });
+
       pollRef.current = setInterval(async () => {
         try {
           const data = await ridesApi.getRide(token, currentRideId);
@@ -322,6 +339,7 @@ export function SearchingScreen() {
       clearInterval(msgTimer);
       const s = getSocket();
       s.off("ride:status");
+      s.off("ride:no_driver");
     };
   }, [currentRideId, token]);
 

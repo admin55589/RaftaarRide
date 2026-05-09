@@ -132,7 +132,12 @@ export function BookingScreen() {
     });
 
     if (!token) {
-      setScreen("searching");
+      Alert.alert(
+        "Login Karein",
+        "Ride book karne ke liye pehle apne account mein login karein.",
+        [{ text: "OK" }],
+      );
+      setBookingLoading(false);
       return;
     }
 

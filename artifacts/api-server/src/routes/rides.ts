@@ -3,8 +3,9 @@ import { db } from "@workspace/db";
 import { ridesTable, driversTable, usersTable, walletTransactionsTable, promoCodesTable, surgeSettingsTable } from "@workspace/db/schema";
 import { eq, desc, and, inArray, avg, isNotNull } from "drizzle-orm";
 import jwt from "jsonwebtoken";
-import { emitRideUpdate, emitAdminUpdate, emitToDriver } from "../lib/socket";
+import { emitRideUpdate, emitAdminUpdate } from "../lib/socket";
 import { sendPushNotification } from "../lib/expoPush";
+import { startRideBroadcast, cancelQueue } from "../lib/rideQueue";
 
 const router: IRouter = Router();
 const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
@@ -52,49 +53,6 @@ async function flexAuth(req: Request, res: Response, next: NextFunction) {
 
 interface GeoPoint { lat?: number; lng?: number; address: string; }
 
-async function assignNearestDriver(vehicleType: string, pickupLat?: number, pickupLng?: number): Promise<{ driver: typeof driversTable.$inferSelect; etaMinutes: number } | null> {
-  const availableDrivers = await db
-    .select()
-    .from(driversTable)
-    .where(and(
-      eq(driversTable.vehicleType, vehicleType),
-      eq(driversTable.isOnline, true),
-      eq(driversTable.status, "active")
-    ))
-    .limit(10);
-
-  if (availableDrivers.length === 0) return null;
-
-  const DEFAULT_ETA = 5;
-
-  if (pickupLat && pickupLng) {
-    let nearest = availableDrivers[0];
-    let minDist = Infinity;
-    for (const d of availableDrivers) {
-      if (d.driverLat && d.driverLng) {
-        const dLat = parseFloat(String(d.driverLat));
-        const dLng = parseFloat(String(d.driverLng));
-        /* Haversine approx — convert degree distance to km */
-        const latDiff = dLat - pickupLat;
-        const lngDiff = dLng - pickupLng;
-        const avgLat = (dLat + pickupLat) / 2;
-        const kmLat = latDiff * 111.0;
-        const kmLng = lngDiff * 111.0 * Math.cos(avgLat * Math.PI / 180);
-        const dist = Math.sqrt(kmLat * kmLat + kmLng * kmLng);
-        if (dist < minDist) { minDist = dist; nearest = d; }
-      }
-    }
-    /* ETA = distance / avg city speed (20 km/h), min 1 min, max 20 min */
-    const etaMinutes = minDist === Infinity
-      ? DEFAULT_ETA
-      : Math.min(20, Math.max(1, Math.round(minDist / 20 * 60)));
-    return { driver: nearest, etaMinutes };
-  }
-
-  const randomDriver = availableDrivers[Math.floor(Math.random() * availableDrivers.length)];
-  return { driver: randomDriver, etaMinutes: DEFAULT_ETA };
-}
-
 router.post("/rides", userAuth, async (req: Request, res: Response) => {
   const userId = (req as any).userId;
   const {
@@ -131,18 +89,13 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
     res.status(400).json({ success: false, error: "pickup, drop, vehicleType, price are required" }); return;
   }
 
+  const { paymentMethod: pmRaw } = req.body as { paymentMethod?: string };
+  const finalPaymentMethod = (pmRaw && ["Cash","UPI","Card","RaftaarWallet"].includes(pmRaw)) ? pmRaw : "Cash";
+
   try {
-    const driverResult = await assignNearestDriver(
-      finalVehicleType,
-      typeof pickup === "object" ? pickup.lat : undefined,
-      typeof pickup === "object" ? pickup.lng : undefined
-    );
-    const matchedDriver = driverResult?.driver ?? null;
-    const driverEta = driverResult?.etaMinutes ?? 5;
-
-    const { paymentMethod: pmRaw } = req.body as { paymentMethod?: string };
-    const finalPaymentMethod = (pmRaw && ["Cash","UPI","Card","RaftaarWallet"].includes(pmRaw)) ? pmRaw : "Cash";
-
+    /* ── Create ride in "searching" state — driver NOT assigned yet ──
+     * rideQueue will find nearest driver and offer them the ride.
+     * Driver must explicitly accept before being assigned in DB.        */
     const [ride] = await db.insert(ridesTable).values({
       userId,
       pickup: pickupAddress, pickupLat, pickupLng,
@@ -151,8 +104,7 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       rideMode: rideMode ?? "economy",
       price: String(finalPrice),
       distanceKm: distanceKm ? String(distanceKm) : undefined,
-      status: matchedDriver ? "accepted" : "searching",
-      driverId: matchedDriver?.id ?? undefined,
+      status: "searching",
       paymentMethod: finalPaymentMethod,
       promoCode: promoCode?.toUpperCase().trim() ?? null,
       discountAmount: discountAmount ? String(discountAmount) : "0",
@@ -164,7 +116,7 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       packageDetails: packageDetails ?? null,
     }).returning();
 
-    /* Increment promo usedCount if a valid code was applied */
+    /* Increment promo usedCount */
     if (promoCode) {
       const cleanCode = promoCode.toUpperCase().trim();
       const [existingPromo] = await db.select({ id: promoCodesTable.id, usedCount: promoCodesTable.usedCount })
@@ -177,85 +129,26 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       }
     }
 
-    if (matchedDriver) {
-      await db.update(driversTable).set({ isOnline: false }).where(eq(driversTable.id, matchedDriver.id));
-    }
+    emitAdminUpdate("admin:ride:new", { ride, driver: null });
 
-    const vehicleEmojiMap: Record<string, string> = {
-      bike: "🏍️", auto: "🛺", cab: "🚗", prime: "⭐🚗", suv: "🚐",
-    };
-    const driverPayload = matchedDriver ? {
-      id: matchedDriver.id,
-      name: matchedDriver.name,
-      phone: matchedDriver.phone,
-      photoUrl: matchedDriver.photoUrl ?? null,
-      vehicleType: matchedDriver.vehicleType,
-      vehicleNumber: matchedDriver.vehicleNumber,
-      vehicle: vehicleEmojiMap[matchedDriver.vehicleType] ?? "🚗",
-      rating: matchedDriver.rating,
-      eta: driverEta,
-    } : null;
-
-    /* Generate PIN immediately when driver auto-assigned */
-    let completionPin: number | null = null;
-    if (matchedDriver) {
-      completionPin = 1000 + Math.floor(Math.random() * 9000);
-      await db.update(ridesTable).set({ completionPin }).where(eq(ridesTable.id, ride.id));
-    }
-
-    /* Fetch user name for driver's ride card */
-    const [rideUser] = await db.select({ name: usersTable.name, pushToken: usersTable.pushToken })
-      .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-
-    emitRideUpdate(ride.id, "ride:status", { rideId: ride.id, status: ride.status, driver: driverPayload });
-    emitAdminUpdate("admin:ride:new", { ride, driver: driverPayload });
-
-    /* Emit ride to driver's socket room (real-time card in driver app) */
-    if (matchedDriver) {
-      emitToDriver(matchedDriver.id, "driver:new_ride", {
-        id: String(ride.id),
-        rideId: ride.id,
-        from: pickupAddress,
-        to: dropAddress,
-        distance: `${ride.distanceKm ?? "?"} km`,
-        price: finalPrice,
-        eta: driverPayload?.eta ?? 3,
-        userName: rideUser?.name ?? "Passenger",
-      });
-
-      /* Emit PIN to ride room so passenger sees it immediately */
-      if (completionPin) {
-        emitRideUpdate(ride.id, "ride:pin", { rideId: ride.id, pin: completionPin });
-      }
-
-      /* Push PIN to user */
-      if (rideUser?.pushToken && completionPin) {
-        await sendPushNotification({
-          to: rideUser.pushToken,
-          title: "🔐 Aapka Ride PIN",
-          body: `Driver ko yeh PIN batao ride complete karne ke liye: ${completionPin}`,
-          data: { type: "ride_pin", rideId: ride.id, pin: completionPin },
-        });
-      }
-    }
-
-    /* Push notification to assigned driver */
-    if (matchedDriver?.pushToken) {
-      await sendPushNotification({
-        to: matchedDriver.pushToken,
-        title: "🚖 Naya Ride Request!",
-        body: `${pickupAddress} → ${dropAddress} — ₹${finalPrice}`,
-        data: { screen: "DriverMode", rideId: ride.id, type: "new_ride" },
-        priority: "high",
-      });
-    }
+    /* ── Start re-broadcast queue — tries up to 5 nearest drivers ── */
+    startRideBroadcast(ride.id, {
+      vehicleType: finalVehicleType,
+      pickupLat: typeof pickup === "object" ? pickup.lat : undefined,
+      pickupLng: typeof pickup === "object" ? pickup.lng : undefined,
+      pickupAddress,
+      dropAddress,
+      price: finalPrice,
+      userId,
+      distanceKm: distanceKm ? String(distanceKm) : undefined,
+    }).catch((err: unknown) => req.log.error({ err, rideId: ride.id }, "[rides] startRideBroadcast error"));
 
     res.status(200).json({
       success: true,
       rideId: ride.id,
-      message: matchedDriver ? "Driver found! Ride booked successfully" : "Ride booked, searching for driver...",
+      message: "Ride booked! Nearest driver dhundh rahe hain...",
       ride,
-      driver: driverPayload,
+      driver: null,
     });
   } catch (err) {
     req.log.error({ err }, "[rides] create error");
@@ -332,6 +225,9 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
     let cancelFee = 0;
     if (ride.status === "arrived")  cancelFee = 50; // driver was waiting at pickup
     else if (ride.status === "accepted") cancelFee = 30; // driver was on the way
+
+    /* Stop re-broadcast queue if ride was still searching */
+    cancelQueue(rideId);
 
     const [updated] = await db.update(ridesTable).set({
       status: "cancelled",

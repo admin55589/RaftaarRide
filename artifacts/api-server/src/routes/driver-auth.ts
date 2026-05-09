@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { driversTable, ridesTable, usersTable, walletTransactionsTable, planTransactionsTable } from "@workspace/db/schema";
+import { onDriverAccept, onDriverReject } from "../lib/rideQueue";
 import { eq, or, inArray, sum, avg, count, isNotNull, and, sql, desc } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
@@ -566,6 +567,45 @@ router.patch("/driver-auth/rides/:id/status", async (req: Request, res: Response
     emitRideUpdate(rideId, "ride:status", { rideId, status, driverId: payload.driverId });
 
     res.json({ success: true, rideId, status, message: `Status update: ${status}` });
+  } catch {
+    res.status(401).json({ success: false, message: "Invalid token" });
+  }
+});
+
+/* POST /api/driver-auth/rides/:id/accept — driver accepts a ride offer from the broadcast queue */
+router.post("/driver-auth/rides/:id/accept", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) { res.status(401).json({ success: false, message: "Unauthorized" }); return; }
+  try {
+    const payload = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { driverId: number; role: string };
+    if (payload.role !== "driver") { res.status(403).json({ success: false, message: "Driver token required" }); return; }
+
+    const rideId = parseInt(String(req.params.id), 10);
+    const result = await onDriverAccept(rideId, payload.driverId);
+
+    if (!result) {
+      res.status(409).json({ success: false, message: "Ride ab available nahi hai — kisi aur ne le li ya cancel ho gayi" });
+      return;
+    }
+
+    res.json({ success: true, rideId, pin: result.pin, driver: result.driver, message: "Ride accept ho gayi! 🎉" });
+  } catch {
+    res.status(401).json({ success: false, message: "Invalid token" });
+  }
+});
+
+/* POST /api/driver-auth/rides/:id/reject — driver rejects a ride offer, triggers next nearest driver */
+router.post("/driver-auth/rides/:id/reject", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) { res.status(401).json({ success: false, message: "Unauthorized" }); return; }
+  try {
+    const payload = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { driverId: number; role: string };
+    if (payload.role !== "driver") { res.status(403).json({ success: false, message: "Driver token required" }); return; }
+
+    const rideId = parseInt(String(req.params.id), 10);
+    await onDriverReject(rideId, payload.driverId);
+
+    res.json({ success: true, message: "Reject ho gaya — agli request ka wait karo" });
   } catch {
     res.status(401).json({ success: false, message: "Invalid token" });
   }

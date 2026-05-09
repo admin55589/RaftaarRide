@@ -773,8 +773,34 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
 
   const handleAccept = async (id: string) => {
     const req = requests.find((r) => r.id === id);
-    if (!req) return;
+    if (!req || !driverToken) return;
+
+    /* Remove from local list immediately so UI feels snappy */
     setRequests((rs) => rs.filter((r) => r.id !== id));
+
+    try {
+      /* Tell server: driver accepted → server assigns driver in DB + emits to user */
+      const res = await fetch(`${API_BASE}/driver-auth/rides/${req.rideId}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${driverToken}` },
+      });
+      const data = await res.json() as { success: boolean; message?: string };
+
+      if (!res.ok || !data.success) {
+        /* Race condition: someone else took it or ride was cancelled */
+        showNotification({
+          title: "Ride Nahi Mili ❌",
+          body: data.message ?? "Yeh ride ab available nahi hai",
+          type: "error", icon: "❌", duration: 4000,
+        });
+        return;
+      }
+    } catch {
+      showNotification({ title: "Network Error", body: "Dobara try karo", type: "error", icon: "❌", duration: 3000 });
+      return;
+    }
+
+    /* Success — set active ride state */
     setChatMessages([]);
     setUnreadCount(0);
     setActiveRide({
@@ -790,21 +816,10 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
     const socket = connectSocket();
     socket.emit("ride:join", req.rideId);
 
-    /* Notify backend: driver accepted the ride */
-    if (driverToken) {
-      fetch(`${API_BASE}/driver-auth/rides/${req.rideId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${driverToken}` },
-        body: JSON.stringify({ status: "accepted" }),
-      }).catch(() => {});
-    }
-
     showNotification({
       title: "Ride Accept Ho Gayi! ✅",
       body: `${req.from} → ${req.to} • ₹${req.price} milenge`,
-      type: "success",
-      icon: "✅",
-      duration: 4000,
+      type: "success", icon: "✅", duration: 4000,
     });
   };
 
@@ -866,20 +881,18 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
   const handleReject = (id: string) => {
     const req = requests.find((r) => r.id === id);
     setRequests((rs) => rs.filter((r) => r.id !== id));
-    /* Notify backend: driver rejected → cancel this ride */
+    /* Tell server: driver rejected — server will try next nearest driver.
+       Does NOT cancel the ride for the user! */
     if (driverToken && req) {
-      fetch(`${API_BASE}/driver-auth/rides/${req.rideId}/status`, {
-        method: "PATCH",
+      fetch(`${API_BASE}/driver-auth/rides/${req.rideId}/reject`, {
+        method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${driverToken}` },
-        body: JSON.stringify({ status: "cancelled" }),
       }).catch(() => {});
     }
     showNotification({
-      title: "Request Reject Ki",
+      title: "Request Reject Ki ⏭️",
       body: "Agli request ka intezaar karo",
-      type: "warning",
-      icon: "⏭️",
-      duration: 3000,
+      type: "warning", icon: "⏭️", duration: 3000,
     });
   };
 

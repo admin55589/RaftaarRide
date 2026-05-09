@@ -1,8 +1,9 @@
 import { createServer } from "http";
 import app from "./app";
-import { initSocket } from "./lib/socket";
+import { initSocket, registerRideQueueHandlers } from "./lib/socket";
 import { startCron } from "./lib/cron";
 import { logger } from "./lib/logger";
+import { setSocketIO, onDriverReject, onDriverAccept } from "./lib/rideQueue";
 
 const rawPort = process.env["PORT"];
 
@@ -19,7 +20,12 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 const httpServer = createServer(app);
-initSocket(httpServer);
+const socketIO = initSocket(httpServer);
+
+/* Wire rideQueue ↔ socket (no circular imports) */
+setSocketIO(socketIO);
+registerRideQueueHandlers({ onDriverReject, onDriverAccept });
+
 startCron();
 
 httpServer.listen(port, () => {
