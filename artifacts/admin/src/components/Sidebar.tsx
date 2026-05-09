@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   Zap,
   TrendingUp,
+  HeadphonesIcon,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
@@ -82,6 +83,20 @@ export function Sidebar({ isLive = false }: SidebarProps) {
     refetchInterval: 20000,
   });
 
+  const { data: supportOpen = 0 } = useQuery<number>({
+    queryKey: ["support-open-count"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/admin/support`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return 0;
+      const d = await res.json();
+      return Array.isArray(d.chats) ? d.chats.filter((c: { status: string }) => c.status === "open").length : 0;
+    },
+    enabled: !!token,
+    refetchInterval: 20000,
+  });
+
   const nav = [
     { label: "Dashboard", href: "/", icon: LayoutDashboard, badge: 0 },
     { label: "Users", href: "/users", icon: Users, badge: 0 },
@@ -97,6 +112,7 @@ export function Sidebar({ isLive = false }: SidebarProps) {
     { label: "Surge Pricing", href: "/surge", icon: Zap, badge: 0 },
     { label: "Earnings Report", href: "/earnings", icon: TrendingUp, badge: 0 },
     { label: "Live Map", href: "/live-map", icon: Map, badge: 0 },
+    { label: "Support Chat", href: "/support", icon: HeadphonesIcon, badge: supportOpen },
     { label: "Chat History", href: "/chat-history", icon: MessageSquare, badge: 0 },
     { label: "Broadcast", href: "/broadcast", icon: Bell, badge: 0 },
   ];

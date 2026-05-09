@@ -334,13 +334,31 @@ export function ProfileScreen() {
           </Animated.View>
         )}
 
-        {/* ── Report Issue ── */}
+        {/* ── Help & Support ── */}
         <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+          <Pressable
+            onPress={() => setScreen("support")}
+            style={({ pressed }) => [
+              styles.listRow,
+              { borderColor: colors.border, backgroundColor: pressed ? colors.secondary : "transparent", marginTop: 16 },
+            ]}
+          >
+            <Text style={{ fontSize: 18 }}>🆘</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.listRowText, { color: colors.foreground }]}>Help & Support</Text>
+              <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 1 }}>FAQ · Live chat with support</Text>
+            </View>
+            <Text style={{ color: colors.mutedForeground, fontSize: 20 }}>›</Text>
+          </Pressable>
+        </Animated.View>
+
+        {/* ── Report Issue ── */}
+        <Animated.View entering={FadeInDown.delay(330).duration(400)}>
           <Pressable
             onPress={() => setScreen("dispute_report")}
             style={({ pressed }) => [
               styles.listRow,
-              { borderColor: colors.border, backgroundColor: pressed ? colors.secondary : "transparent", marginTop: 16 },
+              { borderColor: colors.border, backgroundColor: pressed ? colors.secondary : "transparent", marginTop: 8 },
             ]}
           >
             <Text style={{ fontSize: 18 }}>⚠️</Text>

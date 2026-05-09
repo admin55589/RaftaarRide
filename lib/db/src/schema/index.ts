@@ -225,6 +225,27 @@ export const disputesTable = pgTable("disputes", {
 });
 export type Dispute = typeof disputesTable.$inferSelect;
 
+export const supportChatsTable = pgTable("support_chats", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => usersTable.id),
+  driverId: integer("driver_id").references(() => driversTable.id),
+  role: text("role").notNull(), /* 'user' | 'driver' */
+  subject: text("subject").notNull(),
+  status: text("status").notNull().default("open"), /* 'open' | 'resolved' */
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type SupportChat = typeof supportChatsTable.$inferSelect;
+
+export const supportMessagesTable = pgTable("support_messages", {
+  id: serial("id").primaryKey(),
+  chatId: integer("chat_id").notNull().references(() => supportChatsTable.id),
+  senderRole: text("sender_role").notNull(), /* 'user' | 'driver' | 'admin' */
+  message: text("message").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type SupportMessage = typeof supportMessagesTable.$inferSelect;
+
 export const surgeSettingsTable = pgTable("surge_settings", {
   id: serial("id").primaryKey(),
   multiplier: numeric("multiplier", { precision: 4, scale: 2 }).notNull().default("1.00"),

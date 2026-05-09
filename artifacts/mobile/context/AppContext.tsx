@@ -43,7 +43,8 @@ export type AppScreen =
   | "driver_mode"
   | "profile"
   | "dispute_report"
-  | "package_booking";
+  | "package_booking"
+  | "support";
 
 export interface SavedPlace {
   id: string;

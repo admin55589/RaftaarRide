@@ -36,6 +36,7 @@ import { RideHistoryScreen } from "@/screens/RideHistoryScreen";
 import { ProfileScreen } from "@/screens/ProfileScreen";
 import { DisputeReportScreen } from "@/screens/DisputeReportScreen";
 import { PackageDeliveryScreen } from "@/screens/PackageDeliveryScreen";
+import { SupportScreen } from "@/screens/SupportScreen";
 
 const MONTHS_SHORT = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 
@@ -112,7 +113,7 @@ const USER_TABS = [
 ];
 
 
-const RIDE_SCREENS = ["booking", "searching", "driver_assigned", "live_tracking", "payment", "payment_success", "profile", "dispute_report", "package_booking"];
+const RIDE_SCREENS = ["booking", "searching", "driver_assigned", "live_tracking", "payment", "payment_success", "profile", "dispute_report", "package_booking", "support"];
 
 export default function MainScreen() {
   const colors = useColors();
@@ -154,6 +155,7 @@ export default function MainScreen() {
         case "profile":         return <ProfileScreen />;
         case "dispute_report":  return <DisputeReportScreen />;
         case "package_booking": return <PackageDeliveryScreen />;
+        case "support":         return <SupportScreen />;
       }
     }
 

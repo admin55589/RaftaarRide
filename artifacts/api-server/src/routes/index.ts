@@ -14,6 +14,7 @@ import pagesRouter from "./pages";
 import chatRouter from "./chat";
 import disputesRouter from "./disputes";
 import mapsRouter from "./maps";
+import supportRouter from "./support";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(voiceRouter);
 router.use(chatRouter);
 router.use(disputesRouter);
 router.use(mapsRouter);
+router.use(supportRouter);
 
 export default router;
