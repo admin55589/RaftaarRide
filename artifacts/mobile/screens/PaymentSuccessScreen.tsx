@@ -28,6 +28,7 @@ import { useAuth } from "@/context/AuthContext";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { BASE_URL } from "@/lib/api";
+import { downloadReceipt } from "@/lib/generateReceipt";
 
 function SuccessBurst() {
   const scale = useSharedValue(0);
@@ -129,6 +130,8 @@ export function PaymentSuccessScreen() {
     setFareBreakdown,
   } = useApp();
 
+  const [receiptLoading, setReceiptLoading] = useState(false);
+
   const price = finalPaymentPrice > 0 ? finalPaymentPrice : 0;
   const duration = Math.round(estimatedTime * (selectedVehicle === "bike" ? 0.7 : selectedVehicle === "auto" ? 0.9 : 1));
   const distanceKm = fareBreakdown?.distanceKm ?? estimatedDistanceKm ?? 0;
@@ -144,6 +147,36 @@ export function PaymentSuccessScreen() {
     setFinalPaymentPrice(0);
     setFareBreakdown(null);
     setScreen("home");
+  };
+
+  const handleDownloadReceipt = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setReceiptLoading(true);
+    try {
+      await downloadReceipt({
+        rideId: lastCompletedRideId,
+        dateTime: new Date(),
+        pickup: pickup ?? "—",
+        destination: destination ?? "—",
+        distanceKm: distanceKm as number,
+        durationMin: duration,
+        vehicleType: selectedVehicle ?? "prime",
+        paymentMethod: lastPaymentMethod,
+        baseFare: fareBreakdown?.rideFare ?? price,
+        platformFee: fareBreakdown?.platformFee ?? 0,
+        distanceCharge: fareBreakdown?.distanceCharge ?? 0,
+        waitingCharge: fareBreakdown?.waitingCharge ?? 0,
+        promoDiscount: fareBreakdown?.promoDiscount ?? 0,
+        promoCode: fareBreakdown?.promoCode ?? "",
+        totalPaid: price,
+        driverName: assignedDriver?.name ?? "",
+        driverVehicle: assignedDriver?.vehicle ?? "",
+        driverVehicleNumber: assignedDriver?.vehicleNumber ?? "",
+        driverRating: assignedDriver?.rating ?? 0,
+      });
+    } finally {
+      setReceiptLoading(false);
+    }
   };
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
@@ -275,6 +308,32 @@ export function PaymentSuccessScreen() {
 
         <Animated.View entering={FadeInDown.delay(880).springify()} style={s.actionSection}>
           <PrimaryButton label="Ghar Wapis Jao 🏠" onPress={handleGoHome} />
+
+          {/* Receipt Download */}
+          <Pressable
+            onPress={handleDownloadReceipt}
+            disabled={receiptLoading}
+            style={({ pressed }) => [
+              s.receiptBtn,
+              {
+                borderColor: colors.primary + "66",
+                backgroundColor: pressed
+                  ? colors.primary + "18"
+                  : colors.primary + "0D",
+                opacity: receiptLoading ? 0.7 : 1,
+              },
+            ]}
+          >
+            {receiptLoading ? (
+              <ActivityIndicator size="small" color="#F5A623" />
+            ) : (
+              <Text style={s.receiptBtnIcon}>📄</Text>
+            )}
+            <Text style={[s.receiptBtnText, { color: colors.primary }]}>
+              {receiptLoading ? "Generating…" : "Receipt Download karo"}
+            </Text>
+          </Pressable>
+
           <Pressable
             onPress={() => setScreen("home")}
             style={[s.historyBtn, { borderColor: colors.border }]}
@@ -386,6 +445,17 @@ const s = StyleSheet.create({
   ratingDone: { color: "#86EFAC", fontFamily: "Inter_600SemiBold", fontSize: 13, textAlign: "center" },
 
   actionSection: { gap: 12, paddingTop: 8 },
+  receiptBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    paddingVertical: 13,
+  },
+  receiptBtnIcon: { fontSize: 16 },
+  receiptBtnText: { fontSize: 14, fontFamily: "Inter_700Bold" },
   historyBtn: {
     borderRadius: 14,
     borderWidth: 1,
