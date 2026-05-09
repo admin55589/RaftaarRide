@@ -4,9 +4,16 @@ import { logger } from "./logger";
 
 let io: Server;
 
+function buildSocketCorsOrigin(): string | string[] | boolean {
+  if (process.env.NODE_ENV !== "production") return true;
+  const raw = process.env.ALLOWED_ORIGINS ?? "";
+  if (!raw.trim()) return false;
+  return raw.split(",").map((o) => o.trim()).filter(Boolean);
+}
+
 export function initSocket(httpServer: HttpServer): Server {
   io = new Server(httpServer, {
-    cors: { origin: "*", methods: ["GET", "POST", "PATCH"] },
+    cors: { origin: buildSocketCorsOrigin(), methods: ["GET", "POST", "PATCH"], credentials: true },
     path: "/api/socket.io",
     transports: ["websocket", "polling"],
   });

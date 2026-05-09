@@ -1,5 +1,6 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import pinoHttp from "pino-http";
 import path from "path";
 import router from "./routes";
@@ -14,59 +15,119 @@ import {
 
 const app: Express = express();
 
+const IS_DEV = process.env.NODE_ENV !== "production";
+
+/* ─── CORS ──────────────────────────────────────────────────────────────
+ * Dev  : allow everything (localhost, Replit preview, Expo)
+ * Prod : only origins listed in ALLOWED_ORIGINS env var.
+ *        Set on Railway dashboard:
+ *        ALLOWED_ORIGINS=https://admin.raftaarride.com,https://raftaarride-admin.vercel.app
+ *
+ * NOTE: React Native mobile app is NOT a browser — it is never
+ *       subject to CORS. Only the web admin panel needs this.
+ * ─────────────────────────────────────────────────────────────────────── */
+function buildCorsOrigin(): cors.CorsOptions["origin"] {
+  if (IS_DEV) return true;
+
+  const raw = process.env.ALLOWED_ORIGINS ?? "";
+  if (!raw.trim()) {
+    logger.warn(
+      "ALLOWED_ORIGINS env var is not set in production. " +
+      "Set it on Railway: ALLOWED_ORIGINS=https://admin.raftaarride.com"
+    );
+    return false;
+  }
+
+  const list = raw.split(",").map((o) => o.trim()).filter(Boolean);
+  return (origin, callback) => {
+    if (!origin) { callback(null, true); return; }
+    if (list.includes(origin)) {
+      callback(null, true);
+    } else {
+      logger.warn({ origin }, "[CORS] Blocked request from unknown origin");
+      callback(new Error(`CORS: origin '${origin}' is not allowed`));
+    }
+  };
+}
+
+/* ─── Helmet — Security Headers ─────────────────────────────────────────
+ * Adds: X-Frame-Options, X-Content-Type-Options, X-XSS-Protection,
+ *       Strict-Transport-Security (HSTS), Referrer-Policy, etc.
+ * Customised: Razorpay + Google Maps scripts allowed in CSP
+ * ─────────────────────────────────────────────────────────────────────── */
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "https://checkout.razorpay.com",
+          "https://maps.googleapis.com",
+          "https://maps.gstatic.com",
+        ],
+        frameSrc: ["'self'", "https://api.razorpay.com"],
+        imgSrc: ["'self'", "data:", "https://*.googleapis.com", "https://*.gstatic.com"],
+        connectSrc: [
+          "'self'",
+          "https://exp.host",
+          "https://api.razorpay.com",
+          "https://maps.googleapis.com",
+        ],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  })
+);
+
 app.use(
   pinoHttp({
     logger,
     serializers: {
       req(req) {
-        return {
-          id: req.id,
-          method: req.method,
-          url: req.url?.split("?")[0],
-        };
+        return { id: req.id, method: req.method, url: req.url?.split("?")[0] };
       },
       res(res) {
-        return {
-          statusCode: res.statusCode,
-        };
+        return { statusCode: res.statusCode };
       },
     },
   }),
 );
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
-  : true;
-
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use(cors({ origin: buildCorsOrigin(), credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.set("trust proxy", 1);
 
+/* ─── Rate Limiters (applied BEFORE router — cannot be bypassed) ──────── */
 app.use("/api", globalRateLimiter);
 
-// OTP bhejne wale sab endpoints — phone ke hisaab se 3/10min
-app.post("/api/auth/send-otp", otpRateLimiter);
-app.post("/api/auth/forgot-password", otpRateLimiter);
+app.post("/api/auth/send-otp",             otpRateLimiter);
+app.post("/api/auth/forgot-password",      otpRateLimiter);
 app.post("/api/driver-auth/forgot-password", otpRateLimiter);
 
-// OTP verify — brute-force se bachao (IP + 10 attempts/15min)
-app.post("/api/auth/verify-otp", loginRateLimiter);
-app.post("/api/auth/reset-password", loginRateLimiter);
+app.post("/api/auth/verify-otp",           loginRateLimiter);
+app.post("/api/auth/reset-password",       loginRateLimiter);
 app.post("/api/driver-auth/reset-password", loginRateLimiter);
 
-// Login — IP ke hisaab se 10 attempts/15min
-app.post("/api/auth/login", loginRateLimiter);
-app.post("/api/driver-auth/login", loginRateLimiter);
+app.post("/api/auth/login",                loginRateLimiter);
+app.post("/api/driver-auth/login",         loginRateLimiter);
 
-// Registration — IP ke hisaab se 5/hour
-app.post("/api/auth/register", registerRateLimiter);
-app.post("/api/driver-auth/register", registerRateLimiter);
+app.post("/api/auth/register",             registerRateLimiter);
+app.post("/api/driver-auth/register",      registerRateLimiter);
 
-// Admin login — sabse strict: 5 attempts/hour per IP
-app.post("/api/admin/login", adminLoginRateLimiter);
-app.post("/api/admin/firebase-verify", adminLoginRateLimiter);
+app.post("/api/admin/login",               adminLoginRateLimiter);
+app.post("/api/admin/firebase-verify",     adminLoginRateLimiter);
+
+/* ─── CORS error handler ─────────────────────────────────────────────── */
+app.use((err: Error, _req: Request, res: Response, next: NextFunction) => {
+  if (err.message?.startsWith("CORS:")) {
+    res.status(403).json({ error: "CORS policy violation", message: err.message });
+    return;
+  }
+  next(err);
+});
 
 app.use("/api/assets", express.static(path.join(process.cwd(), "public")));
 app.use("/api", router);
