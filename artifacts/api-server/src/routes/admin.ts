@@ -1302,6 +1302,17 @@ router.get("/admin/earnings", authMiddleware, async (req: Request, res: Response
     const totalDriverEarnings = rides.reduce((s, r) => s + parseFloat(String(r.driverEarning ?? 0)), 0);
     const totalPlatformFees = parseFloat((totalRevenue - totalDriverEarnings).toFixed(2));
 
+    /* Fetch penalty revenue (platform_revenue type, no userId/driverId) in the same date range */
+    const penaltyConditions: Parameters<typeof and>[0][] = [eq(walletTransactionsTable.type, "platform_revenue")];
+    if (from) penaltyConditions.push(gte(walletTransactionsTable.createdAt, new Date(from)));
+    if (to) penaltyConditions.push(lte(walletTransactionsTable.createdAt, new Date(to + "T23:59:59")));
+    const penaltyRows = await db
+      .select({ amount: walletTransactionsTable.amount, description: walletTransactionsTable.description, createdAt: walletTransactionsTable.createdAt })
+      .from(walletTransactionsTable)
+      .where(and(...penaltyConditions))
+      .orderBy(desc(walletTransactionsTable.createdAt));
+    const totalPenaltyRevenue = parseFloat(penaltyRows.reduce((s, r) => s + parseFloat(String(r.amount ?? 0)), 0).toFixed(2));
+
     const byPaymentMethod: Record<string, { count: number; revenue: number }> = {};
     const byVehicle: Record<string, { count: number; revenue: number }> = {};
     for (const r of rides) {
@@ -1318,11 +1329,17 @@ router.get("/admin/earnings", authMiddleware, async (req: Request, res: Response
     res.json({
       success: true,
       summary: {
-        totalRides: rides.length, totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+        totalRides: rides.length,
+        totalRevenue: parseFloat(totalRevenue.toFixed(2)),
         totalDriverEarnings: parseFloat(totalDriverEarnings.toFixed(2)),
-        totalPlatformFees, byPaymentMethod, byVehicle,
+        totalPlatformFees,
+        totalPenaltyRevenue,
+        totalAdminRevenue: parseFloat((totalPlatformFees + totalPenaltyRevenue).toFixed(2)),
+        byPaymentMethod,
+        byVehicle,
       },
       rides,
+      penaltyTransactions: penaltyRows,
     });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });

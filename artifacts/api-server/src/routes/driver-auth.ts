@@ -601,11 +601,19 @@ router.patch("/driver-auth/rides/:id/status", async (req: Request, res: Response
               .set({ walletBalance: String(newDrvBal) })
               .where(eq(driversTable.id, payload.driverId));
 
+            /* Debit from driver wallet */
             await db.insert(walletTransactionsTable).values({
               driverId: payload.driverId,
               type: "debit",
               amount: String(-deductAmt),
-              description: `Cancel penalty — aaj ${todayCancels} rides cancel ki hain. ₹${deductAmt} penalty.`,
+              description: `Cancel penalty — aaj ${todayCancels} rides cancel ki hain. ₹${deductAmt} platform ko.`,
+            });
+
+            /* Credit to platform/admin revenue (no userId, no driverId) */
+            await db.insert(walletTransactionsTable).values({
+              type: "platform_revenue",
+              amount: String(deductAmt),
+              description: `Cancel penalty revenue — Driver #${payload.driverId} (${todayCancels} cancels today, Ride #${rideId})`,
             });
           }
 

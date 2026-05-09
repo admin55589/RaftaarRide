@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, IndianRupee, Car, RefreshCw, Download } from "lucide-react";
+import { TrendingUp, IndianRupee, Car, RefreshCw, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/apiBase";
 
@@ -43,6 +43,7 @@ export function EarningsPage() {
 
   const summary = data?.summary;
   const rides = data?.rides ?? [];
+  const penaltyTransactions = data?.penaltyTransactions ?? [];
 
   const PRESETS = [
     { label: "Today", from: today, to: today },
@@ -97,11 +98,12 @@ export function EarningsPage() {
       ) : (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             {[
               { label: "Total Rides", value: summary?.totalRides ?? 0, icon: Car, color: "text-blue-400", bg: "bg-blue-500/10", isCount: true },
               { label: "Gross Revenue", value: summary?.totalRevenue ?? 0, icon: IndianRupee, color: "text-green-400", bg: "bg-green-500/10" },
               { label: "Platform Fees", value: summary?.totalPlatformFees ?? 0, icon: TrendingUp, color: "text-purple-400", bg: "bg-purple-500/10" },
+              { label: "Cancel Penalties", value: summary?.totalPenaltyRevenue ?? 0, icon: AlertTriangle, color: "text-red-400", bg: "bg-red-500/10" },
               { label: "Driver Earnings", value: summary?.totalDriverEarnings ?? 0, icon: IndianRupee, color: "text-orange-400", bg: "bg-orange-500/10" },
             ].map(card => (
               <div key={card.label} className="bg-card border border-border rounded-xl p-4">
@@ -205,6 +207,43 @@ export function EarningsPage() {
                         </tr>
                       );
                     })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Cancel Penalty Revenue table */}
+          <div className="bg-card border border-red-500/20 rounded-xl overflow-hidden">
+            <div className="p-4 border-b border-red-500/20 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-400" />
+              <h3 className="font-bold text-foreground">Cancel Penalty Revenue ({penaltyTransactions.length})</h3>
+              {(summary?.totalPenaltyRevenue ?? 0) > 0 && (
+                <span className="ml-auto text-red-400 font-bold text-sm">{fmt(summary?.totalPenaltyRevenue ?? 0)} total</span>
+              )}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    {["Date", "Description", "Amount"].map(h => (
+                      <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {penaltyTransactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">Is period mein koi cancel penalty nahi</td>
+                    </tr>
+                  ) : (
+                    penaltyTransactions.map((p: any, i: number) => (
+                      <tr key={i} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{fmtDate(p.createdAt)}</td>
+                        <td className="px-4 py-3 text-foreground text-xs">{p.description}</td>
+                        <td className="px-4 py-3 text-red-400 font-bold">+{fmt(parseFloat(p.amount ?? 0))}</td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
