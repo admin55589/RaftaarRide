@@ -645,7 +645,7 @@ router.post("/admin/drivers/:id/wallet/credit", authMiddleware, async (req: Requ
 
   try {
     const [driver] = await db
-      .select({ walletBalance: driversTable.walletBalance, name: driversTable.name, phone: driversTable.phone })
+      .select({ walletBalance: driversTable.walletBalance, name: driversTable.name, phone: driversTable.phone, pendingCommission: driversTable.pendingCommission })
       .from(driversTable).where(eq(driversTable.id, driverId)).limit(1);
 
     if (!driver) {
@@ -654,11 +654,19 @@ router.post("/admin/drivers/:id/wallet/credit", authMiddleware, async (req: Requ
     }
 
     const prevBalance = Number(driver.walletBalance ?? 0);
-    const newBalance = prevBalance + parsedAmount;
+    const pendingAmt = Number(driver.pendingCommission ?? 0);
     const now = new Date().toISOString();
 
+    /* Auto-recover pending commission from this credit */
+    const autoDeduct = Math.min(pendingAmt, parsedAmount);
+    const newBalance = parseFloat((prevBalance + parsedAmount - autoDeduct).toFixed(2));
+    const newPendingCommission = parseFloat((pendingAmt - autoDeduct).toFixed(2));
+
     await db.update(driversTable)
-      .set({ walletBalance: newBalance.toFixed(2) })
+      .set({
+        walletBalance: newBalance.toFixed(2),
+        pendingCommission: newPendingCommission.toFixed(2),
+      })
       .where(eq(driversTable.id, driverId));
 
     const description = note?.trim()
@@ -671,6 +679,21 @@ router.post("/admin/drivers/:id/wallet/credit", authMiddleware, async (req: Requ
       amount: parsedAmount.toFixed(2),
       description,
     });
+
+    /* Log auto-deducted commission if any */
+    if (autoDeduct > 0) {
+      await db.insert(walletTransactionsTable).values({
+        driverId,
+        type: "commission_debit",
+        amount: String(-autoDeduct),
+        description: `Pending commission ₹${autoDeduct.toFixed(2)} admin credit se auto-recover ki gayi ✅`,
+      });
+      if (newPendingCommission === 0) {
+        await db.update(ridesTable)
+          .set({ commissionStatus: "auto_collected" })
+          .where(and(eq(ridesTable.driverId, driverId), eq(ridesTable.commissionStatus, "pending")));
+      }
+    }
 
     req.log?.info({ driverId, driver: driver.name, prevBalance, parsedAmount, newBalance }, "Admin manual wallet credit");
 
