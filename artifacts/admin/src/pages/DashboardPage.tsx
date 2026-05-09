@@ -17,13 +17,6 @@ import { StatusBadge, VehicleBadge, formatCurrency, formatDate } from "@/compone
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/apiBase";
 
-function getSurgeInfo() {
-  const hour = new Date().getHours();
-  if (hour >= 8 && hour < 10) return { multiplier: 1.2, label: "1.2x", reason: "Morning peak hours", isActive: true };
-  if (hour >= 18 && hour < 21) return { multiplier: 1.2, label: "1.2x", reason: "Evening peak hours", isActive: true };
-  if (hour >= 22 || hour < 5) return { multiplier: 1.1, label: "1.1x", reason: "Late night charges", isActive: true };
-  return { multiplier: 1.0, label: "Normal", reason: "No surge", isActive: false };
-}
 
 function StatCard({
   label,
@@ -516,10 +509,26 @@ function PendingCommissionsCard() {
 }
 
 export function DashboardPage() {
+  const { token } = useAuth();
   const { data: stats, isLoading: statsLoading } = useGetAdminStats();
   const { data: recentRides } = useGetRecentRides();
   const { data: analytics } = useGetDailyAnalytics();
-  const surge = getSurgeInfo();
+  const { data: surgeData } = useQuery({
+    queryKey: ["admin-surge-widget"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/admin/surge`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.surge as { multiplier: string; isActive: boolean; reason: string | null } | null;
+    },
+    enabled: !!token,
+    staleTime: 30_000,
+  });
+  const surgeActive = surgeData?.isActive ?? false;
+  const surgeLabel = surgeActive ? `${Number(surgeData?.multiplier ?? 1).toFixed(2)}x` : "Normal";
+  const surgeReason = surgeData?.reason ?? (surgeActive ? "Surge active" : "No surge");
 
   const chartData = analytics?.slice(-14) ?? [];
 
@@ -530,28 +539,28 @@ export function DashboardPage() {
           <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground text-sm">RaftaarRide overview & analytics</p>
         </div>
-        {/* Surge Indicator */}
+        {/* Surge Indicator — live from DB */}
         <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border ${
-          surge.isActive
+          surgeActive
             ? "bg-amber-500/10 border-amber-500/30"
             : "bg-green-500/10 border-green-500/30"
         }`}>
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${surge.isActive ? "bg-amber-500/20" : "bg-green-500/20"}`}>
-            <Zap className={`w-4 h-4 ${surge.isActive ? "text-amber-400" : "text-green-400"}`} />
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${surgeActive ? "bg-amber-500/20" : "bg-green-500/20"}`}>
+            <Zap className={`w-4 h-4 ${surgeActive ? "text-amber-400" : "text-green-400"}`} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className={`text-base font-bold ${surge.isActive ? "text-amber-400" : "text-green-400"}`}>
-                {surge.label}
+              <span className={`text-base font-bold ${surgeActive ? "text-amber-400" : "text-green-400"}`}>
+                {surgeLabel}
               </span>
-              {surge.isActive && (
+              {surgeActive && (
                 <span className="relative flex w-1.5 h-1.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
                   <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-amber-400" />
                 </span>
               )}
             </div>
-            <div className="text-xs text-muted-foreground">{surge.reason}</div>
+            <div className="text-xs text-muted-foreground">{surgeReason}</div>
           </div>
         </div>
       </div>

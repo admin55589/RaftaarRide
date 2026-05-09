@@ -86,309 +86,307 @@ router.post("/admin/firebase-verify", async (req: Request, res: Response) => {
 });
 
 router.get("/admin/stats", authMiddleware, async (_req: Request, res: Response) => {
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
 
-  const thisMonthStart = new Date();
-  thisMonthStart.setDate(1);
-  thisMonthStart.setHours(0, 0, 0, 0);
+    const thisMonthStart = new Date();
+    thisMonthStart.setDate(1);
+    thisMonthStart.setHours(0, 0, 0, 0);
 
-  const [
-    totalUsersResult,
-    totalDriversResult,
-    totalRidesResult,
-    completedRidesResult,
-    cancelledRidesResult,
-    earningsResult,
-    earningsThisMonthResult,
-    activeDriversResult,
-    ridesThisMonthResult,
-    avgRatingResult,
-    totalFareAllResult,
-    totalFareMonthResult,
-  ] = await Promise.all([
-    db.select({ count: sql<number>`count(*)` }).from(usersTable).then(r => r[0]),
-    db.select({ count: sql<number>`count(*)` }).from(driversTable).then(r => r[0]),
-    db.select({ count: sql<number>`count(*)` }).from(ridesTable).then(r => r[0]),
-    db.select({ count: sql<number>`count(*)` }).from(ridesTable).where(eq(ridesTable.status, "completed")).then(r => r[0]),
-    db.select({ count: sql<number>`count(*)` }).from(ridesTable).where(eq(ridesTable.status, "cancelled")).then(r => r[0]),
-    db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(eq(ridesTable.status, "completed")).then(r => r[0]),
-    db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, thisMonthStart))).then(r => r[0]),
-    db.select({ count: sql<number>`count(*)` }).from(driversTable).where(eq(driversTable.status, "active")).then(r => r[0]),
-    db.select({ count: sql<number>`count(*)` }).from(ridesTable).where(gte(ridesTable.createdAt, thisMonthStart)).then(r => r[0]),
-    db.select({ avg: sql<number>`coalesce(avg(rating::numeric), 0)` }).from(driversTable).then(r => r[0]),
-    db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(ne(ridesTable.status, "cancelled")).then(r => r[0]),
-    db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(and(ne(ridesTable.status, "cancelled"), gte(ridesTable.createdAt, thisMonthStart))).then(r => r[0]),
-  ]);
+    const [
+      totalUsersResult,
+      totalDriversResult,
+      totalRidesResult,
+      completedRidesResult,
+      cancelledRidesResult,
+      earningsResult,
+      earningsThisMonthResult,
+      activeDriversResult,
+      ridesThisMonthResult,
+      avgRatingResult,
+      totalFareAllResult,
+      totalFareMonthResult,
+    ] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` }).from(usersTable).then(r => r[0]),
+      db.select({ count: sql<number>`count(*)` }).from(driversTable).then(r => r[0]),
+      db.select({ count: sql<number>`count(*)` }).from(ridesTable).then(r => r[0]),
+      db.select({ count: sql<number>`count(*)` }).from(ridesTable).where(eq(ridesTable.status, "completed")).then(r => r[0]),
+      db.select({ count: sql<number>`count(*)` }).from(ridesTable).where(eq(ridesTable.status, "cancelled")).then(r => r[0]),
+      db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(eq(ridesTable.status, "completed")).then(r => r[0]),
+      db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, thisMonthStart))).then(r => r[0]),
+      db.select({ count: sql<number>`count(*)` }).from(driversTable).where(eq(driversTable.status, "active")).then(r => r[0]),
+      db.select({ count: sql<number>`count(*)` }).from(ridesTable).where(gte(ridesTable.createdAt, thisMonthStart)).then(r => r[0]),
+      db.select({ avg: sql<number>`coalesce(avg(rating::numeric), 0)` }).from(driversTable).then(r => r[0]),
+      db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(ne(ridesTable.status, "cancelled")).then(r => r[0]),
+      db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable).where(and(ne(ridesTable.status, "cancelled"), gte(ridesTable.createdAt, thisMonthStart))).then(r => r[0]),
+    ]);
 
-  const convFeeExpr = sql<number>`coalesce(sum(
-    CASE vehicle_type
-      WHEN 'bike'  THEN 4
-      WHEN 'auto'  THEN 6
-      WHEN 'cab'   THEN 12
-      WHEN 'prime' THEN 12
-      WHEN 'suv'   THEN 15
-      ELSE 12
-    END
-  ), 0)`;
+    const convFeeExpr = sql<number>`coalesce(sum(
+      CASE vehicle_type
+        WHEN 'bike'  THEN 4
+        WHEN 'auto'  THEN 6
+        WHEN 'cab'   THEN 12
+        WHEN 'prime' THEN 12
+        WHEN 'suv'   THEN 15
+        ELSE 12
+      END
+    ), 0)`;
 
-  const [convFeeTotalResult, convFeeTodayResult, convFeeMonthResult] = await Promise.all([
-    db.select({ total: convFeeExpr }).from(ridesTable).where(eq(ridesTable.status, "completed")).then(r => r[0]),
-    db.select({ total: convFeeExpr }).from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, todayStart))).then(r => r[0]),
-    db.select({ total: convFeeExpr }).from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, thisMonthStart))).then(r => r[0]),
-  ]);
+    const [convFeeTotalResult, convFeeTodayResult, convFeeMonthResult] = await Promise.all([
+      db.select({ total: convFeeExpr }).from(ridesTable).where(eq(ridesTable.status, "completed")).then(r => r[0]),
+      db.select({ total: convFeeExpr }).from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, todayStart))).then(r => r[0]),
+      db.select({ total: convFeeExpr }).from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, thisMonthStart))).then(r => r[0]),
+    ]);
 
-  res.json({
-    totalRides: Number(totalRidesResult?.count ?? 0),
-    totalUsers: Number(totalUsersResult?.count ?? 0),
-    totalDrivers: Number(totalDriversResult?.count ?? 0),
-    completedRides: Number(completedRidesResult?.count ?? 0),
-    cancelledRides: Number(cancelledRidesResult?.count ?? 0),
-    totalEarnings: Number(earningsResult?.total ?? 0),
-    activeDrivers: Number(activeDriversResult?.count ?? 0),
-    ridesThisMonth: Number(ridesThisMonthResult?.count ?? 0),
-    earningsThisMonth: Number(earningsThisMonthResult?.total ?? 0),
-    avgRating: Number(Number(avgRatingResult?.avg ?? 0).toFixed(1)),
-    totalFareAll: Number(totalFareAllResult?.total ?? 0),
-    totalFareThisMonth: Number(totalFareMonthResult?.total ?? 0),
-    convenienceFeeTotal: Number(convFeeTotalResult?.total ?? 0),
-    convenienceFeeToday: Number(convFeeTodayResult?.total ?? 0),
-    convenienceFeeThisMonth: Number(convFeeMonthResult?.total ?? 0),
-  });
+    res.json({
+      totalRides: Number(totalRidesResult?.count ?? 0),
+      totalUsers: Number(totalUsersResult?.count ?? 0),
+      totalDrivers: Number(totalDriversResult?.count ?? 0),
+      completedRides: Number(completedRidesResult?.count ?? 0),
+      cancelledRides: Number(cancelledRidesResult?.count ?? 0),
+      totalEarnings: Number(earningsResult?.total ?? 0),
+      activeDrivers: Number(activeDriversResult?.count ?? 0),
+      ridesThisMonth: Number(ridesThisMonthResult?.count ?? 0),
+      earningsThisMonth: Number(earningsThisMonthResult?.total ?? 0),
+      avgRating: Number(Number(avgRatingResult?.avg ?? 0).toFixed(1)),
+      totalFareAll: Number(totalFareAllResult?.total ?? 0),
+      totalFareThisMonth: Number(totalFareMonthResult?.total ?? 0),
+      convenienceFeeTotal: Number(convFeeTotalResult?.total ?? 0),
+      convenienceFeeToday: Number(convFeeTodayResult?.total ?? 0),
+      convenienceFeeThisMonth: Number(convFeeMonthResult?.total ?? 0),
+    });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
 router.get("/admin/users", authMiddleware, async (_req: Request, res: Response) => {
-  const users = await db.select().from(usersTable).orderBy(desc(usersTable.createdAt));
+  try {
+    const usersWithRides = await db
+      .select({
+        id: usersTable.id,
+        name: usersTable.name,
+        email: usersTable.email,
+        phone: usersTable.phone,
+        status: usersTable.status,
+        createdAt: usersTable.createdAt,
+        totalRides: sql<number>`count(${ridesTable.id})`,
+      })
+      .from(usersTable)
+      .leftJoin(ridesTable, eq(ridesTable.userId, usersTable.id))
+      .groupBy(usersTable.id, usersTable.name, usersTable.email, usersTable.phone, usersTable.status, usersTable.createdAt)
+      .orderBy(desc(usersTable.createdAt));
 
-  const usersWithRides = await Promise.all(
-    users.map(async (user) => {
-      const [ridesCount] = await db.select({ count: sql<number>`count(*)` })
-        .from(ridesTable).where(eq(ridesTable.userId, user.id));
-      return {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        status: user.status,
-        totalRides: Number(ridesCount?.count ?? 0),
-        createdAt: user.createdAt.toISOString(),
-      };
-    })
-  );
-
-  res.json(usersWithRides);
+    res.json(usersWithRides.map(u => ({ ...u, totalRides: Number(u.totalRides), createdAt: u.createdAt.toISOString() })));
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
 router.get("/admin/drivers", authMiddleware, async (_req: Request, res: Response) => {
-  const drivers = await db.select().from(driversTable).orderBy(desc(driversTable.createdAt));
+  try {
+    const [drivers, ratingStats] = await Promise.all([
+      db.select().from(driversTable).orderBy(desc(driversTable.createdAt)),
+      db.select({
+        driverId: ridesTable.driverId,
+        avgRating: sql<number>`coalesce(avg(${ridesTable.userRating}), 0)`,
+        ratingCount: sql<number>`count(${ridesTable.userRating})`,
+      })
+        .from(ridesTable)
+        .where(sql`${ridesTable.userRating} is not null`)
+        .groupBy(ridesTable.driverId),
+    ]);
 
-  const ratingStats = await db
-    .select({
-      driverId: ridesTable.driverId,
-      avgRating: sql<number>`coalesce(avg(${ridesTable.userRating}), 0)`,
-      ratingCount: sql<number>`count(${ridesTable.userRating})`,
-    })
-    .from(ridesTable)
-    .where(sql`${ridesTable.userRating} is not null`)
-    .groupBy(ridesTable.driverId);
+    const statsMap = new Map(ratingStats.map((r) => [r.driverId, r]));
 
-  const statsMap = new Map(ratingStats.map((r) => [r.driverId, r]));
-
-  res.json(
-    drivers.map((d) => {
-      const stats = statsMap.get(d.id);
-      const liveRating = stats && Number(stats.ratingCount) > 0 ? Number(Number(stats.avgRating).toFixed(2)) : 0;
-      return {
-        id: d.id,
-        name: d.name,
-        email: d.email,
-        phone: d.phone,
-        vehicleType: d.vehicleType,
-        vehicleNumber: d.vehicleNumber,
-        rating: liveRating,
-        ratingCount: Number(stats?.ratingCount ?? 0),
-        status: d.status,
-        totalEarnings: Number(d.totalEarnings),
-        walletBalance: Number(d.walletBalance ?? 0),
-        totalRides: d.totalRides,
-        isOnline: d.isOnline,
-        createdAt: d.createdAt.toISOString(),
-      };
-    })
-  );
+    res.json(
+      drivers.map((d) => {
+        const stats = statsMap.get(d.id);
+        const liveRating = stats && Number(stats.ratingCount) > 0 ? Number(Number(stats.avgRating).toFixed(2)) : 0;
+        return {
+          id: d.id,
+          name: d.name,
+          email: d.email,
+          phone: d.phone,
+          vehicleType: d.vehicleType,
+          vehicleNumber: d.vehicleNumber,
+          rating: liveRating,
+          ratingCount: Number(stats?.ratingCount ?? 0),
+          status: d.status,
+          totalEarnings: Number(d.totalEarnings),
+          walletBalance: Number(d.walletBalance ?? 0),
+          totalRides: d.totalRides,
+          isOnline: d.isOnline,
+          createdAt: d.createdAt.toISOString(),
+        };
+      })
+    );
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
 router.get("/admin/rides", authMiddleware, async (req: Request, res: Response) => {
-  const { status } = req.query as { status?: string };
+  try {
+    const { status, limit = "500", offset = "0" } = req.query as { status?: string; limit?: string; offset?: string };
 
-  const rides = await db
-    .select({
-      id: ridesTable.id,
-      userId: ridesTable.userId,
-      driverId: ridesTable.driverId,
-      userName: usersTable.name,
-      driverName: driversTable.name,
-      pickup: ridesTable.pickup,
-      destination: ridesTable.destination,
-      vehicleType: ridesTable.vehicleType,
-      rideMode: ridesTable.rideMode,
-      price: ridesTable.price,
-      status: ridesTable.status,
-      paymentMethod: ridesTable.paymentMethod,
-      commissionAmount: ridesTable.commissionAmount,
-      driverEarning: ridesTable.driverEarning,
-      cashCollected: ridesTable.cashCollected,
-      createdAt: ridesTable.createdAt,
-    })
-    .from(ridesTable)
-    .leftJoin(usersTable, eq(ridesTable.userId, usersTable.id))
-    .leftJoin(driversTable, eq(ridesTable.driverId, driversTable.id))
-    .where(status ? eq(ridesTable.status, status) : undefined)
-    .orderBy(desc(ridesTable.createdAt));
+    const rides = await db
+      .select({
+        id: ridesTable.id,
+        userId: ridesTable.userId,
+        driverId: ridesTable.driverId,
+        userName: usersTable.name,
+        driverName: driversTable.name,
+        pickup: ridesTable.pickup,
+        destination: ridesTable.destination,
+        vehicleType: ridesTable.vehicleType,
+        rideMode: ridesTable.rideMode,
+        price: ridesTable.price,
+        status: ridesTable.status,
+        paymentMethod: ridesTable.paymentMethod,
+        commissionAmount: ridesTable.commissionAmount,
+        driverEarning: ridesTable.driverEarning,
+        cashCollected: ridesTable.cashCollected,
+        createdAt: ridesTable.createdAt,
+      })
+      .from(ridesTable)
+      .leftJoin(usersTable, eq(ridesTable.userId, usersTable.id))
+      .leftJoin(driversTable, eq(ridesTable.driverId, driversTable.id))
+      .where(status ? eq(ridesTable.status, status) : undefined)
+      .orderBy(desc(ridesTable.createdAt))
+      .limit(parseInt(limit))
+      .offset(parseInt(offset));
 
-  res.json(
-    rides.map((r) => ({
-      id: r.id,
-      userId: r.userId,
-      driverId: r.driverId ?? null,
-      userName: r.userName ?? "Unknown",
-      driverName: r.driverName ?? null,
-      pickup: r.pickup,
-      destination: r.destination,
-      vehicleType: r.vehicleType,
-      rideMode: r.rideMode,
-      price: Number(r.price),
-      status: r.status,
-      paymentMethod: r.paymentMethod ?? "Cash",
-      commissionAmount: Number(r.commissionAmount ?? 0),
-      driverEarning: Number(r.driverEarning ?? 0),
-      cashCollected: r.cashCollected ?? false,
-      createdAt: r.createdAt.toISOString(),
-    }))
-  );
+    res.json(
+      rides.map((r) => ({
+        id: r.id,
+        userId: r.userId,
+        driverId: r.driverId ?? null,
+        userName: r.userName ?? "Unknown",
+        driverName: r.driverName ?? null,
+        pickup: r.pickup,
+        destination: r.destination,
+        vehicleType: r.vehicleType,
+        rideMode: r.rideMode,
+        price: Number(r.price),
+        status: r.status,
+        paymentMethod: r.paymentMethod ?? "Cash",
+        commissionAmount: Number(r.commissionAmount ?? 0),
+        driverEarning: Number(r.driverEarning ?? 0),
+        cashCollected: r.cashCollected ?? false,
+        createdAt: r.createdAt.toISOString(),
+      }))
+    );
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
 router.get("/admin/rides/recent", authMiddleware, async (_req: Request, res: Response) => {
-  const rides = await db
-    .select({
-      id: ridesTable.id,
-      userId: ridesTable.userId,
-      driverId: ridesTable.driverId,
-      userName: usersTable.name,
-      driverName: driversTable.name,
-      pickup: ridesTable.pickup,
-      destination: ridesTable.destination,
-      vehicleType: ridesTable.vehicleType,
-      rideMode: ridesTable.rideMode,
-      price: ridesTable.price,
-      status: ridesTable.status,
-      createdAt: ridesTable.createdAt,
-    })
-    .from(ridesTable)
-    .leftJoin(usersTable, eq(ridesTable.userId, usersTable.id))
-    .leftJoin(driversTable, eq(ridesTable.driverId, driversTable.id))
-    .orderBy(desc(ridesTable.createdAt))
-    .limit(10);
+  try {
+    const rides = await db
+      .select({
+        id: ridesTable.id,
+        userId: ridesTable.userId,
+        driverId: ridesTable.driverId,
+        userName: usersTable.name,
+        driverName: driversTable.name,
+        pickup: ridesTable.pickup,
+        destination: ridesTable.destination,
+        vehicleType: ridesTable.vehicleType,
+        rideMode: ridesTable.rideMode,
+        price: ridesTable.price,
+        status: ridesTable.status,
+        createdAt: ridesTable.createdAt,
+      })
+      .from(ridesTable)
+      .leftJoin(usersTable, eq(ridesTable.userId, usersTable.id))
+      .leftJoin(driversTable, eq(ridesTable.driverId, driversTable.id))
+      .orderBy(desc(ridesTable.createdAt))
+      .limit(10);
 
-  res.json(
-    rides.map((r) => ({
-      id: r.id,
-      userId: r.userId,
-      driverId: r.driverId ?? null,
-      userName: r.userName ?? "Unknown",
-      driverName: r.driverName ?? null,
-      pickup: r.pickup,
-      destination: r.destination,
-      vehicleType: r.vehicleType,
-      rideMode: r.rideMode,
-      price: Number(r.price),
-      status: r.status,
-      createdAt: r.createdAt.toISOString(),
-    }))
-  );
+    res.json(
+      rides.map((r) => ({
+        id: r.id,
+        userId: r.userId,
+        driverId: r.driverId ?? null,
+        userName: r.userName ?? "Unknown",
+        driverName: r.driverName ?? null,
+        pickup: r.pickup,
+        destination: r.destination,
+        vehicleType: r.vehicleType,
+        rideMode: r.rideMode,
+        price: Number(r.price),
+        status: r.status,
+        createdAt: r.createdAt.toISOString(),
+      }))
+    );
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
 router.get("/admin/analytics/daily", authMiddleware, async (_req: Request, res: Response) => {
-  const days = Array.from({ length: 30 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (29 - i));
-    return d;
-  });
+  try {
+    const days = Array.from({ length: 30 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (29 - i));
+      return d;
+    });
 
-  const analytics = await Promise.all(
-    days.map(async (date) => {
-      const start = new Date(date);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(date);
-      end.setHours(23, 59, 59, 999);
+    const analytics = await Promise.all(
+      days.map(async (date) => {
+        const start = new Date(date);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(date);
+        end.setHours(23, 59, 59, 999);
 
-      const [ridesResult] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(ridesTable)
-        .where(and(gte(ridesTable.createdAt, start), sql`${ridesTable.createdAt} <= ${end}`));
+        const [[ridesResult], [earningsResult], [newUsersResult]] = await Promise.all([
+          db.select({ count: sql<number>`count(*)` }).from(ridesTable)
+            .where(and(gte(ridesTable.createdAt, start), sql`${ridesTable.createdAt} <= ${end}`)),
+          db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable)
+            .where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, start), sql`${ridesTable.createdAt} <= ${end}`)),
+          db.select({ count: sql<number>`count(*)` }).from(usersTable)
+            .where(and(gte(usersTable.createdAt, start), sql`${usersTable.createdAt} <= ${end}`)),
+        ]);
 
-      const [earningsResult] = await db
-        .select({ total: sql<number>`coalesce(sum(price::numeric), 0)` })
-        .from(ridesTable)
-        .where(
-          and(
-            eq(ridesTable.status, "completed"),
-            gte(ridesTable.createdAt, start),
-            sql`${ridesTable.createdAt} <= ${end}`
-          )
-        );
+        return {
+          date: date.toISOString().split("T")[0],
+          rides: Number(ridesResult?.count ?? 0),
+          earnings: Number(earningsResult?.total ?? 0),
+          newUsers: Number(newUsersResult?.count ?? 0),
+        };
+      })
+    );
 
-      const [newUsersResult] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(usersTable)
-        .where(and(gte(usersTable.createdAt, start), sql`${usersTable.createdAt} <= ${end}`));
-
-      return {
-        date: date.toISOString().split("T")[0],
-        rides: Number(ridesResult?.count ?? 0),
-        earnings: Number(earningsResult?.total ?? 0),
-        newUsers: Number(newUsersResult?.count ?? 0),
-      };
-    })
-  );
-
-  res.json(analytics);
+    res.json(analytics);
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
 router.patch("/admin/rides/:id/assign", authMiddleware, async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  const { driverId } = req.body as { driverId: number };
+  try {
+    const id = Number(req.params.id);
+    const { driverId } = req.body as { driverId: number };
 
-  const [updated] = await db
-    .update(ridesTable)
-    .set({ driverId, status: "assigned" })
-    .where(eq(ridesTable.id, id))
-    .returning();
+    const [updated] = await db
+      .update(ridesTable)
+      .set({ driverId, status: "assigned" })
+      .where(eq(ridesTable.id, id))
+      .returning();
 
-  if (!updated) {
-    res.status(404).json({ message: "Ride not found" });
-    return;
-  }
+    if (!updated) { res.status(404).json({ message: "Ride not found" }); return; }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, updated.userId));
-  const driver = driverId
-    ? (await db.select().from(driversTable).where(eq(driversTable.id, driverId)))[0]
-    : null;
+    const [[user], driver] = await Promise.all([
+      db.select().from(usersTable).where(eq(usersTable.id, updated.userId)).limit(1),
+      driverId ? db.select().from(driversTable).where(eq(driversTable.id, driverId)).limit(1).then(r => r[0] ?? null) : Promise.resolve(null),
+    ]);
 
-  res.json({
-    id: updated.id,
-    userId: updated.userId,
-    driverId: updated.driverId ?? null,
-    userName: user?.name ?? "Unknown",
-    driverName: driver?.name ?? null,
-    pickup: updated.pickup,
-    destination: updated.destination,
-    vehicleType: updated.vehicleType,
-    rideMode: updated.rideMode,
-    price: Number(updated.price),
-    status: updated.status,
-    createdAt: updated.createdAt.toISOString(),
-  });
+    res.json({
+      id: updated.id,
+      userId: updated.userId,
+      driverId: updated.driverId ?? null,
+      userName: user?.name ?? "Unknown",
+      driverName: driver?.name ?? null,
+      pickup: updated.pickup,
+      destination: updated.destination,
+      vehicleType: updated.vehicleType,
+      rideMode: updated.rideMode,
+      price: Number(updated.price),
+      status: updated.status,
+      createdAt: updated.createdAt.toISOString(),
+    });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
 router.get("/admin/kyc", authMiddleware, async (_req: Request, res: Response) => {

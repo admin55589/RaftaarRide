@@ -453,7 +453,8 @@ export function WalletScreen() {
           </GlassCard>
         </Animated.View>
 
-        {referralEnabled && <Animated.View entering={FadeInDown.delay(170)}>
+        {referralEnabled && (
+          <Animated.View entering={FadeInDown.delay(170)}>
           <TouchableOpacity
             style={[s.referralCard, { backgroundColor: colors.glassBackground, borderColor: colors.border }]}
             onPress={() => setShowReferral(!showReferral)}
@@ -540,7 +541,8 @@ export function WalletScreen() {
               </GlassCard>
             </Animated.View>
           )}
-        </Animated.View>}
+        </Animated.View>
+        )}
 
         <View style={{ paddingHorizontal: 20, marginBottom: 12 }}>
           <Text style={s.sectionTitle}>💳 {t("transaction_history")}</Text>

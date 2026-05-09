@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BASE_URL } from "@/lib/api";
 
 type Lang = "hi" | "en";
 
@@ -433,6 +434,26 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const setLang = async (l: Lang) => {
     setLangState(l);
     await AsyncStorage.setItem(STORAGE_KEY, l);
+    /* Non-blocking sync to server — read whichever auth token is present */
+    try {
+      const [userToken, driverToken] = await Promise.all([
+        AsyncStorage.getItem("raftaar_auth_token"),
+        AsyncStorage.getItem("raftaar_driver_token"),
+      ]);
+      if (userToken) {
+        fetch(`${BASE_URL}wallet/language`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${userToken}` },
+          body: JSON.stringify({ language: l }),
+        }).catch(() => {});
+      } else if (driverToken) {
+        fetch(`${BASE_URL}driver-auth/profile`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${driverToken}` },
+          body: JSON.stringify({ preferredLanguage: l }),
+        }).catch(() => {});
+      }
+    } catch {}
   };
 
   const toggleLanguage = () => setLang(lang === "hi" ? "en" : "hi");
