@@ -56,7 +56,7 @@ router.post("/admin/firebase-verify", async (req: Request, res: Response) => {
     return;
   }
   try {
-    const FIREBASE_API_KEY = "AIzaSyC1bBRw_CsD8y_nlI5szxYk4aFZBxOVjW8";
+    const FIREBASE_API_KEY = process.env.FIREBASE_WEB_API_KEY ?? "AIzaSyC1bBRw_CsD8y_nlI5szxYk4aFZBxOVjW8";
     const lookupRes = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`,
       {
@@ -1170,7 +1170,7 @@ router.get("/admin/cloud-costs", authMiddleware, async (req: Request, res: Respo
 
 /* GET /api/admin/maps-usage — Google Maps API live quota/usage check */
 router.get("/admin/maps-usage", authMiddleware, async (req: Request, res: Response) => {
-  const mapsKey = "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q";
+  const mapsKey = process.env.GOOGLE_MAPS_SERVER_KEY ?? process.env.GOOGLE_MAPS_API_KEY ?? "";
 
   /* Test each API and check if it's responding */
   try {
