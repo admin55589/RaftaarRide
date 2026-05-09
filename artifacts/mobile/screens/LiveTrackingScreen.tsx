@@ -209,7 +209,7 @@ export function LiveTrackingScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <MapView showRoute routeProgress={progress} driverLocation={driverLiveLocation} />
+      <MapView showRoute routeProgress={progress} driverLocation={driverLiveLocation} routeStage={stage} />
 
       <Pressable
         onPress={toggleLanguage}
