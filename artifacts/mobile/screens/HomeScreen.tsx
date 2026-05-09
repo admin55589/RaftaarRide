@@ -38,6 +38,7 @@ import { MapView } from "@/components/MapView";
 import { GlassCard } from "@/components/GlassCard";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { VoiceMicButton } from "@/components/VoiceMicButton";
+import { VoiceBookingOverlay } from "@/components/VoiceBookingOverlay";
 import { API_BASE } from "@/lib/api";
 
 function getGreeting(t: (k: any) => string, hour: number) {
@@ -469,11 +470,31 @@ export function HomeScreen() {
     setScreen("booking");
   };
 
-  const { state: voiceState, toggle: toggleVoice } = useVoiceInput((text) => {
+  /* Voice booking overlay state */
+  const [voiceOverlay, setVoiceOverlay] = useState<{ rawText: string; destination: string; parsing: boolean } | null>(null);
+
+  const { state: voiceState, toggle: toggleVoice } = useVoiceInput(async (text) => {
     if (text === "__script_error__") {
       showToast("Hindi mein bolein", "Urdu script detect hui — phir se Hindi mein bolne ki koshish karein", "error");
-    } else if (text.trim()) {
-      handleDestinationSelect(text.trim());
+      return;
+    }
+    if (!text.trim()) return;
+
+    /* Show overlay immediately with parsing=true, then fetch clean destination */
+    setVoiceOverlay({ rawText: text.trim(), destination: "", parsing: true });
+
+    try {
+      const res = await fetch(`${API_BASE}/voice/parse-destination`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text.trim() }),
+      });
+      const data = await res.json() as { destination?: string };
+      const dest = data.destination?.trim() || text.trim();
+      setVoiceOverlay({ rawText: text.trim(), destination: dest, parsing: false });
+    } catch {
+      /* Network error — use raw text as destination */
+      setVoiceOverlay({ rawText: text.trim(), destination: text.trim(), parsing: false });
     }
   });
 
@@ -856,6 +877,21 @@ export function HomeScreen() {
             <Text style={styles.toastSubtitle}>{toast.subtitle}</Text>
           </View>
         </Animated.View>
+      )}
+
+      {/* ── Voice Booking Overlay ─────────────────────────────────────────── */}
+      {voiceOverlay && (
+        <VoiceBookingOverlay
+          rawText={voiceOverlay.rawText}
+          destination={voiceOverlay.destination}
+          parsing={voiceOverlay.parsing}
+          onConfirm={() => {
+            const dest = voiceOverlay.destination;
+            setVoiceOverlay(null);
+            if (dest) handleDestinationSelect(dest);
+          }}
+          onCancel={() => setVoiceOverlay(null)}
+        />
       )}
     </View>
   );

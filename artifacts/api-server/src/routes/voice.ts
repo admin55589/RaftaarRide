@@ -81,4 +81,53 @@ router.post("/voice/transcribe", upload.single("audio"), async (req: Request, re
   }
 });
 
+/* ─── POST /api/voice/parse-destination ──────────────────────────────────── */
+/* Extract clean English place name from conversational Hindi/English voice input */
+router.post("/voice/parse-destination", async (req: Request, res: Response) => {
+  const { text } = req.body as { text?: string };
+  if (!text?.trim()) {
+    res.status(400).json({ destination: "", error: "Text required" });
+    return;
+  }
+
+  const config = getOpenAIConfig();
+  if (!config) {
+    res.json({ destination: text.trim(), method: "passthrough" });
+    return;
+  }
+
+  try {
+    const completion = await config.client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `You extract the destination place name from a ride-booking voice command. Return ONLY the clean English place name — nothing else, no explanation.
+
+Examples:
+"भाई, मुझे IGI Airport T3 जाना है" → "IGI Airport Terminal 3, Delhi"
+"चांदनी चौक जाना है" → "Chandni Chowk, Delhi"
+"Take me to Connaught Place" → "Connaught Place, New Delhi"
+"Bhai mujhe Cyber Hub Gurgaon le chalo" → "Cyber Hub, Gurgaon"
+"Saket mall chalna hai" → "Select City Walk, Saket, Delhi"
+"mujhe ghar jana hai sector 62 noida" → "Sector 62, Noida"
+"Humayun's Tomb" → "Humayun's Tomb, Delhi"
+
+Only return the place name. No punctuation at end.`,
+        },
+        { role: "user", content: text.trim() },
+      ],
+      max_tokens: 60,
+      temperature: 0,
+    });
+
+    const destination = completion.choices[0]?.message?.content?.trim() ?? text.trim();
+    logger.info({ input: text, destination }, "[voice/parse-destination] extracted");
+    res.json({ destination, method: "gpt" });
+  } catch (err) {
+    logger.error({ err }, "[voice/parse-destination] error");
+    res.json({ destination: text.trim(), method: "fallback" });
+  }
+});
+
 export default router;
