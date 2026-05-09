@@ -184,10 +184,10 @@ export function WalletScreen() {
 
   const handlePayNow = async () => {
     const amt = Number(topupAmount);
-    if (!amt || amt < 10 || amt > 50000) {
+    if (!amt || amt < 100 || amt > 50000) {
       showNotification({
-        title: "Amount galat hai",
-        body: "₹10 se ₹50,000 ke beech amount daalen",
+        title: "Minimum ₹100 chahiye",
+        body: "Wallet mein minimum ₹100 add kar sakte ho (max ₹50,000)",
         type: "error",
         icon: "❌",
       });
@@ -381,7 +381,7 @@ export function WalletScreen() {
               <Text style={s.label}>{t("custom_amount")}</Text>
               <TextInput
                 style={[s.input, { backgroundColor: inputBg, borderColor: inputBorder }]}
-                placeholder="e.g. 350"
+                placeholder="Min ₹100, e.g. 200"
                 placeholderTextColor={colors.textSecondary}
                 value={topupAmount}
                 onChangeText={setTopupAmount}

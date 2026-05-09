@@ -40,8 +40,8 @@ router.post("/wallet/topup", userAuth, async (req: Request, res: Response) => {
     amount: number; method: string; paymentId?: string; orderId?: string; signature?: string;
   };
 
-  if (!amount || amount < 10 || amount > 50000) {
-    res.status(400).json({ success: false, error: "Amount 10 se 50,000 ke beech hona chahiye" }); return;
+  if (!amount || amount < 100 || amount > 50000) {
+    res.status(400).json({ success: false, error: "Minimum topup ₹100 hai. Maximum ₹50,000." }); return;
   }
   const validMethods = ["upi", "card", "netbanking", "wallet", "razorpay"];
   if (!method || !validMethods.includes(method)) {
