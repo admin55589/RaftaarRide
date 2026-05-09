@@ -283,7 +283,12 @@ router.post("/auth/verify-otp", async (req: Request, res: Response) => {
       return;
     }
 
-    if (user.otpExpiresAt && new Date() > user.otpExpiresAt) {
+    /* Strict expiry: NULL otpExpiresAt ya expired dono reject — expired OTP DB se clear karo */
+    if (!user.otpExpiresAt || new Date() > user.otpExpiresAt) {
+      await db
+        .update(usersTable)
+        .set({ otpCode: null, otpExpiresAt: null })
+        .where(eq(usersTable.phone, phone));
       res.status(400).json({ message: "OTP expire ho gaya. Dobara request karo." });
       return;
     }
@@ -407,7 +412,12 @@ router.post("/auth/reset-password", async (req: Request, res: Response) => {
       res.status(400).json({ success: false, message: "OTP nahi mila. Dobara request karo." });
       return;
     }
-    if (user.otpExpiresAt && new Date() > user.otpExpiresAt) {
+    /* Strict expiry: NULL otpExpiresAt ya expired dono reject — expired OTP DB se clear karo */
+    if (!user.otpExpiresAt || new Date() > user.otpExpiresAt) {
+      await db
+        .update(usersTable)
+        .set({ otpCode: null, otpExpiresAt: null })
+        .where(eq(usersTable.phone, phone));
       res.status(400).json({ success: false, message: "OTP expire ho gaya. Dobara request karo." });
       return;
     }
