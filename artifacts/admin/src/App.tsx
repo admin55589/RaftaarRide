@@ -26,6 +26,7 @@ import { SupportChatPage } from "@/pages/SupportChatPage";
 import { LoyaltyPage } from "@/pages/LoyaltyPage";
 import { FinancialHealthPage } from "@/pages/FinancialHealthPage";
 import { FraudPage } from "@/pages/FraudPage";
+import { PassPage } from "@/pages/PassPage";
 import { TermsPage } from "@/pages/TermsPage";
 import { PrivacyPage } from "@/pages/PrivacyPage";
 import NotFound from "@/pages/not-found";
@@ -86,6 +87,7 @@ function AppLayout() {
           <Route path="/loyalty" component={LoyaltyPage} />
           <Route path="/financial-health" component={FinancialHealthPage} />
           <Route path="/fraud" component={FraudPage} />
+          <Route path="/passes" component={PassPage} />
           <Route component={NotFound} />
         </Switch>
       </main>

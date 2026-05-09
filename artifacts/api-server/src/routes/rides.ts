@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { ridesTable, driversTable, usersTable, walletTransactionsTable, promoCodesTable, surgeSettingsTable } from "@workspace/db/schema";
-import { eq, desc, and, inArray, avg, isNotNull, sql } from "drizzle-orm";
+import { ridesTable, driversTable, usersTable, walletTransactionsTable, promoCodesTable, surgeSettingsTable, userPassesTable } from "@workspace/db/schema";
+import { eq, desc, and, inArray, avg, isNotNull, sql, gte } from "drizzle-orm";
 import { checkFakeCompletion } from "../lib/fraud-engine";
 import jwt from "jsonwebtoken";
 import { emitRideUpdate, emitAdminUpdate } from "../lib/socket";
@@ -238,17 +238,47 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
 
     const { cancelReason } = req.body as { cancelReason?: string };
 
-    /* ── Cancellation Fee Logic (2-min grace period for "accepted") ── */
-    const GRACE_PERIOD_MS = 2 * 60 * 1000; // 2 minutes
+    /* ── Check if user has an active RaftaarPass ── */
+    const now = new Date();
+    const [activePass] = await db
+      .select({ id: userPassesTable.id, freeCancelsUsed: userPassesTable.freeCancelsUsed, freeCancelsLimit: userPassesTable.freeCancelsLimit })
+      .from(userPassesTable)
+      .where(and(eq(userPassesTable.userId, userId), eq(userPassesTable.status, "active"), gte(userPassesTable.expiresAt, now)))
+      .limit(1);
+
+    const hasPass = !!activePass;
+    const freeRemaining = hasPass ? (activePass.freeCancelsLimit - activePass.freeCancelsUsed) : 0;
+
+    /* ── Cancellation Fee Logic ─────────────────────────────────────────────
+       Pass holders:  5-min grace (instead of 2 min) + 5 free cancels/month
+       Non-pass:      2-min grace, ₹30 after grace, ₹50 if driver arrived
+    ── */
+    const GRACE_PERIOD_MS = hasPass ? 5 * 60 * 1000 : 2 * 60 * 1000;
     let cancelFee = 0;
     let withinGrace = false;
+    let usedFreeCancel = false;
     if (ride.status === "arrived") {
-      cancelFee = 50; // driver waiting at pickup — no grace
+      cancelFee = 50; // driver waiting at pickup — no grace even for pass
     } else if (ride.status === "accepted") {
       const acceptedAt = ride.acceptedAt ? new Date(ride.acceptedAt).getTime() : null;
       const elapsedMs = acceptedAt ? Date.now() - acceptedAt : GRACE_PERIOD_MS + 1;
       withinGrace = elapsedMs <= GRACE_PERIOD_MS;
-      cancelFee = withinGrace ? 0 : 30;
+      if (withinGrace) {
+        cancelFee = 0; // within grace — no fee for everyone
+      } else if (hasPass && freeRemaining > 0) {
+        cancelFee = 0; // pass holder uses one free cancel
+        usedFreeCancel = true;
+      } else {
+        cancelFee = 30;
+      }
+    }
+
+    /* Consume the free cancel from pass if used */
+    if (usedFreeCancel && activePass) {
+      await db
+        .update(userPassesTable)
+        .set({ freeCancelsUsed: activePass.freeCancelsUsed + 1 })
+        .where(eq(userPassesTable.id, activePass.id));
     }
 
     /* Stop re-broadcast queue if ride was still searching */

@@ -259,6 +259,22 @@ export const surgeSettingsTable = pgTable("surge_settings", {
   cityLng: numeric("city_lng", { precision: 10, scale: 6 }).default("77.209000"),
 });
 
+export const userPassesTable = pgTable("user_passes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => usersTable.id),
+  razorpayOrderId: text("razorpay_order_id").notNull(),
+  razorpayPaymentId: text("razorpay_payment_id").notNull().unique(),
+  plan: text("plan").notNull().default("monthly"),
+  amount: numeric("amount", { precision: 8, scale: 2 }).notNull().default("149"),
+  status: text("status").notNull().default("active"), /* active | expired | cancelled */
+  startsAt: timestamp("starts_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
+  freeCancelsUsed: integer("free_cancels_used").notNull().default(0),
+  freeCancelsLimit: integer("free_cancels_limit").notNull().default(5),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type UserPass = typeof userPassesTable.$inferSelect;
+
 export const fraudFlagsTable = pgTable("fraud_flags", {
   id: serial("id").primaryKey(),
   type: text("type").notNull(),       /* gps_spoof | fake_completion | rapid_cancel | promo_abuse */

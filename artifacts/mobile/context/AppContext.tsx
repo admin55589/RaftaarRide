@@ -44,7 +44,18 @@ export type AppScreen =
   | "profile"
   | "dispute_report"
   | "package_booking"
-  | "support";
+  | "support"
+  | "raftaarPass";
+
+export interface PassStatus {
+  active: boolean;
+  plan?: string;
+  expiresAt?: string;
+  freeCancelsUsed?: number;
+  freeCancelsLimit?: number;
+  freeCancelsRemaining?: number;
+  passId?: number;
+}
 
 export interface SavedPlace {
   id: string;
@@ -189,6 +200,8 @@ interface AppContextType {
   pendingDisputeRideId: number | null;
   setPendingDisputeRideId: (id: number | null) => void;
   referralEnabled: boolean;
+  passStatus: PassStatus | null;
+  refreshPassStatus: (token: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -238,6 +251,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [surgeReason, setSurgeReason] = useState<string | null>(null);
   const [pendingDisputeRideId, setPendingDisputeRideId] = useState<number | null>(null);
   const [referralEnabled, setReferralEnabled] = useState<boolean>(true);
+  const [passStatus, setPassStatus] = useState<PassStatus | null>(null);
 
   /* Fetch surge multiplier from API on mount */
   useEffect(() => {
@@ -339,6 +353,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refreshPassStatus = async (token: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/pass/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json() as PassStatus & { success: boolean };
+      if (data.success) setPassStatus(data);
+    } catch {/* ignore — pass status is non-critical */}
+  };
+
   const addRideToHistory = async (ride: Ride) => {
     const updated = [ride, ...rideHistory.filter((r) => r.id !== ride.id)].slice(0, 50);
     setRideHistory(updated);
@@ -381,6 +407,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         surgeMultiplier, surgeReason,
         pendingDisputeRideId, setPendingDisputeRideId,
         referralEnabled,
+        passStatus,
+        refreshPassStatus,
       }}
     >
       {children}

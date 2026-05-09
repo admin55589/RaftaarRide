@@ -22,6 +22,7 @@ import {
   Trophy,
   PieChart,
   Shield,
+  Ticket,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
@@ -127,6 +128,7 @@ export function Sidebar({ isLive = false }: SidebarProps) {
     { label: "Referral Program", href: "/referrals", icon: Gift, badge: 0 },
     { label: "Loyalty Program", href: "/loyalty", icon: Trophy, badge: 0 },
     { label: "Disputes", href: "/disputes", icon: AlertTriangle, badge: 0 },
+    { label: "RaftaarPass", href: "/passes", icon: Ticket, badge: 0 },
     { label: "Fraud Detection", href: "/fraud", icon: Shield, badge: fraudOpen },
     { label: "Surge Pricing", href: "/surge", icon: Zap, badge: 0 },
     { label: "Earnings Report", href: "/earnings", icon: TrendingUp, badge: 0 },
