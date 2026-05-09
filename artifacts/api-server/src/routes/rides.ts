@@ -455,13 +455,13 @@ router.patch("/rides/:id/status", flexAuth, async (req: Request, res: Response) 
       updateData.arrivedAt = new Date();
     }
 
-    /* ── onRide: calculate wait-time fee (₹3/min after first 3 free minutes) ── */
+    /* ── onRide: calculate wait-time fee (₹0.50/min after first 3 free minutes) ── */
     let waitFee = 0;
     if (status === "onRide" && existingRide.arrivedAt) {
       const arrivedMs = new Date(existingRide.arrivedAt).getTime();
       const waitMinutes = (Date.now() - arrivedMs) / 60000;
       const chargeableMinutes = Math.max(0, waitMinutes - 3);
-      waitFee = Math.round(chargeableMinutes * 3);
+      waitFee = parseFloat((chargeableMinutes * 0.5).toFixed(2));
       if (waitFee > 0) {
         const basePrice = parseFloat(String(existingRide.price ?? "0"));
         updateData.waitTimeFee = String(waitFee);
@@ -632,7 +632,16 @@ router.patch("/rides/:id/status", flexAuth, async (req: Request, res: Response) 
       }
     }
 
-    emitRideUpdate(rideId, "ride:status", { rideId, status });
+    /* Include extra data in socket event so client can drive live UI */
+    const socketExtra: Record<string, unknown> = {};
+    if (status === "arrived" && updated.arrivedAt) {
+      socketExtra.arrivedAt = new Date(updated.arrivedAt).toISOString();
+    }
+    if (status === "onRide" && waitFee > 0) {
+      socketExtra.waitTimeFee = waitFee;
+      socketExtra.updatedPrice = parseFloat(String(updated.price));
+    }
+    emitRideUpdate(rideId, "ride:status", { rideId, status, ...socketExtra });
     emitAdminUpdate("admin:ride:updated", { rideId, status });
 
     res.json({ success: true, ride: updated, driverRating });

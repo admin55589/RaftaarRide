@@ -84,6 +84,8 @@ export function LiveTrackingScreen() {
   const [timeLeft, setTimeLeft] = useState(12);
   const [driverLiveLocation, setDriverLiveLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [ridePin, setRidePin] = useState<number | null>(null);
+  const [arrivedAt, setArrivedAt] = useState<string | null>(null);
+  const [waitSeconds, setWaitSeconds] = useState(0);
   const [showSOS, setShowSOS] = useState(false);
   const [showCall, setShowCall] = useState(false);
 
@@ -105,9 +107,11 @@ export function LiveTrackingScreen() {
       setTimeout(() => setScreen("payment"), 600);
     }
 
-    function onRideStatus(data: { status: string }) {
+    function onRideStatus(data: { status: string; arrivedAt?: string; waitTimeFee?: number; updatedPrice?: number }) {
       if (data.status === "arrived") {
         setStage(1);
+        setArrivedAt(data.arrivedAt ?? new Date().toISOString());
+        setWaitSeconds(0);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         showNotification({ title: "Driver Aa Gaya! 📍", body: "Aapka driver pickup point pe hai — bahar aao!", type: "ride", icon: "📍", duration: 5000 });
         announcePickupReached();
@@ -133,6 +137,16 @@ export function LiveTrackingScreen() {
       socket.off("ride:status", onRideStatus);
     };
   }, [currentRideId]);
+
+  /* Live waiting charge counter — ticks every second while driver has arrived */
+  useEffect(() => {
+    if (stage !== 1 || !arrivedAt) return;
+    const base = new Date(arrivedAt).getTime();
+    const tick = setInterval(() => {
+      setWaitSeconds(Math.floor((Date.now() - base) / 1000));
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [stage, arrivedAt]);
 
   useEffect(() => {
     const tick = setInterval(() => {
@@ -215,27 +229,60 @@ export function LiveTrackingScreen() {
         <GlassCard style={styles.card} padding={0}>
           <View style={[styles.handle, { backgroundColor: colors.border }]} />
           <View style={[styles.content, { paddingBottom: bottomPad + 12 }]}>
-            <View style={styles.timerRow}>
-              <View style={styles.timerInfo}>
-                <Animated.View style={[styles.glowDot, { backgroundColor: vehicleColor }, glowStyle]} />
-                <Text style={[styles.timerLabel, { color: colors.mutedForeground }]}>Arriving in</Text>
-              </View>
-              <Text style={[styles.timerValue, { color: vehicleColor }]}>
-                {Math.ceil(timeLeft)} min
-              </Text>
-            </View>
+            {/* Stage 0: driver on the way — show ETA */}
+            {stage === 0 && (
+              <>
+                <View style={styles.timerRow}>
+                  <View style={styles.timerInfo}>
+                    <Animated.View style={[styles.glowDot, { backgroundColor: vehicleColor }, glowStyle]} />
+                    <Text style={[styles.timerLabel, { color: colors.mutedForeground }]}>Arriving in</Text>
+                  </View>
+                  <Text style={[styles.timerValue, { color: vehicleColor }]}>
+                    {Math.ceil(timeLeft)} min
+                  </Text>
+                </View>
+                <View style={[styles.progressBg, { backgroundColor: colors.secondary }]}>
+                  <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: vehicleColor }]} />
+                </View>
+              </>
+            )}
 
-            <View style={[styles.progressBg, { backgroundColor: colors.secondary }]}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${progress * 100}%`,
-                    backgroundColor: vehicleColor,
-                  },
-                ]}
-              />
-            </View>
+            {/* Stage 1: driver arrived — show live waiting charge meter */}
+            {stage === 1 && (() => {
+              const FREE_SECS = 180;
+              const inFree = waitSeconds < FREE_SECS;
+              const chargeSecs = Math.max(0, waitSeconds - FREE_SECS);
+              const chargeAmt = parseFloat((chargeSecs / 60 * 0.5).toFixed(2));
+              const remaining = FREE_SECS - waitSeconds;
+              const rm = Math.floor(Math.max(0, remaining) / 60);
+              const rs = Math.max(0, remaining) % 60;
+              const wm = Math.floor(chargeSecs / 60);
+              const ws2 = chargeSecs % 60;
+              return (
+                <View style={[waitStyles.box, { borderColor: inFree ? "#4ADE80" : "#F5A623", backgroundColor: inFree ? "rgba(74,222,128,0.08)" : "rgba(245,166,35,0.10)" }]}>
+                  <View style={waitStyles.row}>
+                    <Text style={waitStyles.icon}>{inFree ? "🟢" : "⏱️"}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[waitStyles.label, { color: inFree ? "#4ADE80" : colors.primary }]}>
+                        {inFree ? "Free Waiting — Bahar Aao!" : "Waiting Charge Chal Raha Hai"}
+                      </Text>
+                      {inFree ? (
+                        <Text style={[waitStyles.time, { color: "#4ADE80" }]}>
+                          {rm}:{rs.toString().padStart(2, "0")} bacha hai free mein
+                        </Text>
+                      ) : (
+                        <Text style={[waitStyles.time, { color: colors.primary }]}>
+                          {wm}:{ws2.toString().padStart(2, "0")} • ₹{chargeAmt.toFixed(2)}
+                        </Text>
+                      )}
+                      <Text style={[waitStyles.hint, { color: colors.mutedForeground }]}>
+                        {inFree ? "Uske baad ₹0.50/min charge hoga" : "₹0.50/min — final amount mein add hoga"}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })()}
 
             <View style={styles.driverRow}>
               <View style={[styles.driverAvatar, { backgroundColor: vehicleColor + "22", borderColor: vehicleColor }]}>
@@ -490,5 +537,38 @@ const styles = StyleSheet.create({
   pinHint: {
     fontFamily: "Inter_400Regular",
     fontSize: 11,
+  },
+});
+
+const waitStyles = StyleSheet.create({
+  box: {
+    borderWidth: 1.5,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  icon: {
+    fontSize: 20,
+    marginTop: 2,
+  },
+  label: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  time: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 22,
+    letterSpacing: 0.5,
+  },
+  hint: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 11,
+    marginTop: 3,
   },
 });

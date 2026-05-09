@@ -69,6 +69,7 @@ interface ActiveRide {
   price: number;
   distance: string;
   userName: string;
+  rideStatus?: string;
 }
 
 const MOCK_REQUESTS: Array<{ id: string; rideId: number; from: string; to: string; distance: string; price: number; eta: number; userName: string }> = [];
@@ -434,6 +435,18 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
 
   const [locUpdating, setLocUpdating] = useState(false);
   const [lastLocTime, setLastLocTime] = useState<Date | null>(null);
+  const [driverArrivedAt, setDriverArrivedAt] = useState<Date | null>(null);
+  const [driverWaitSeconds, setDriverWaitSeconds] = useState(0);
+
+  /* Live wait-time counter — ticks every second while driver is at pickup */
+  useEffect(() => {
+    if (!driverArrivedAt) { setDriverWaitSeconds(0); return; }
+    const base = driverArrivedAt.getTime();
+    const tick = setInterval(() => {
+      setDriverWaitSeconds(Math.floor((Date.now() - base) / 1000));
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [driverArrivedAt]);
 
   const handleLocationUpdate = useCallback(async (silent = false) => {
     if (locUpdating) return;
@@ -888,6 +901,31 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
     setUnreadCount(0);
   };
 
+  /* Driver marks status: "arrived" (at pickup) or "onRide" (ride started) */
+  const handleMarkStatus = async (newStatus: "arrived" | "onRide") => {
+    if (!activeRide || !driverToken) return;
+    try {
+      const res = await fetch(`${API_BASE}/rides/${activeRide.rideId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${driverToken}` },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error("status update failed");
+      setActiveRide((r) => r ? { ...r, rideStatus: newStatus } : r);
+      if (newStatus === "arrived") {
+        setDriverArrivedAt(new Date());
+        showNotification({ title: "📍 Pahuncha!", body: "User ka wait ho raha hai — 3 min free hain", type: "success", icon: "📍", duration: 4000 });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        setDriverArrivedAt(null);
+        showNotification({ title: "🚀 Ride Shuru!", body: "Manzil ki taraf chal padhe", type: "success", icon: "🚀", duration: 3000 });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch {
+      showNotification({ title: "Error", body: "Status update nahi hua — dobara try karo", type: "error", icon: "❌", duration: 3000 });
+    }
+  };
+
   const handleCompleteRide = () => {
     if (!activeRide) return;
     setPinInput("");
@@ -911,6 +949,7 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
         setPinModalVisible(false);
         setPinInput("");
         setActiveRide(null);
+        setDriverArrivedAt(null);
         setChatMessages([]);
         setUnreadCount(0);
         showNotification({ title: "Ride Complete! 🎉", body: `₹${activeRide.price} earn kiye`, type: "success", icon: "🎉", duration: 4000 });
@@ -1126,6 +1165,66 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
                 )}
               </TouchableOpacity>
             </View>
+
+            {/* Live waiting timer — shown when driver has marked arrived */}
+            {activeRide.rideStatus === "arrived" && driverArrivedAt && (() => {
+              const FREE_SECS = 180;
+              const inFree = driverWaitSeconds < FREE_SECS;
+              const chargeSecs = Math.max(0, driverWaitSeconds - FREE_SECS);
+              const chargeAmt = (chargeSecs / 60 * 0.5).toFixed(2);
+              const remaining = FREE_SECS - driverWaitSeconds;
+              const rm = Math.floor(Math.max(0, remaining) / 60);
+              const rs = Math.max(0, remaining) % 60;
+              const wm = Math.floor(chargeSecs / 60);
+              const ws = chargeSecs % 60;
+              return (
+                <View style={{
+                  borderWidth: 1.5,
+                  borderRadius: 14,
+                  paddingVertical: 12,
+                  paddingHorizontal: 14,
+                  borderColor: inFree ? "#4ADE80" : "#F5A623",
+                  backgroundColor: inFree ? "rgba(74,222,128,0.07)" : "rgba(245,166,35,0.09)",
+                }}>
+                  <Text style={{ color: inFree ? "#4ADE80" : "#F5A623", fontFamily: "Inter_700Bold", fontSize: 12, marginBottom: 4 }}>
+                    {inFree ? "⏳ User Ka Wait — Free Window" : "⏱️ Waiting Charge Chal Raha Hai"}
+                  </Text>
+                  {inFree ? (
+                    <Text style={{ color: "#4ADE80", fontFamily: "Inter_700Bold", fontSize: 20 }}>
+                      {rm}:{rs.toString().padStart(2, "0")} bacha
+                    </Text>
+                  ) : (
+                    <Text style={{ color: "#F5A623", fontFamily: "Inter_700Bold", fontSize: 20 }}>
+                      {wm}:{ws.toString().padStart(2, "0")} • ₹{chargeAmt}
+                    </Text>
+                  )}
+                  <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 11, marginTop: 2 }}>
+                    {inFree ? "Uske baad ₹0.50/min — user ke final bill mein add hoga" : "₹0.50/min — user ke bill mein add ho raha hai"}
+                  </Text>
+                </View>
+              );
+            })()}
+
+            {/* Status action buttons */}
+            {!activeRide.rideStatus || activeRide.rideStatus === "accepted" ? (
+              <TouchableOpacity
+                onPress={() => handleMarkStatus("arrived")}
+                style={{ backgroundColor: "rgba(74,222,128,0.13)", borderWidth: 1.5, borderColor: "#4ADE80", borderRadius: 14, paddingVertical: 12, alignItems: "center" }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: "#4ADE80", fontFamily: "Inter_700Bold", fontSize: 14 }}>📍 Pickup Pe Pahuncha!</Text>
+                <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 11, marginTop: 2 }}>Yeh press karo jab aap pickup point pe ho</Text>
+              </TouchableOpacity>
+            ) : activeRide.rideStatus === "arrived" ? (
+              <TouchableOpacity
+                onPress={() => handleMarkStatus("onRide")}
+                style={{ backgroundColor: "rgba(245,166,35,0.13)", borderWidth: 1.5, borderColor: "#F5A623", borderRadius: 14, paddingVertical: 12, alignItems: "center" }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: "#F5A623", fontFamily: "Inter_700Bold", fontSize: 14 }}>🚀 Ride Shuru Karo</Text>
+                <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 11, marginTop: 2 }}>User baith gaya — ride start karo</Text>
+              </TouchableOpacity>
+            ) : null}
           </Animated.View>
         )}
 
