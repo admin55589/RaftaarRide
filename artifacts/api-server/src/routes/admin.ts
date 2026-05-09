@@ -17,6 +17,7 @@ import jwt from "jsonwebtoken";
 import { validateAccountDetails, createRazorpayPayout } from "../lib/razorpay-payout";
 import { sendPushNotification } from "../lib/expoPush";
 import { isAutomationEnabled, setAutomationEnabled } from "../lib/automation-state";
+import { calculateAiSurge, generateNext24hForecast } from "../lib/surgeAi";
 
 const router: IRouter = Router();
 
@@ -1235,17 +1236,38 @@ router.get("/admin/maps-usage", authMiddleware, async (req: Request, res: Respon
   }
 });
 
-/* GET /api/admin/surge — get current surge settings */
+/* GET /api/admin/surge — get current surge settings + AI preview */
 router.get("/admin/surge", authMiddleware, async (_req: Request, res: Response) => {
   try {
     const [surge] = await db.select().from(surgeSettingsTable).orderBy(desc(surgeSettingsTable.updatedAt)).limit(1);
-    res.json({ success: true, surge: surge ?? { multiplier: "1.00", isActive: false, reason: null, updatedAt: null } });
+    const row = surge ?? { multiplier: "1.00", isActive: false, reason: null, updatedAt: null, aiMode: false, cityLat: "28.613900", cityLng: "77.209000" };
+    let aiPreview = null;
+    if (row.aiMode) {
+      const lat = parseFloat(String(row.cityLat ?? "28.613900"));
+      const lng = parseFloat(String(row.cityLng ?? "77.209000"));
+      aiPreview = await calculateAiSurge(lat, lng);
+    }
+    const forecast = generateNext24hForecast();
+    res.json({ success: true, surge: row, aiPreview, forecast });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
+/* GET /api/admin/surge/preview — live AI preview without saving */
+router.get("/admin/surge/preview", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const lat = parseFloat(String(req.query.lat ?? "28.613900"));
+    const lng = parseFloat(String(req.query.lng ?? "77.209000"));
+    const [aiPreview, forecast] = await Promise.all([calculateAiSurge(lat, lng), Promise.resolve(generateNext24hForecast())]);
+    res.json({ success: true, aiPreview, forecast });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
 /* POST /api/admin/surge — upsert surge settings */
 router.post("/admin/surge", authMiddleware, async (req: Request, res: Response) => {
-  const { multiplier, isActive, reason } = req.body as { multiplier?: number; isActive?: boolean; reason?: string };
+  const { multiplier, isActive, reason, aiMode, cityLat, cityLng } = req.body as {
+    multiplier?: number; isActive?: boolean; reason?: string;
+    aiMode?: boolean; cityLat?: number; cityLng?: number;
+  };
 
   const mult = multiplier !== undefined ? Number(multiplier) : undefined;
   if (mult !== undefined && (isNaN(mult) || mult < 1 || mult > 5)) {
@@ -1254,10 +1276,13 @@ router.post("/admin/surge", authMiddleware, async (req: Request, res: Response) 
 
   try {
     const [existing] = await db.select({ id: surgeSettingsTable.id }).from(surgeSettingsTable).limit(1);
-    const setData: Record<string, any> = { updatedAt: new Date(), updatedBy: "admin" };
+    const setData: Record<string, unknown> = { updatedAt: new Date(), updatedBy: "admin" };
     if (mult !== undefined) setData.multiplier = String(mult.toFixed(2));
     if (isActive !== undefined) setData.isActive = isActive;
     if (reason !== undefined) setData.reason = reason.trim() || null;
+    if (aiMode !== undefined) setData.aiMode = aiMode;
+    if (cityLat !== undefined) setData.cityLat = String(cityLat);
+    if (cityLng !== undefined) setData.cityLng = String(cityLng);
 
     let surge;
     if (existing) {
@@ -1267,10 +1292,20 @@ router.post("/admin/surge", authMiddleware, async (req: Request, res: Response) 
         multiplier: String((mult ?? 1).toFixed(2)),
         isActive: isActive ?? false,
         reason: reason?.trim() || null,
+        aiMode: aiMode ?? false,
+        cityLat: cityLat ? String(cityLat) : "28.613900",
+        cityLng: cityLng ? String(cityLng) : "77.209000",
         updatedBy: "admin",
       }).returning();
     }
-    res.json({ success: true, surge });
+
+    let aiPreview = null;
+    if (surge?.aiMode) {
+      const lat = parseFloat(String(surge.cityLat ?? "28.613900"));
+      const lng = parseFloat(String(surge.cityLng ?? "77.209000"));
+      aiPreview = await calculateAiSurge(lat, lng);
+    }
+    res.json({ success: true, surge, aiPreview });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 

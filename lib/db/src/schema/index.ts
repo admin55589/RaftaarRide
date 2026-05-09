@@ -253,4 +253,7 @@ export const surgeSettingsTable = pgTable("surge_settings", {
   reason: text("reason"),
   updatedBy: text("updated_by"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  aiMode: boolean("ai_mode").notNull().default(false),
+  cityLat: numeric("city_lat", { precision: 10, scale: 6 }).default("28.613900"),
+  cityLng: numeric("city_lng", { precision: 10, scale: 6 }).default("77.209000"),
 });

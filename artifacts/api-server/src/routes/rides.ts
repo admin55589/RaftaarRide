@@ -882,16 +882,21 @@ router.post("/rides/:id/rate", userAuth, async (req: Request, res: Response) => 
 /* GET /api/surge — public: current surge multiplier for mobile app */
 router.get("/surge", async (_req: Request, res: Response) => {
   try {
-    const [surge] = await db
-      .select({ multiplier: surgeSettingsTable.multiplier, isActive: surgeSettingsTable.isActive, reason: surgeSettingsTable.reason })
-      .from(surgeSettingsTable)
-      .where(eq(surgeSettingsTable.isActive, true))
-      .limit(1);
-    res.json({
-      isActive: !!surge,
-      multiplier: surge ? parseFloat(String(surge.multiplier)) : 1.0,
-      reason: surge?.reason ?? null,
-    });
+    const [surge] = await db.select().from(surgeSettingsTable).orderBy(desc(surgeSettingsTable.updatedAt)).limit(1);
+    if (!surge) { res.json({ isActive: false, multiplier: 1.0, reason: null }); return; }
+    if (surge.aiMode) {
+      const { calculateAiSurge } = await import("../lib/surgeAi");
+      const lat = parseFloat(String(surge.cityLat ?? "28.613900"));
+      const lng = parseFloat(String(surge.cityLng ?? "77.209000"));
+      const ai = await calculateAiSurge(lat, lng);
+      res.json({ isActive: ai.isActive, multiplier: ai.multiplier, reason: ai.reason });
+    } else {
+      res.json({
+        isActive: surge.isActive,
+        multiplier: surge.isActive ? parseFloat(String(surge.multiplier)) : 1.0,
+        reason: surge.reason ?? null,
+      });
+    }
   } catch {
     res.json({ isActive: false, multiplier: 1.0, reason: null });
   }
