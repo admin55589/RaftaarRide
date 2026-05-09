@@ -1,14 +1,16 @@
 /**
- * rideQueue.ts — Driver Re-broadcast Queue
+ * rideQueue.ts — Driver Re-broadcast Queue with Progressive Radius Expansion
  *
  * Flow:
  *  1. POST /rides creates ride in "searching" status
- *  2. startRideBroadcast() finds nearest available driver, emits driver:new_ride
- *  3. Driver taps Accept → POST /driver-auth/rides/:id/accept → onDriverAccept()
+ *  2. startRideBroadcast() begins at RADIUS_TIERS_KM[0] = 5km
+ *  3. findNextDriver() filters candidates within current radius
+ *  4. If no driver within radius → expand to next tier, emit ride:radius_expanded to user
+ *  5. Driver taps Accept → POST /driver-auth/rides/:id/accept → onDriverAccept()
  *     → assigns driver in DB, emits ride:status "accepted" to user
- *  4. Driver taps Reject (or 20s timeout) → onDriverReject()
+ *  6. Driver taps Reject (or 20s timeout) → onDriverReject()
  *     → tries next nearest driver (skipping rejected), up to MAX_ATTEMPTS
- *  5. After MAX_ATTEMPTS with no takers → ride stays "searching" (cron auto-cancels at 10min)
+ *  7. After MAX_ATTEMPTS with no takers → emit ride:no_driver
  */
 
 import { db } from "@workspace/db";
@@ -19,7 +21,10 @@ import { sendPushNotification } from "./expoPush";
 import type { Server as IOServer } from "socket.io";
 
 const MAX_ATTEMPTS = 5;
-const DRIVER_TIMEOUT_MS = 20_000; // 20 seconds
+const DRIVER_TIMEOUT_MS = 20_000; // 20 seconds per driver offer
+
+/* Progressive radius tiers in km — after last tier, search is unlimited */
+const RADIUS_TIERS_KM = [5, 10, 20];
 
 /* Injected by index.ts after socket is initialised */
 let _io: IOServer | null = null;
@@ -48,6 +53,9 @@ interface QueueEntry {
   currentDriverId: number | null;
   attempt: number;
   timer: NodeJS.Timeout | null;
+  /* Radius expansion */
+  radiusTierIndex: number;   // index into RADIUS_TIERS_KM (starts at 0 = 5km)
+  searchRadiusKm: number;    // current max radius in km (Infinity = unlimited)
 }
 
 /* rideId → active queue entry */
@@ -69,13 +77,25 @@ export function cancelQueue(rideId: number) {
   logger.info({ rideId }, "[rideQueue] queue cancelled");
 }
 
-/* ─── Find nearest available driver (excluding rejected ones) ───────── */
+/* ─── Haversine distance helper (km) ──────────────────────────────── */
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/* ─── Find nearest available driver within radius ───────────────────── */
 async function findNextDriver(
   vehicleType: string,
   pickupLat?: number,
   pickupLng?: number,
   excludeIds: number[] = [],
-): Promise<{ driver: typeof driversTable.$inferSelect; etaMinutes: number } | null> {
+  maxRadiusKm?: number,
+): Promise<{ driver: typeof driversTable.$inferSelect; etaMinutes: number; distKm: number } | null> {
   const candidates = await db
     .select()
     .from(driversTable)
@@ -84,7 +104,7 @@ async function findNextDriver(
       eq(driversTable.isOnline, true),
       eq(driversTable.status, "active"),
     ))
-    .limit(20);
+    .limit(50);
 
   const eligible = candidates.filter((d) => !excludeIds.includes(d.id));
   if (eligible.length === 0) return null;
@@ -92,29 +112,34 @@ async function findNextDriver(
   const DEFAULT_ETA = 5;
 
   if (pickupLat && pickupLng) {
-    let nearest = eligible[0];
-    let minDist = Infinity;
-    for (const d of eligible) {
-      if (d.driverLat && d.driverLng) {
-        const dLat = parseFloat(String(d.driverLat));
-        const dLng = parseFloat(String(d.driverLng));
-        const latDiff = dLat - pickupLat;
-        const lngDiff = dLng - pickupLng;
-        const avgLat = (dLat + pickupLat) / 2;
-        const kmLat = latDiff * 111.0;
-        const kmLng = lngDiff * 111.0 * Math.cos((avgLat * Math.PI) / 180);
-        const dist = Math.sqrt(kmLat * kmLat + kmLng * kmLng);
-        if (dist < minDist) { minDist = dist; nearest = d; }
-      }
-    }
-    const etaMinutes =
-      minDist === Infinity
-        ? DEFAULT_ETA
-        : Math.min(20, Math.max(1, Math.round((minDist / 20) * 60)));
-    return { driver: nearest, etaMinutes };
+    /* Calculate distance for each candidate and filter by radius */
+    const withDist = eligible.map((d) => {
+      if (!d.driverLat || !d.driverLng) return { driver: d, distKm: Infinity };
+      const dLat = parseFloat(String(d.driverLat));
+      const dLng = parseFloat(String(d.driverLng));
+      const distKm = haversineKm(pickupLat, pickupLng, dLat, dLng);
+      return { driver: d, distKm };
+    });
+
+    /* Apply radius filter if specified */
+    const inRadius = maxRadiusKm !== undefined && isFinite(maxRadiusKm)
+      ? withDist.filter((x) => x.distKm <= maxRadiusKm)
+      : withDist;
+
+    if (inRadius.length === 0) return null;
+
+    /* Pick nearest */
+    inRadius.sort((a, b) => a.distKm - b.distKm);
+    const { driver, distKm } = inRadius[0];
+    const etaMinutes = isFinite(distKm)
+      ? Math.min(45, Math.max(1, Math.round((distKm / 20) * 60)))
+      : DEFAULT_ETA;
+
+    return { driver, etaMinutes, distKm };
   }
 
-  return { driver: eligible[0], etaMinutes: DEFAULT_ETA };
+  /* No GPS → return first eligible (no radius filter possible) */
+  return { driver: eligible[0], etaMinutes: DEFAULT_ETA, distKm: 0 };
 }
 
 /* ─── Internal: offer ride to next driver ──────────────────────────── */
@@ -125,20 +150,62 @@ async function broadcastToNext(rideId: number): Promise<void> {
   if (entry.attempt >= MAX_ATTEMPTS) {
     logger.info({ rideId, attempts: entry.attempt }, "[rideQueue] max attempts reached");
     queues.delete(rideId);
-    /* Emit to user so SearchingScreen knows to show "no driver" message */
     emitRideUpdate(rideId, "ride:no_driver", { rideId });
     return;
   }
+
+  const currentRadius = isFinite(entry.searchRadiusKm) ? entry.searchRadiusKm : undefined;
 
   const result = await findNextDriver(
     entry.vehicleType,
     entry.pickupLat,
     entry.pickupLng,
     [...entry.rejectedIds],
+    currentRadius,
   );
 
   if (!result) {
-    /* No drivers online right now — wait 10s and retry */
+    /* No driver within current radius */
+    if (entry.pickupLat && entry.pickupLng && entry.radiusTierIndex < RADIUS_TIERS_KM.length - 1) {
+      /* Expand to next radius tier */
+      const prevRadius = RADIUS_TIERS_KM[entry.radiusTierIndex];
+      entry.radiusTierIndex++;
+      const newRadius = RADIUS_TIERS_KM[entry.radiusTierIndex];
+      entry.searchRadiusKm = newRadius;
+
+      logger.info(
+        { rideId, prevRadius, newRadius },
+        "[rideQueue] no drivers in radius, expanding search",
+      );
+
+      emitRideUpdate(rideId, "ride:radius_expanded", {
+        rideId,
+        prevRadiusKm: prevRadius,
+        newRadiusKm: newRadius,
+        message: `${prevRadius}km mein koi ${entry.vehicleType} nahi, ${newRadius}km tak dhundh rahe hain...`,
+      });
+
+      /* Retry immediately with expanded radius (no attempt count increment) */
+      await broadcastToNext(rideId);
+      return;
+    }
+
+    if (entry.pickupLat && entry.pickupLng && entry.searchRadiusKm === RADIUS_TIERS_KM[RADIUS_TIERS_KM.length - 1]) {
+      /* All tiers exhausted — go unlimited for remaining attempts */
+      const prevRadius = entry.searchRadiusKm;
+      entry.searchRadiusKm = Infinity;
+
+      logger.info({ rideId, prevRadius }, "[rideQueue] all radius tiers exhausted, searching unlimited");
+
+      emitRideUpdate(rideId, "ride:radius_expanded", {
+        rideId,
+        prevRadiusKm: prevRadius,
+        newRadiusKm: null,
+        message: `${prevRadius}km mein koi nahi — poore city mein dhundh rahe hain...`,
+      });
+    }
+
+    /* No drivers anywhere — wait 10s and retry (count as attempt) */
     entry.attempt++;
     entry.timer = setTimeout(() => {
       broadcastToNext(rideId).catch((err) =>
@@ -146,13 +213,13 @@ async function broadcastToNext(rideId: number): Promise<void> {
       );
     }, 10_000);
     logger.info(
-      { rideId, attempt: entry.attempt, excluded: entry.rejectedIds.size },
+      { rideId, attempt: entry.attempt, radius: entry.searchRadiusKm },
       "[rideQueue] no available drivers, retrying in 10s",
     );
     return;
   }
 
-  const { driver, etaMinutes } = result;
+  const { driver, etaMinutes, distKm } = result;
   entry.attempt++;
   entry.currentDriverId = driver.id;
 
@@ -160,7 +227,7 @@ async function broadcastToNext(rideId: number): Promise<void> {
   await db.update(driversTable).set({ isOnline: false }).where(eq(driversTable.id, driver.id));
 
   logger.info(
-    { rideId, driverId: driver.id, attempt: entry.attempt, eta: etaMinutes },
+    { rideId, driverId: driver.id, attempt: entry.attempt, eta: etaMinutes, distKm: distKm.toFixed(1), radiusKm: entry.searchRadiusKm },
     "[rideQueue] offer sent to driver",
   );
 
@@ -213,7 +280,6 @@ export async function startRideBroadcast(
     distanceKm?: string;
   },
 ): Promise<void> {
-  /* Cancel any existing queue for this rideId (safety) */
   cancelQueue(rideId);
 
   queues.set(rideId, {
@@ -222,6 +288,8 @@ export async function startRideBroadcast(
     currentDriverId: null,
     attempt: 0,
     timer: null,
+    radiusTierIndex: 0,
+    searchRadiusKm: RADIUS_TIERS_KM[0], // start at 5km
   });
 
   await broadcastToNext(rideId);
@@ -236,7 +304,6 @@ export async function onDriverReject(rideId: number, driverId: number): Promise<
   entry.currentDriverId = null;
   entry.rejectedIds.add(driverId);
 
-  /* Put driver back online */
   await db.update(driversTable).set({ isOnline: true }).where(eq(driversTable.id, driverId));
 
   logger.info(
@@ -253,11 +320,9 @@ export async function onDriverAccept(
 ): Promise<{ driver: object | null; pin: number } | null> {
   const entry = queues.get(rideId);
 
-  /* Clear timer regardless */
   if (entry?.timer) clearTimeout(entry.timer);
   queues.delete(rideId);
 
-  /* Verify ride is still in "searching" state */
   const [existingRide] = await db
     .select()
     .from(ridesTable)
@@ -265,7 +330,6 @@ export async function onDriverAccept(
     .limit(1);
 
   if (!existingRide || existingRide.status !== "searching") {
-    /* Ride was cancelled or already assigned — put driver back online */
     await db.update(driversTable).set({ isOnline: true }).where(eq(driversTable.id, driverId));
     logger.warn(
       { rideId, driverId, status: existingRide?.status },
@@ -284,9 +348,6 @@ export async function onDriverAccept(
 
   if (!updatedRide) return null;
 
-  /* Driver stays offline (busy with ride) */
-
-  /* Fetch driver details */
   const [driver] = await db
     .select()
     .from(driversTable)
@@ -311,12 +372,10 @@ export async function onDriverAccept(
       }
     : null;
 
-  /* Emit to user's ride room: driver found! */
   emitRideUpdate(rideId, "ride:status", { rideId, status: "accepted", driver: driverPayload });
   emitRideUpdate(rideId, "ride:pin", { rideId, pin: completionPin });
   emitAdminUpdate("admin:ride:updated", { rideId, status: "accepted", driverId });
 
-  /* Push notification to user */
   if (updatedRide.userId) {
     const [rideUser] = await db
       .select({ pushToken: usersTable.pushToken, name: usersTable.name })

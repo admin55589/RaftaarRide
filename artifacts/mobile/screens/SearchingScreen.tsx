@@ -226,6 +226,8 @@ export function SearchingScreen() {
   const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [onlineDriverCount, setOnlineDriverCount] = useState<number | null>(null);
+  const [searchRadiusKm, setSearchRadiusKm] = useState<number>(5);
+  const [radiusMsg, setRadiusMsg] = useState<string | null>(null);
   const { announceSearching } = useVoiceAI();
   const { showNotification } = useNotification();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -322,6 +324,20 @@ export function SearchingScreen() {
         setScreen("home");
       });
 
+      /* Progressive radius expansion notification */
+      socket.on("ride:radius_expanded", (data: { rideId: number; prevRadiusKm: number; newRadiusKm: number | null; message: string }) => {
+        if (data.rideId !== currentRideId) return;
+        setSearchRadiusKm(data.newRadiusKm ?? 99);
+        setRadiusMsg(data.message);
+        showNotification({
+          title: "🔍 Search Badha Rahe Hain",
+          body: data.message,
+          type: "info",
+          icon: "📍",
+          duration: 4000,
+        });
+      });
+
       pollRef.current = setInterval(async () => {
         try {
           const data = await ridesApi.getRide(token, currentRideId);
@@ -345,6 +361,7 @@ export function SearchingScreen() {
       const s = getSocket();
       s.off("ride:status");
       s.off("ride:no_driver");
+      s.off("ride:radius_expanded");
     };
   }, [currentRideId, token]);
 
@@ -492,10 +509,25 @@ export function SearchingScreen() {
                 style={[styles.statCard, { borderColor: "rgba(34,197,94,0.3)" }]}
               >
                 <Text style={styles.statEmoji}>🗺️</Text>
-                <Text style={[styles.statNum, { color: "#22c55e" }]}>5km</Text>
+                <Text style={[styles.statNum, { color: "#22c55e" }]}>
+                  {searchRadiusKm >= 99 ? "🌆" : `${searchRadiusKm}km`}
+                </Text>
                 <Text style={[styles.statLbl, { color: colors.mutedForeground }]}>Search{"\n"}Radius</Text>
               </LinearGradient>
             </Animated.View>
+
+            {/* ── Radius expansion banner ── */}
+            {radiusMsg && (
+              <Animated.View
+                entering={FadeInDown.springify().damping(14)}
+                style={[styles.radiusBanner, { borderColor: "rgba(245,166,35,0.4)", backgroundColor: "rgba(245,166,35,0.08)" }]}
+              >
+                <Text style={styles.radiusBannerIcon}>📍</Text>
+                <Text style={[styles.radiusBannerText, { color: "#f5a623" }]} numberOfLines={2}>
+                  {radiusMsg}
+                </Text>
+              </Animated.View>
+            )}
 
             {/* ── Progress bar ── */}
             <Animated.View entering={FadeInDown.delay(200)} style={styles.progressWrap}>
@@ -769,6 +801,27 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textAlign: "center",
     lineHeight: 14,
+  },
+
+  /* ── Radius expansion banner ── */
+  radiusBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 4,
+  },
+  radiusBannerIcon: {
+    fontSize: 16,
+  },
+  radiusBannerText: {
+    flex: 1,
+    fontFamily: "Inter_500Medium",
+    fontSize: 12.5,
+    lineHeight: 17,
   },
 
   /* ── Progress ── */
