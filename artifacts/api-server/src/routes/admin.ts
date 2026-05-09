@@ -11,6 +11,7 @@ import {
   chatMessagesTable,
   planTransactionsTable,
   surgeSettingsTable,
+  fraudFlagsTable,
 } from "@workspace/db/schema";
 import { eq, desc, sql, and, gte, lte, isNotNull, ne, inArray, count, max, sum } from "drizzle-orm";
 import jwt from "jsonwebtoken";
@@ -1874,6 +1875,116 @@ router.patch("/admin/referral/config", authMiddleware, (req: Request, res: Respo
   if (typeof enabled === "boolean") referralConfig.enabled = enabled;
   if (bonusAmount != null && bonusAmount >= 0 && bonusAmount <= 500) referralConfig.bonusAmount = bonusAmount;
   res.json({ success: true, config: referralConfig, message: `Referral program ${referralConfig.enabled ? "ON" : "OFF"} kar diya` });
+});
+
+/* ─── FRAUD DETECTION ─────────────────────────────────────────────────────── */
+
+/* GET /api/admin/fraud/flags — list fraud flags with optional filters */
+router.get("/admin/fraud/flags", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { type, status, limit: limitStr } = req.query as Record<string, string>;
+    const pageLimit = Math.min(parseInt(limitStr ?? "50", 10) || 50, 200);
+
+    const conditions = [];
+    if (type) conditions.push(eq(fraudFlagsTable.type, type));
+    if (status) conditions.push(eq(fraudFlagsTable.status, status));
+
+    const flags = await db
+      .select({
+        id: fraudFlagsTable.id,
+        type: fraudFlagsTable.type,
+        severity: fraudFlagsTable.severity,
+        driverId: fraudFlagsTable.driverId,
+        userId: fraudFlagsTable.userId,
+        rideId: fraudFlagsTable.rideId,
+        details: fraudFlagsTable.details,
+        status: fraudFlagsTable.status,
+        reviewedBy: fraudFlagsTable.reviewedBy,
+        reviewNote: fraudFlagsTable.reviewNote,
+        resolvedAt: fraudFlagsTable.resolvedAt,
+        createdAt: fraudFlagsTable.createdAt,
+        driverName: driversTable.name,
+        driverPhone: driversTable.phone,
+        userName: usersTable.name,
+        userPhone: usersTable.phone,
+      })
+      .from(fraudFlagsTable)
+      .leftJoin(driversTable, eq(fraudFlagsTable.driverId, driversTable.id))
+      .leftJoin(usersTable, eq(fraudFlagsTable.userId, usersTable.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(fraudFlagsTable.createdAt))
+      .limit(pageLimit);
+
+    /* Stats */
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [totalRow] = await db.select({ total: count() }).from(fraudFlagsTable);
+    const [openRow] = await db.select({ c: count() }).from(fraudFlagsTable).where(eq(fraudFlagsTable.status, "open"));
+    const [critRow] = await db.select({ c: count() }).from(fraudFlagsTable).where(and(eq(fraudFlagsTable.severity, "critical"), eq(fraudFlagsTable.status, "open")));
+    const [highRow] = await db.select({ c: count() }).from(fraudFlagsTable).where(and(eq(fraudFlagsTable.severity, "high"), eq(fraudFlagsTable.status, "open")));
+    const [weekRow] = await db.select({ c: count() }).from(fraudFlagsTable).where(gte(fraudFlagsTable.createdAt, sevenDaysAgo));
+    const byTypeRows = await db
+      .select({ type: fraudFlagsTable.type, c: count() })
+      .from(fraudFlagsTable)
+      .groupBy(fraudFlagsTable.type);
+
+    const byType: Record<string, number> = {};
+    for (const row of byTypeRows) byType[row.type] = Number(row.c);
+
+    res.json({
+      success: true,
+      flags,
+      total: Number(totalRow?.total ?? 0),
+      stats: {
+        total: Number(totalRow?.total ?? 0),
+        open: Number(openRow?.c ?? 0),
+        critical: Number(critRow?.c ?? 0),
+        high: Number(highRow?.c ?? 0),
+        thisWeek: Number(weekRow?.c ?? 0),
+        byType,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
+});
+
+/* PATCH /api/admin/fraud/flags/:id — update status / add review note */
+router.patch("/admin/fraud/flags/:id", authMiddleware, async (req: Request, res: Response) => {
+  const flagId = Number(req.params.id);
+  if (isNaN(flagId)) { res.status(400).json({ success: false, error: "Invalid flag id" }); return; }
+
+  try {
+    const { status, reviewNote } = req.body as { status?: string; reviewNote?: string };
+    const validStatuses = ["open", "reviewed", "dismissed", "actioned"];
+    if (status && !validStatuses.includes(status)) {
+      res.status(400).json({ success: false, error: "Invalid status" }); return;
+    }
+
+    const updates: Record<string, unknown> = {};
+    if (status) {
+      updates.status = status;
+      if (status !== "open") updates.resolvedAt = new Date();
+    }
+    if (reviewNote !== undefined) updates.reviewNote = reviewNote;
+
+    /* Get admin name from token */
+    const token = (req.headers.authorization ?? "").split(" ")[1];
+    try {
+      const payload = jwt.verify(token, process.env.JWT_SECRET ?? "secret") as { email?: string };
+      if (payload.email) updates.reviewedBy = payload.email;
+    } catch { /* ignore */ }
+
+    const [updated] = await db
+      .update(fraudFlagsTable)
+      .set(updates)
+      .where(eq(fraudFlagsTable.id, flagId))
+      .returning();
+
+    if (!updated) { res.status(404).json({ success: false, error: "Flag not found" }); return; }
+    res.json({ success: true, flag: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
 });
 
 export default router;

@@ -21,6 +21,7 @@ import {
   HeadphonesIcon,
   Trophy,
   PieChart,
+  Shield,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
@@ -99,6 +100,20 @@ export function Sidebar({ isLive = false }: SidebarProps) {
     refetchInterval: 20000,
   });
 
+  const { data: fraudOpen = 0 } = useQuery<number>({
+    queryKey: ["fraud-open-count"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/admin/fraud/flags?status=open&limit=1`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return 0;
+      const d = await res.json();
+      return d?.stats?.open ?? 0;
+    },
+    enabled: !!token,
+    refetchInterval: 30000,
+  });
+
   const nav = [
     { label: "Dashboard", href: "/", icon: LayoutDashboard, badge: 0 },
     { label: "Users", href: "/users", icon: Users, badge: 0 },
@@ -112,6 +127,7 @@ export function Sidebar({ isLive = false }: SidebarProps) {
     { label: "Referral Program", href: "/referrals", icon: Gift, badge: 0 },
     { label: "Loyalty Program", href: "/loyalty", icon: Trophy, badge: 0 },
     { label: "Disputes", href: "/disputes", icon: AlertTriangle, badge: 0 },
+    { label: "Fraud Detection", href: "/fraud", icon: Shield, badge: fraudOpen },
     { label: "Surge Pricing", href: "/surge", icon: Zap, badge: 0 },
     { label: "Earnings Report", href: "/earnings", icon: TrendingUp, badge: 0 },
     { label: "Financial Health", href: "/financial-health", icon: PieChart, badge: 0 },

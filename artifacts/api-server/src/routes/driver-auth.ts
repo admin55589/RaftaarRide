@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { driversTable, ridesTable, usersTable, walletTransactionsTable, planTransactionsTable } from "@workspace/db/schema";
+import { checkGpsSpoof, checkRapidCancellation } from "../lib/fraud-engine";
 import { onDriverAccept, onDriverReject } from "../lib/rideQueue";
 import { eq, or, inArray, sum, avg, count, isNotNull, and, sql, desc, gte } from "drizzle-orm";
 import jwt from "jsonwebtoken";
@@ -476,6 +477,8 @@ router.patch("/driver-auth/location", async (req: Request, res: Response) => {
       res.status(400).json({ success: false, message: "lat aur lng dono chahiye" });
       return;
     }
+    /* Fraud check — GPS spoof detection before overwriting location */
+    checkGpsSpoof(payload.driverId, lat, lng).catch(() => {});
     await db
       .update(driversTable)
       .set({ driverLat: String(lat), driverLng: String(lng) })
@@ -523,6 +526,9 @@ router.patch("/driver-auth/rides/:id/status", async (req: Request, res: Response
     }).where(eq(ridesTable.id, rideId));
 
     if (status === "cancelled") {
+      /* Fraud check — rapid cancellation detection, fire-and-forget */
+      checkRapidCancellation(payload.driverId).catch(() => {});
+
       /* ── Put driver back online ── */
       await db.update(driversTable).set({ isOnline: true }).where(eq(driversTable.id, payload.driverId));
 

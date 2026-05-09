@@ -258,3 +258,19 @@ export const surgeSettingsTable = pgTable("surge_settings", {
   cityLat: numeric("city_lat", { precision: 10, scale: 6 }).default("28.613900"),
   cityLng: numeric("city_lng", { precision: 10, scale: 6 }).default("77.209000"),
 });
+
+export const fraudFlagsTable = pgTable("fraud_flags", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(),       /* gps_spoof | fake_completion | rapid_cancel | promo_abuse */
+  severity: text("severity").notNull().default("medium"), /* low | medium | high | critical */
+  driverId: integer("driver_id").references(() => driversTable.id),
+  userId: integer("user_id").references(() => usersTable.id),
+  rideId: integer("ride_id").references(() => ridesTable.id),
+  details: text("details").notNull(),  /* JSON string — context / evidence */
+  status: text("status").notNull().default("open"), /* open | reviewed | dismissed | actioned */
+  reviewedBy: text("reviewed_by"),
+  reviewNote: text("review_note"),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type FraudFlag = typeof fraudFlagsTable.$inferSelect;

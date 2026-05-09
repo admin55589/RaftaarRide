@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response, type NextFunction } 
 import { db } from "@workspace/db";
 import { ridesTable, driversTable, usersTable, walletTransactionsTable, promoCodesTable, surgeSettingsTable } from "@workspace/db/schema";
 import { eq, desc, and, inArray, avg, isNotNull, sql } from "drizzle-orm";
+import { checkFakeCompletion } from "../lib/fraud-engine";
 import jwt from "jsonwebtoken";
 import { emitRideUpdate, emitAdminUpdate } from "../lib/socket";
 import { sendPushNotification } from "../lib/expoPush";
@@ -690,6 +691,9 @@ router.post("/rides/:id/verify-pin", async (req: Request, res: Response) => {
 
     /* Mark ride as completed */
     const [updated] = await db.update(ridesTable).set({ status: "completed" }).where(eq(ridesTable.id, rideId)).returning();
+
+    /* Fraud check — fire-and-forget, never blocks response */
+    checkFakeCompletion(rideId).catch(() => {});
 
     /* Calculate earnings — 0% commission, platform fee model
        Guard: skip if PATCH /status already credited (e.g. race condition) */
