@@ -2,13 +2,14 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { driversTable, ridesTable, usersTable, walletTransactionsTable, planTransactionsTable } from "@workspace/db/schema";
 import { onDriverAccept, onDriverReject } from "../lib/rideQueue";
-import { eq, or, inArray, sum, avg, count, isNotNull, and, sql, desc } from "drizzle-orm";
+import { eq, or, inArray, sum, avg, count, isNotNull, and, sql, desc, gte } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import Razorpay from "razorpay";
 import { emitRideUpdate } from "../lib/socket";
 import { logger } from "../lib/logger";
+import { sendPushNotification } from "../lib/expoPush";
 
 /* In-memory OTP store for driver password reset (phone → {otp, expiresAt}) */
 const driverResetOtps = new Map<string, { otp: string; expiresAt: Date }>();
@@ -514,10 +515,110 @@ router.patch("/driver-auth/rides/:id/status", async (req: Request, res: Response
       res.status(403).json({ success: false, message: "Yeh ride aapki nahi hai" });
       return;
     }
-    await db.update(ridesTable).set({ status }).where(eq(ridesTable.id, rideId));
+    await db.update(ridesTable).set({
+      status,
+      ...(status === "cancelled" ? { cancelledBy: "driver" } : {}),
+    }).where(eq(ridesTable.id, rideId));
 
     if (status === "cancelled") {
+      /* ── Put driver back online ── */
       await db.update(driversTable).set({ isOnline: true }).where(eq(driversTable.id, payload.driverId));
+
+      /* ── Refund user if wallet was pre-charged ── */
+      if (ride.userId) {
+        const [rideUser] = await db
+          .select({ walletBalance: usersTable.walletBalance, pushToken: usersTable.pushToken })
+          .from(usersTable)
+          .where(eq(usersTable.id, ride.userId))
+          .limit(1);
+
+        if (rideUser && ride.paymentMethod === "RaftaarWallet") {
+          const ridePrice = parseFloat(String(ride.price ?? "0"));
+          const currentBal = parseFloat(String(rideUser.walletBalance ?? "0"));
+          const newBal = parseFloat((currentBal + ridePrice).toFixed(2));
+
+          await db.update(usersTable)
+            .set({ walletBalance: String(newBal) })
+            .where(eq(usersTable.id, ride.userId));
+
+          await db.insert(walletTransactionsTable).values({
+            userId: ride.userId,
+            type: "refund",
+            amount: String(ridePrice),
+            description: `Ride #${rideId} — Driver ne cancel kiya. ₹${ridePrice.toFixed(2)} wallet mein wapas.`,
+          });
+
+          if (rideUser.pushToken) {
+            await sendPushNotification({
+              to: rideUser.pushToken,
+              title: "❌ Driver ne Cancel Kiya — Refund Ho Gaya!",
+              body: `₹${ridePrice.toFixed(2)} aapke RaftaarWallet mein wapas aa gaye. Naya driver dhundh rahe hain...`,
+              data: { type: "driver_cancelled_refund", rideId, refundAmt: ridePrice },
+            });
+          }
+        } else if (rideUser?.pushToken) {
+          /* Cash ride — just notify user */
+          await sendPushNotification({
+            to: rideUser.pushToken,
+            title: "❌ Driver ne Cancel Kiya",
+            body: "Aapke driver ne ride cancel kar di. Naya driver dhundh rahe hain...",
+            data: { type: "driver_cancelled", rideId },
+          });
+        }
+      }
+
+      /* ── Driver cancel penalty: ₹10 deduction after ≥3 cancels today ── */
+      const PENALTY_AMT = 10;
+      const CANCEL_THRESHOLD = 3;
+
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const [cancelCountRow] = await db
+        .select({ cnt: count() })
+        .from(ridesTable)
+        .where(and(
+          eq(ridesTable.driverId, payload.driverId),
+          eq(ridesTable.cancelledBy, "driver"),
+          gte(ridesTable.createdAt, todayStart),
+        ));
+
+      const todayCancels = cancelCountRow?.cnt ?? 0;
+
+      if (todayCancels >= CANCEL_THRESHOLD) {
+        const [drv] = await db
+          .select({ walletBalance: driversTable.walletBalance, pushToken: driversTable.pushToken })
+          .from(driversTable)
+          .where(eq(driversTable.id, payload.driverId))
+          .limit(1);
+
+        if (drv) {
+          const drvBal = parseFloat(String(drv.walletBalance ?? "0"));
+          const deductAmt = Math.min(PENALTY_AMT, Math.max(0, drvBal));
+          if (deductAmt > 0) {
+            const newDrvBal = parseFloat((drvBal - deductAmt).toFixed(2));
+            await db.update(driversTable)
+              .set({ walletBalance: String(newDrvBal) })
+              .where(eq(driversTable.id, payload.driverId));
+
+            await db.insert(walletTransactionsTable).values({
+              driverId: payload.driverId,
+              type: "debit",
+              amount: String(-deductAmt),
+              description: `Cancel penalty — aaj ${todayCancels} rides cancel ki hain. ₹${deductAmt} penalty.`,
+            });
+          }
+
+          if (drv.pushToken) {
+            await sendPushNotification({
+              to: drv.pushToken,
+              title: `⚠️ Cancel Penalty — ₹${PENALTY_AMT}`,
+              body: `Aaj aapne ${todayCancels} rides cancel ki hain. Zyada cancel karne par ₹${PENALTY_AMT} kata. Passengers ka dhyan rakho!`,
+              data: { type: "cancel_penalty", todayCancels, penalty: deductAmt },
+            });
+          }
+        }
+      }
     }
 
     /* Credit driver earnings on ride completion — mirrors /api/rides/:id/status logic */
