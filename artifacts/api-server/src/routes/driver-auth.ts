@@ -636,6 +636,8 @@ router.get("/driver-auth/rides/active", async (req: Request, res: Response) => {
         completionPin: ridesTable.completionPin,
         userId: ridesTable.userId,
         createdAt: ridesTable.createdAt,
+        pickupLat: ridesTable.pickupLat,
+        pickupLng: ridesTable.pickupLng,
       })
       .from(ridesTable)
       .where(
@@ -665,6 +667,8 @@ router.get("/driver-auth/rides/active", async (req: Request, res: Response) => {
       eta: 3,
       userName: (r.userId ? userMap.get(r.userId) : null) ?? "Passenger",
       status: r.status,
+      pickupLat: r.pickupLat != null ? parseFloat(String(r.pickupLat)) : null,
+      pickupLng: r.pickupLng != null ? parseFloat(String(r.pickupLng)) : null,
     }));
 
     res.json({ success: true, rides: result });

@@ -174,6 +174,8 @@ async function broadcastToNext(rideId: number): Promise<void> {
     price: entry.price,
     eta: etaMinutes,
     userName: "Passenger",
+    pickupLat: entry.pickupLat ?? null,
+    pickupLng: entry.pickupLng ?? null,
   });
 
   /* Push notification to driver */

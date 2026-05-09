@@ -70,9 +70,33 @@ interface ActiveRide {
   distance: string;
   userName: string;
   rideStatus?: string;
+  pickupLat?: number | null;
+  pickupLng?: number | null;
 }
 
-const MOCK_REQUESTS: Array<{ id: string; rideId: number; from: string; to: string; distance: string; price: number; eta: number; userName: string }> = [];
+interface RideRequest {
+  id: string;
+  rideId: number;
+  from: string;
+  to: string;
+  distance: string;
+  price: number;
+  eta: number;
+  userName: string;
+  pickupLat?: number | null;
+  pickupLng?: number | null;
+}
+
+/** Haversine great-circle distance in metres */
+function distanceMetres(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+const MOCK_REQUESTS: RideRequest[] = [];
 
 function getVehicleIcon(vehicleType?: string): string {
   switch ((vehicleType ?? "").toLowerCase()) {
@@ -437,6 +461,10 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
   const [lastLocTime, setLastLocTime] = useState<Date | null>(null);
   const [driverArrivedAt, setDriverArrivedAt] = useState<Date | null>(null);
   const [driverWaitSeconds, setDriverWaitSeconds] = useState(0);
+  const [distanceToPickup, setDistanceToPickup] = useState<number | null>(null);
+  const arrivedAutoFiredRef = useRef(false);
+  /* Ref so handleLocationUpdate can call handleMarkStatus without circular deps */
+  const handleMarkStatusRef = useRef<((s: "arrived" | "onRide") => Promise<void>) | null>(null);
 
   /* Live wait-time counter — ticks every second while driver is at pickup */
   useEffect(() => {
@@ -484,6 +512,29 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
         emitDriverLocation(driver.id, activeRideRef.current.rideId, latitude, longitude);
       }
       setLastLocTime(new Date());
+
+      /* ── Geofence auto-arrived detection ──────────────────────────────
+         When driver is approaching pickup and within 300m, automatically
+         mark status "arrived". Only fires once per ride (arrivedAutoFiredRef). */
+      const ride = activeRideRef.current;
+      if (
+        ride &&
+        (ride.rideStatus === "accepted" || !ride.rideStatus) &&
+        ride.pickupLat != null &&
+        ride.pickupLng != null &&
+        !arrivedAutoFiredRef.current
+      ) {
+        const metres = distanceMetres(latitude, longitude, ride.pickupLat, ride.pickupLng);
+        setDistanceToPickup(Math.round(metres));
+        if (metres <= 300) {
+          arrivedAutoFiredRef.current = true;
+          setDistanceToPickup(0);
+          await handleMarkStatusRef.current?.("arrived");
+        }
+      } else if (activeRideRef.current?.rideStatus !== "accepted") {
+        setDistanceToPickup(null);
+      }
+
       if (!silent) showNotification({ title: "📍 Location Update Ho Gayi!", body: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`, type: "success", icon: "✅" });
     } catch (_) {
       if (!silent) showNotification({ title: "Location Error", body: "GPS se location nahi mili", type: "error", icon: "❌" });
@@ -491,6 +542,12 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
       setLocUpdating(false);
     }
   }, [locUpdating, driverToken, driver?.id, showNotification]);
+
+  /* Reset geofence auto-fire flag each time a new ride becomes active */
+  useEffect(() => {
+    arrivedAutoFiredRef.current = false;
+    setDistanceToPickup(null);
+  }, [activeRide?.rideId]);
 
   /* Sync activeRideId into background task config whenever ride changes */
   useEffect(() => {
@@ -709,7 +766,7 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
       .then((data) => {
         if (data.success && Array.isArray(data.rides) && data.rides.length > 0) {
           /* Map DB ride format → request format expected by the UI */
-          type DbRide = { id: number; pickup: string; destination: string; distanceKm: string | null; price: string; userId: number; status: string };
+          type DbRide = { id: number; pickup: string; destination: string; distanceKm: string | null; price: string; userId: number; status: string; pickupLat?: number | null; pickupLng?: number | null };
           const mapped = (data.rides as DbRide[]).map((r) => ({
             id: String(r.id),
             rideId: r.id,
@@ -719,6 +776,8 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
             price: parseFloat(r.price) || 0,
             eta: 5,
             userName: "Passenger",
+            pickupLat: r.pickupLat ?? null,
+            pickupLng: r.pickupLng ?? null,
           }));
           setRequests((prev) => {
             const existingIds = new Set(prev.map((r) => r.id));
@@ -730,7 +789,7 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
       .catch(() => {});
 
     /* Real-time new ride via socket */
-    function onNewRide(data: { id: string; rideId: number; from: string; to: string; distance: string; price: number; eta: number; userName: string }) {
+    function onNewRide(data: RideRequest) {
       setRequests((prev) => {
         if (prev.some((r) => r.id === data.id)) return prev;
         return [...prev, data];
@@ -859,7 +918,7 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
       return;
     }
 
-    /* Success — set active ride state */
+    /* Success — set active ride state (carry pickup coords for geofence) */
     setChatMessages([]);
     setUnreadCount(0);
     setActiveRide({
@@ -869,6 +928,9 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
       price: req.price,
       distance: req.distance,
       userName: req.userName,
+      rideStatus: "accepted",
+      pickupLat: req.pickupLat ?? null,
+      pickupLng: req.pickupLng ?? null,
     });
 
     /* Join ride socket room for chat/location/status events */
@@ -925,6 +987,9 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
       showNotification({ title: "Error", body: "Status update nahi hua — dobara try karo", type: "error", icon: "❌", duration: 3000 });
     }
   };
+
+  /* Keep ref in sync so handleLocationUpdate geofence can call it without circular deps */
+  useEffect(() => { handleMarkStatusRef.current = handleMarkStatus; });
 
   const handleCompleteRide = () => {
     if (!activeRide) return;
@@ -1207,14 +1272,42 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
 
             {/* Status action buttons */}
             {!activeRide.rideStatus || activeRide.rideStatus === "accepted" ? (
-              <TouchableOpacity
-                onPress={() => handleMarkStatus("arrived")}
-                style={{ backgroundColor: "rgba(74,222,128,0.13)", borderWidth: 1.5, borderColor: "#4ADE80", borderRadius: 14, paddingVertical: 12, alignItems: "center" }}
-                activeOpacity={0.8}
-              >
-                <Text style={{ color: "#4ADE80", fontFamily: "Inter_700Bold", fontSize: 14 }}>📍 Pickup Pe Pahuncha!</Text>
-                <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 11, marginTop: 2 }}>Yeh press karo jab aap pickup point pe ho</Text>
-              </TouchableOpacity>
+              <View style={{ borderRadius: 14, overflow: "hidden" }}>
+                {/* Auto-geofence proximity indicator */}
+                {distanceToPickup != null && distanceToPickup > 0 ? (
+                  <View style={{
+                    backgroundColor: distanceToPickup <= 500 ? "rgba(74,222,128,0.08)" : "rgba(99,102,241,0.08)",
+                    borderWidth: 1.5,
+                    borderColor: distanceToPickup <= 500 ? "#4ADE80" : "#6366F1",
+                    borderRadius: 14,
+                    paddingVertical: 14,
+                    paddingHorizontal: 16,
+                    alignItems: "center",
+                    gap: 4,
+                  }}>
+                    <Text style={{ color: distanceToPickup <= 500 ? "#4ADE80" : "#6366F1", fontFamily: "Inter_700Bold", fontSize: 14 }}>
+                      {distanceToPickup <= 500 ? "📍 Pickup Karib Hai!" : "🛣️ Pickup Ki Taraf Bado"}
+                    </Text>
+                    <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_500Medium", fontSize: 13 }}>
+                      {distanceToPickup >= 1000
+                        ? `${(distanceToPickup / 1000).toFixed(1)} km door`
+                        : `${distanceToPickup} m door`}
+                    </Text>
+                    <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 11 }}>
+                      300m pe pahunchte hi auto-arrived mark ho jaega
+                    </Text>
+                  </View>
+                ) : distanceToPickup === 0 ? (
+                  <View style={{ backgroundColor: "rgba(74,222,128,0.13)", borderWidth: 1.5, borderColor: "#4ADE80", borderRadius: 14, paddingVertical: 12, alignItems: "center" }}>
+                    <Text style={{ color: "#4ADE80", fontFamily: "Inter_700Bold", fontSize: 14 }}>✅ Auto-Arrived Mark Ho Gaya!</Text>
+                  </View>
+                ) : (
+                  <View style={{ backgroundColor: "rgba(99,102,241,0.08)", borderWidth: 1.5, borderColor: "#6366F1", borderRadius: 14, paddingVertical: 14, alignItems: "center" }}>
+                    <Text style={{ color: "#6366F1", fontFamily: "Inter_700Bold", fontSize: 14 }}>🛣️ Pickup Ki Taraf Jao</Text>
+                    <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 11, marginTop: 2 }}>300m ke andar aate hi auto-arrived ho jaoge</Text>
+                  </View>
+                )}
+              </View>
             ) : activeRide.rideStatus === "arrived" ? (
               <TouchableOpacity
                 onPress={() => handleMarkStatus("onRide")}

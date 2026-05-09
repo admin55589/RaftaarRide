@@ -143,7 +143,7 @@ async function autoDispatchScheduledRides() {
         isScheduled: true,
       };
 
-      emitToDriver(driver.id, "driver:new_ride", rideData);
+      emitToDriver(driver.id, "driver:new_ride", { ...rideData, pickupLat: null, pickupLng: null });
 
       if (driver.pushToken) {
         await sendPushNotification({
