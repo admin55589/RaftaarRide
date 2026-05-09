@@ -270,7 +270,7 @@ export function HomeScreen() {
     finally { setSavingProfile(false); }
   };
 
-  const MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q";
+  
 
   /* India bounding box — reject any coordinates outside this range */
   const INDIA_LAT_MIN = 6.0, INDIA_LAT_MAX = 37.6;
@@ -327,10 +327,9 @@ export function HomeScreen() {
     bias?: { lat: number; lng: number },
   ) => {
     const q = encodeURIComponent(address);
-    /* location + radius gives a soft bias — Google still returns results outside radius */
-    const biasParam = bias ? `&location=${bias.lat},${bias.lng}&radius=50000` : "";
-    /* components=country:IN strictly restricts results to India */
-    fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${q}&components=country:IN&region=in${biasParam}&key=${MAPS_KEY}`)
+    /* Server-side proxy — Maps key never sent to client */
+    const biasParams = bias ? `&lat=${bias.lat}&lng=${bias.lng}` : "";
+    fetch(`${API_BASE}/maps/geocode?q=${q}${biasParams}`)
       .then(r => r.json())
       .then((data: { results?: Array<{ geometry?: { location?: { lat: number; lng: number } } }> }) => {
         if (!data?.results?.length) { geocodeViaNominatim(address, onResult, bias); return; }

@@ -218,7 +218,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [estimatedTime, setEstimatedTime] = useState(12);
   const [estimatedDistanceKm, setEstimatedDistanceKm] = useState(8.2);
   const [isDistanceLoading, setIsDistanceLoading] = useState(false);
-  const mapsKeyRef = useRef<string>(process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "");
+  
   const [assignedDriver, setAssignedDriver] = useState<Driver | null>(null);
   const [rideHistory, setRideHistory] = useState<Ride[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
@@ -257,11 +257,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const controller = new AbortController();
     /* Safety net: never block the Book button for more than 10 seconds */
     const loadingTimeout = setTimeout(() => setIsDistanceLoading(false), 10000);
-    const mapsKey = mapsKeyRef.current || "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q";
-    /* Try Google Maps Directions API for accurate road distance */
+    /* Try Google Maps Directions API via server proxy (key never in client) */
     const origin = `${pickupCoords.lat},${pickupCoords.lng}`;
     const destination = `${dropCoords.lat},${dropCoords.lng}`;
-    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&mode=driving&key=${mapsKey}`;
+    const url = `${API_BASE}/maps/directions?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
     fetch(url, { signal: controller.signal })
       .then((r) => r.json())
       .then((data: { routes?: Array<{ legs?: Array<{ distance?: { value: number }; duration?: { value: number } }> }> }) => {

@@ -5,7 +5,7 @@ import * as Location from "expo-location";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 
-const GOOGLE_MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || "AIzaSyDB6UjzLMUfoXJ67cAEDbkRfERIxFLpM7Q";
+const GOOGLE_MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 const DEFAULT_CENTER = { lat: 28.6139, lng: 77.2090 };
 
 interface MapViewProps {

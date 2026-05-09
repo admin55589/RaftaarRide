@@ -13,6 +13,7 @@ import voiceRouter from "./voice";
 import pagesRouter from "./pages";
 import chatRouter from "./chat";
 import disputesRouter from "./disputes";
+import mapsRouter from "./maps";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(scheduledRouter);
 router.use(voiceRouter);
 router.use(chatRouter);
 router.use(disputesRouter);
+router.use(mapsRouter);
 
 export default router;
