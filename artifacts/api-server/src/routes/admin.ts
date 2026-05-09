@@ -1766,7 +1766,7 @@ router.get("/admin/financial-health", authMiddleware, async (_req: Request, res:
 let loyaltyConfig = {
   enabled: true,
   ptsPerRupee10: 1,       /* Points awarded per ₹10 of ride fare */
-  redemptionPts: 100,     /* Points needed for one redemption     */
+  redemptionPts: 150,     /* Points needed for one redemption     */
   redemptionRupees: 10,   /* ₹ credited per redemption            */
 };
 

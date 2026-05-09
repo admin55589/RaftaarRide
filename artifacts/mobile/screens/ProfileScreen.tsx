@@ -323,7 +323,7 @@ export function ProfileScreen() {
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <View>
                 <Text style={{ fontSize: 14, fontWeight: "700", fontFamily: "Inter_700Bold", color: colors.foreground }}>🏆 RaftaarPoints</Text>
-                <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2, fontFamily: "Inter_400Regular" }}>Har ₹10 ki ride pe 1 point · 100 pts = ₹10</Text>
+                <Text style={{ fontSize: 11, color: colors.mutedForeground, marginTop: 2, fontFamily: "Inter_400Regular" }}>Har ₹10 ki ride pe 1 point · 150 pts = ₹10</Text>
               </View>
               <View style={{ alignItems: "flex-end" }}>
                 <Text style={{ fontSize: 26, fontWeight: "800", color: colors.primary, fontFamily: "Inter_700Bold" }}>{loyaltyPoints}</Text>
@@ -331,7 +331,7 @@ export function ProfileScreen() {
               </View>
             </View>
             <View style={{ height: 5, backgroundColor: colors.border, borderRadius: 3, marginBottom: 8 }}>
-              <View style={{ width: `${Math.min(100, ((100 - pointsToNext) / 100) * 100)}%`, height: "100%", backgroundColor: colors.primary, borderRadius: 3 }} />
+              <View style={{ width: `${Math.min(100, ((150 - pointsToNext) / 150) * 100)}%`, height: "100%", backgroundColor: colors.primary, borderRadius: 3 }} />
             </View>
             <Text style={{ fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
               {redeemableRupees > 0

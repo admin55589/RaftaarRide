@@ -408,7 +408,7 @@ export function WalletScreen() {
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <View>
                 <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text, fontFamily: "Inter_700Bold" }}>🏆 RaftaarPoints</Text>
-                <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2, fontFamily: "Inter_400Regular" }}>Har ₹10 ki ride pe 1 point · 100 pts = ₹10</Text>
+                <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2, fontFamily: "Inter_400Regular" }}>Har ₹10 ki ride pe 1 point · 150 pts = ₹10</Text>
               </View>
               <View style={{ alignItems: "flex-end" }}>
                 <Text style={{ fontSize: 28, fontWeight: "800", color: colors.primary, fontFamily: "Inter_700Bold" }}>{loyaltyPoints}</Text>
@@ -420,14 +420,14 @@ export function WalletScreen() {
             <View style={{ marginBottom: 12 }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
                 <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: "Inter_400Regular" }}>
-                  {pointsToNext === 100 ? "Koi points nahi abhi" : `Agle ₹10 ke liye ${pointsToNext} aur points chahiye`}
+                  {pointsToNext === 150 ? "Koi points nahi abhi" : `Agle ₹10 ke liye ${pointsToNext} aur points chahiye`}
                 </Text>
                 <Text style={{ fontSize: 11, color: colors.primary, fontFamily: "Inter_600SemiBold" }}>
-                  {100 - pointsToNext}/100
+                  {150 - pointsToNext}/150
                 </Text>
               </View>
               <View style={{ height: 6, backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 3 }}>
-                <View style={{ width: `${Math.min(100, ((100 - pointsToNext) / 100) * 100)}%`, height: "100%", backgroundColor: colors.primary, borderRadius: 3 }} />
+                <View style={{ width: `${Math.min(100, ((150 - pointsToNext) / 150) * 100)}%`, height: "100%", backgroundColor: colors.primary, borderRadius: 3 }} />
               </View>
             </View>
 

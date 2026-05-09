@@ -209,9 +209,9 @@ router.get("/users/loyalty", userAuth, async (req: Request, res: Response) => {
     res.json({
       success: true,
       points: pts,
-      nextRedemptionAt: 100,
-      pointsToNext: Math.max(0, 100 - (pts % 100)),
-      redeemableRupees: Math.floor(pts / 100) * 10,
+      nextRedemptionAt: 150,
+      pointsToNext: Math.max(0, 150 - (pts % 150)),
+      redeemableRupees: Math.floor(pts / 150) * 10,
     });
   } catch { res.status(500).json({ success: false, error: "Server error" }); }
 });
@@ -225,12 +225,12 @@ router.post("/wallet/redeem-points", userAuth, async (req: Request, res: Respons
     if (!user) { res.status(404).json({ success: false, error: "User not found" }); return; }
 
     const pts = user.loyaltyPoints ?? 0;
-    const redeemableSets = Math.floor(pts / 100);
+    const redeemableSets = Math.floor(pts / 150);
     if (redeemableSets < 1) {
-      res.status(400).json({ success: false, error: `Abhi sirf ${pts} points hain. 100 points pe ₹10 milenge.` }); return;
+      res.status(400).json({ success: false, error: `Abhi sirf ${pts} points hain. 150 points pe ₹10 milenge.` }); return;
     }
 
-    const pointsToRedeem = redeemableSets * 100;
+    const pointsToRedeem = redeemableSets * 150;
     const rupees = redeemableSets * 10;
     const newPoints = pts - pointsToRedeem;
     const newBalance = parseFloat(String(user.walletBalance ?? "0")) + rupees;
