@@ -25,6 +25,7 @@ import { DriverAuthProvider, useDriverAuth } from "@/context/DriverAuthContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import "@/lib/backgroundLocation";
 
 SplashScreen.preventAutoHideAsync();
 

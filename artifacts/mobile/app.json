@@ -16,6 +16,9 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.raftaarride.app",
+      "infoPlist": {
+        "UIBackgroundModes": ["location", "fetch"]
+      },
       "config": {
         "googleMapsApiKey": ""
       }
@@ -49,7 +52,17 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "RaftaarRide ko background mein aapki location chahiye taaki driver tracking kaam kare.",
+          "locationAlwaysPermission": "RaftaarRide ko always-on location chahiye — driver ride ke dauran background mein bhi track hota rahe.",
+          "locationWhenInUsePermission": "RaftaarRide ko aapki location chahiye taaki rides mile aur tracking ho sake.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

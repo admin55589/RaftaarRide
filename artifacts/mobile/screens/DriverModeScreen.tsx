@@ -46,6 +46,12 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { MapView } from "@/components/MapView";
 import { connectSocket, sendChatMessage, emitDriverLocation, joinDriverRoom, getSocket } from "@/lib/socket";
 import { APP_BASE as BASE_URL, API_BASE } from "@/lib/api";
+import {
+  startBackgroundLocationTask,
+  stopBackgroundLocationTask,
+  saveBgLocationConfig,
+  clearBgLocationConfig,
+} from "@/lib/backgroundLocation";
 
 interface ChatMsg {
   id: string;
@@ -473,25 +479,41 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
     }
   }, [locUpdating, driverToken, driver?.id, showNotification]);
 
-  /* Re-check location when app comes back to foreground (e.g. after granting permission in Settings) */
+  /* Sync activeRideId into background task config whenever ride changes */
   useEffect(() => {
-    if (!isOnline) return;
-    const sub = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active") {
-        handleLocationUpdate(true);
-      }
-    });
-    return () => sub.remove();
-  }, [isOnline, handleLocationUpdate]);
+    if (!isOnline || !driverToken || !driver?.id) return;
+    saveBgLocationConfig({
+      driverToken,
+      driverId: driver.id,
+      activeRideId: activeRide?.rideId ?? null,
+    }).catch(() => {});
+  }, [isOnline, activeRide?.rideId, driverToken, driver?.id]);
 
-  /* Auto-update location: 10s during active ride, 90s otherwise */
+  /* Foreground socket emission — complements background REST updates with real-time socket */
   useEffect(() => {
     if (!isOnline) return;
+    /* emit once immediately */
     handleLocationUpdate(true);
-    const intervalMs = activeRide ? 10000 : 90000;
+    /* while in foreground: emit via socket every 8s during ride, 60s when idle */
+    const intervalMs = activeRide ? 8000 : 60000;
     const interval = setInterval(() => handleLocationUpdate(true), intervalMs);
     return () => clearInterval(interval);
   }, [isOnline, activeRide?.rideId]);
+
+  /* On app resume: emit one foreground update + ensure background task is running */
+  useEffect(() => {
+    if (!isOnline) return;
+    const sub = AppState.addEventListener("change", async (nextState) => {
+      if (nextState === "active") {
+        handleLocationUpdate(true);
+        /* Restart bg task if it was killed */
+        if (driverToken && driver?.id) {
+          await startBackgroundLocationTask().catch(() => {});
+        }
+      }
+    });
+    return () => sub.remove();
+  }, [isOnline, handleLocationUpdate, driverToken, driver?.id]);
 
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [editName, setEditName] = useState(driver?.name ?? "");
@@ -600,6 +622,22 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
     const newStatus = !isOnline;
     setOnlineToggling(true);
     try {
+      if (newStatus) {
+        /* Going online — request background location permission first */
+        const { status: fgStatus } = await Location.getForegroundPermissionsAsync();
+        let fgGranted = fgStatus === "granted";
+        if (!fgGranted) {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          fgGranted = status === "granted";
+        }
+        if (fgGranted) {
+          const { status: bgStatus } = await Location.getBackgroundPermissionsAsync();
+          if (bgStatus !== "granted") {
+            await Location.requestBackgroundPermissionsAsync();
+          }
+        }
+      }
+
       const res = await fetch(`${API_BASE}/driver-auth/online-status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${driverToken}` },
@@ -609,9 +647,17 @@ export function DriverModeScreen({ onNavigateToPlans }: { onNavigateToPlans?: ()
       if (data.success) {
         setIsOnline(data.isOnline);
         updateDriver({ ...driver, isOnline: data.isOnline });
+        if (data.isOnline) {
+          /* Start background GPS task */
+          await saveBgLocationConfig({ driverToken, driverId: driver.id, activeRideId: null });
+          await startBackgroundLocationTask().catch(() => {});
+        } else {
+          /* Stop background GPS task */
+          await stopBackgroundLocationTask().catch(() => {});
+        }
         showNotification({
           title: data.isOnline ? "✅ Aap Online Hain" : "🔴 Aap Offline Ho Gaye",
-          body: data.isOnline ? "Ab aapko ride requests aayengi" : "Koi naya request nahi aayega",
+          body: data.isOnline ? "Ab aapko ride requests aayengi — GPS tracking shuru" : "GPS tracking band",
           type: data.isOnline ? "success" : "info",
           icon: data.isOnline ? "🟢" : "🔴",
           duration: 3000,
