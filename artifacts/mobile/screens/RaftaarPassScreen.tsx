@@ -24,27 +24,33 @@ const BENEFITS = [
     highlight: true,
   },
   {
+    icon: "🔒",
+    title: "Surge Price Cap — Max 1.5x",
+    desc: "Peak hours mein bhi max 1.5x surge — baki logo ko 2x+ lagta hai",
+    highlight: true,
+  },
+  {
+    icon: "⏳",
+    title: "8 Min Free Waiting Time",
+    desc: "Driver aane ke baad 8 min tak cancel karo bina ₹50 fee ke (normal: 5 min)",
+    highlight: false,
+  },
+  {
+    icon: "📅",
+    title: "2 Free Scheduled Rides / Month",
+    desc: "Advance booking karo bina wallet se koi charge ke",
+    highlight: false,
+  },
+  {
     icon: "⚡",
-    title: "Priority Booking — Peak Hours",
-    desc: "Rush hour mein bhi pehle driver mile, zyada wait nahi",
+    title: "Priority Dispute Resolution",
+    desc: "Koi problem? 24 ghante mein resolve — normal users ko 72 ghante lagte hain",
     highlight: false,
   },
   {
     icon: "⏱️",
     title: "Extended Grace Period",
     desc: "Cancel karo 5 min tak — bina penalty (normal: 2 min)",
-    highlight: false,
-  },
-  {
-    icon: "🏆",
-    title: "Pass Member Badge",
-    desc: "Profile mein exclusive 'Pass Member' badge dikhe",
-    highlight: false,
-  },
-  {
-    icon: "💰",
-    title: "Savings Every Month",
-    desc: "Sirf 5 free cancels = ₹150–250 bachta hai easily",
     highlight: false,
   },
 ];

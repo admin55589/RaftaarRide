@@ -122,6 +122,11 @@ export function DisputesPage() {
                     <span className={`px-2 py-0.5 rounded-md text-xs font-semibold border ${STATUS_COLORS[d.status] ?? "bg-muted text-muted-foreground"}`}>
                       {d.status.replace("_", " ").toUpperCase()}
                     </span>
+                    {d.isPriority && (
+                      <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-red-500/15 text-red-400 border border-red-500/30">
+                        🔴 Priority (Pass)
+                      </span>
+                    )}
                     <span className="text-sm font-medium text-foreground">{ISSUE_LABELS[d.issue] ?? d.issue}</span>
                     <span className="text-xs text-muted-foreground ml-auto">Ride #{d.rideId}</span>
                   </div>

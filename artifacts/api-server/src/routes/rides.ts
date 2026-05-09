@@ -92,6 +92,21 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
     res.status(400).json({ success: false, error: "pickup, drop, vehicleType, price are required" }); return;
   }
 
+  /* ── B: Pass holder surge cap — max 1.5x surge ── */
+  let effectivePrice = finalPrice;
+  if (originalPrice && originalPrice > 0) {
+    const passNow = new Date();
+    const [surgePass] = await db
+      .select({ id: userPassesTable.id })
+      .from(userPassesTable)
+      .where(and(eq(userPassesTable.userId, userId), eq(userPassesTable.status, "active"), gte(userPassesTable.expiresAt, passNow)))
+      .limit(1);
+    if (surgePass) {
+      const cap = parseFloat(String(originalPrice)) * 1.5;
+      if (finalPrice > cap) effectivePrice = Math.round(cap);
+    }
+  }
+
   const { paymentMethod: pmRaw } = req.body as { paymentMethod?: string };
   const finalPaymentMethod = (pmRaw && ["Cash","UPI","Card","RaftaarWallet"].includes(pmRaw)) ? pmRaw : "Cash";
 
@@ -105,13 +120,13 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       destination: dropAddress, dropLat, dropLng,
       vehicleType: finalVehicleType,
       rideMode: rideMode ?? "economy",
-      price: String(finalPrice),
+      price: String(effectivePrice),
       distanceKm: distanceKm ? String(distanceKm) : undefined,
       status: "searching",
       paymentMethod: finalPaymentMethod,
       promoCode: promoCode?.toUpperCase().trim() ?? null,
       discountAmount: discountAmount ? String(discountAmount) : "0",
-      originalPrice: originalPrice ? String(originalPrice) : String(finalPrice),
+      originalPrice: originalPrice ? String(originalPrice) : String(effectivePrice),
       senderName: senderName?.trim() ?? null,
       receiverName: receiverName?.trim() ?? null,
       receiverPhone: receiverPhone?.trim() ?? null,
@@ -141,7 +156,7 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       pickupLng: typeof pickup === "object" ? pickup.lng : undefined,
       pickupAddress,
       dropAddress,
-      price: finalPrice,
+      price: effectivePrice,
       userId,
       distanceKm: distanceKm ? String(distanceKm) : undefined,
       womenSafetyMode: womenSafetyMode === true,
@@ -258,7 +273,16 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
     let withinGrace = false;
     let usedFreeCancel = false;
     if (ride.status === "arrived") {
-      cancelFee = 50; // driver waiting at pickup — no grace even for pass
+      /* ── D: Free waiting time — pass holders get 8 min, normal 5 min ── */
+      const arrivedTs = ride.arrivedAt ? new Date(ride.arrivedAt).getTime() : null;
+      const waitedMs = arrivedTs ? Date.now() - arrivedTs : Infinity;
+      const freeWaitMs = hasPass ? 8 * 60 * 1000 : 5 * 60 * 1000;
+      if (waitedMs <= freeWaitMs) {
+        cancelFee = 0;
+        withinGrace = true;
+      } else {
+        cancelFee = 50;
+      }
     } else if (ride.status === "accepted") {
       const acceptedAt = ride.acceptedAt ? new Date(ride.acceptedAt).getTime() : null;
       const elapsedMs = acceptedAt ? Date.now() - acceptedAt : GRACE_PERIOD_MS + 1;

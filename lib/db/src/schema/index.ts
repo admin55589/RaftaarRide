@@ -219,6 +219,7 @@ export const disputesTable = pgTable("disputes", {
   issue: text("issue").notNull(),
   description: text("description").notNull(),
   status: text("status").notNull().default("open"),
+  isPriority: boolean("is_priority").notNull().default(false),
   adminNote: text("admin_note"),
   resolvedAt: timestamp("resolved_at"),
   resolvedBy: text("resolved_by"),
@@ -271,6 +272,8 @@ export const userPassesTable = pgTable("user_passes", {
   expiresAt: timestamp("expires_at").notNull(),
   freeCancelsUsed: integer("free_cancels_used").notNull().default(0),
   freeCancelsLimit: integer("free_cancels_limit").notNull().default(5),
+  freeScheduledRidesUsed: integer("free_scheduled_rides_used").notNull().default(0),
+  freeScheduledRidesLimit: integer("free_scheduled_rides_limit").notNull().default(2),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 export type UserPass = typeof userPassesTable.$inferSelect;

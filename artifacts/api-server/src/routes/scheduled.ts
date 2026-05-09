@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { usersTable, scheduledRidesTable, walletTransactionsTable } from "@workspace/db/schema";
-import { eq, desc, gte } from "drizzle-orm";
+import { usersTable, scheduledRidesTable, walletTransactionsTable, userPassesTable } from "@workspace/db/schema";
+import { eq, desc, gte, and } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 
 const router: IRouter = Router();
@@ -56,13 +56,31 @@ router.post("/scheduled-rides", userAuth, async (req: Request, res: Response) =>
 
     const currentBalance = Number(user.walletBalance ?? 0);
     const ridePrice = Number(price);
-    if (currentBalance < ridePrice) {
-      res.status(400).json({ success: false, error: `Wallet mein paisa kam hai. Balance: ₹${currentBalance.toFixed(2)}, Required: ₹${ridePrice.toFixed(2)}` });
-      return;
-    }
 
-    const newBalance = currentBalance - ridePrice;
-    await db.update(usersTable).set({ walletBalance: String(newBalance) }).where(eq(usersTable.id, userId));
+    /* ── F: Check if user has active RaftaarPass with free scheduled rides ── */
+    const [activePass] = await db
+      .select({ id: userPassesTable.id, freeScheduledRidesUsed: userPassesTable.freeScheduledRidesUsed, freeScheduledRidesLimit: userPassesTable.freeScheduledRidesLimit })
+      .from(userPassesTable)
+      .where(and(eq(userPassesTable.userId, userId), eq(userPassesTable.status, "active"), gte(userPassesTable.expiresAt, new Date())))
+      .limit(1);
+
+    const hasFreeScheduled = activePass && (activePass.freeScheduledRidesUsed < activePass.freeScheduledRidesLimit);
+
+    if (!hasFreeScheduled) {
+      /* Normal flow: deduct from wallet */
+      if (currentBalance < ridePrice) {
+        res.status(400).json({ success: false, error: `Wallet mein paisa kam hai. Balance: ₹${currentBalance.toFixed(2)}, Required: ₹${ridePrice.toFixed(2)}` });
+        return;
+      }
+      const newBalance = currentBalance - ridePrice;
+      await db.update(usersTable).set({ walletBalance: String(newBalance) }).where(eq(usersTable.id, userId));
+      await db.insert(walletTransactionsTable).values({
+        userId,
+        type: "deduction",
+        amount: String(ridePrice),
+        description: `Scheduled ride booking: ${pickup} → ${destination} on ${scheduledTime.toLocaleDateString("en-IN")}`,
+      });
+    }
 
     const [ride] = await db.insert(scheduledRidesTable).values({
       userId,
@@ -75,14 +93,23 @@ router.post("/scheduled-rides", userAuth, async (req: Request, res: Response) =>
       notes,
     }).returning();
 
-    await db.insert(walletTransactionsTable).values({
-      userId,
-      type: "deduction",
-      amount: String(ridePrice),
-      description: `Scheduled ride booking: ${pickup} → ${destination} on ${scheduledTime.toLocaleDateString("en-IN")}`,
-    });
+    /* Consume one free scheduled ride from pass if used */
+    if (hasFreeScheduled && activePass) {
+      await db.update(userPassesTable)
+        .set({ freeScheduledRidesUsed: activePass.freeScheduledRidesUsed + 1 })
+        .where(eq(userPassesTable.id, activePass.id));
+    }
 
-    res.json({ success: true, ride, newBalance, message: "Ride schedule ho gayi! Wallet se ₹" + ridePrice + " kaat liya gaya." });
+    const newBalance = hasFreeScheduled ? currentBalance : currentBalance - ridePrice;
+    res.json({
+      success: true,
+      ride,
+      newBalance,
+      isFreeRide: !!hasFreeScheduled,
+      message: hasFreeScheduled
+        ? `🛡️ RaftaarPass free ride! ₹${ridePrice} charge nahi hua — ${activePass!.freeScheduledRidesLimit - activePass!.freeScheduledRidesUsed - 1} free rides baaki.`
+        : `Ride schedule ho gayi! Wallet se ₹${ridePrice} kaat liya gaya.`,
+    });
   } catch { res.status(500).json({ success: false, error: "Server error" }); }
 });
 

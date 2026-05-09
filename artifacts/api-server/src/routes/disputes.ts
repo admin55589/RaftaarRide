@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { disputesTable, ridesTable, usersTable, driversTable } from "@workspace/db/schema";
-import { eq, desc, inArray } from "drizzle-orm";
+import { disputesTable, ridesTable, usersTable, driversTable, userPassesTable } from "@workspace/db/schema";
+import { eq, desc, inArray, and, gte } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 
 const router: IRouter = Router();
@@ -54,11 +54,25 @@ router.post("/disputes", userAuth, async (req: Request, res: Response) => {
     if (!ride) { res.status(404).json({ success: false, error: "Ride not found" }); return; }
     if (ride.userId !== userId) { res.status(403).json({ success: false, error: "Not your ride" }); return; }
 
+    /* ── I: Priority Resolution — check if user has active RaftaarPass ── */
+    const [activePass] = await db
+      .select({ id: userPassesTable.id })
+      .from(userPassesTable)
+      .where(and(eq(userPassesTable.userId, userId), eq(userPassesTable.status, "active"), gte(userPassesTable.expiresAt, new Date())))
+      .limit(1);
+    const isPriority = !!activePass;
+
     const [dispute] = await db.insert(disputesTable).values({
-      rideId, userId, driverId: ride.driverId ?? null, issue, description: description.trim(),
+      rideId, userId, driverId: ride.driverId ?? null, issue, description: description.trim(), isPriority,
     }).returning();
 
-    res.status(201).json({ success: true, dispute, message: "Dispute submit ho gayi — 24 ghante mein review hogi" });
+    res.status(201).json({
+      success: true,
+      dispute,
+      message: isPriority
+        ? "🛡️ Dispute submit ho gayi — RaftaarPass priority review (24 ghante)"
+        : "Dispute submit ho gayi — 72 ghante mein review hogi",
+    });
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
