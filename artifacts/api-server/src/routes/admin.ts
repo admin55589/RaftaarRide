@@ -1604,4 +1604,107 @@ router.post("/admin/pending-commissions/:driverId/collect", authMiddleware, asyn
   }
 });
 
+/* ─────────────────────────────────────────────────────────────────────────
+   LOYALTY PROGRAM MANAGEMENT
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* In-memory loyalty config — persists until server restart.
+   In production this should live in a DB settings table.              */
+let loyaltyConfig = {
+  enabled: true,
+  ptsPerRupee10: 1,       /* Points awarded per ₹10 of ride fare */
+  redemptionPts: 100,     /* Points needed for one redemption     */
+  redemptionRupees: 10,   /* ₹ credited per redemption            */
+};
+
+/* GET /api/admin/loyalty — full stats + config */
+router.get("/admin/loyalty", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    /* Total ₹ given out via loyalty redemptions */
+    const [expenseRow] = await db
+      .select({ total: sum(walletTransactionsTable.amount), cnt: count() })
+      .from(walletTransactionsTable)
+      .where(eq(walletTransactionsTable.type, "loyalty_redeem"));
+
+    /* Total active (unredeemed) points across all users */
+    const [pointsRow] = await db
+      .select({ totalPoints: sum(usersTable.loyaltyPoints), userCount: count() })
+      .from(usersTable)
+      .where(isNotNull(usersTable.loyaltyPoints));
+
+    /* Users who have earned at least 1 point */
+    const [activeUsersRow] = await db
+      .select({ cnt: count() })
+      .from(usersTable)
+      .where(sql`${usersTable.loyaltyPoints} > 0`);
+
+    /* Recent 25 redemptions with user info */
+    const recent = await db
+      .select({
+        id: walletTransactionsTable.id,
+        userId: walletTransactionsTable.userId,
+        amount: walletTransactionsTable.amount,
+        description: walletTransactionsTable.description,
+        createdAt: walletTransactionsTable.createdAt,
+      })
+      .from(walletTransactionsTable)
+      .where(eq(walletTransactionsTable.type, "loyalty_redeem"))
+      .orderBy(desc(walletTransactionsTable.createdAt))
+      .limit(25);
+
+    /* Fetch user names for recent redemptions */
+    const userIds = [...new Set(recent.map(r => r.userId).filter(Boolean))] as number[];
+    const users = userIds.length
+      ? await db.select({ id: usersTable.id, name: usersTable.name, phone: usersTable.phone })
+          .from(usersTable).where(inArray(usersTable.id, userIds))
+      : [];
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    const totalExpense = parseFloat(String(expenseRow?.total ?? "0"));
+    const totalRedemptions = Number(expenseRow?.cnt ?? 0);
+    const totalActivePoints = Number(pointsRow?.totalPoints ?? 0);
+    const potentialLiability = parseFloat(((totalActivePoints / loyaltyConfig.redemptionPts) * loyaltyConfig.redemptionRupees).toFixed(2));
+    const effectiveCashbackPct = ((loyaltyConfig.ptsPerRupee10 / loyaltyConfig.redemptionPts) * loyaltyConfig.redemptionRupees * 10).toFixed(2);
+
+    res.json({
+      success: true,
+      stats: {
+        totalExpense,
+        totalRedemptions,
+        totalActivePoints,
+        potentialLiability,
+        activeUsers: Number(activeUsersRow?.cnt ?? 0),
+        avgPointsPerActiveUser: Number(activeUsersRow?.cnt ?? 0) > 0
+          ? parseFloat((totalActivePoints / Number(activeUsersRow.cnt)).toFixed(1))
+          : 0,
+        effectiveCashbackPct: `${effectiveCashbackPct}%`,
+      },
+      config: loyaltyConfig,
+      recentRedemptions: recent.map(r => ({
+        ...r,
+        user: r.userId ? (userMap.get(r.userId) ?? null) : null,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
+});
+
+/* PATCH /api/admin/loyalty/config — update loyalty program settings */
+router.patch("/admin/loyalty/config", authMiddleware, async (req: Request, res: Response) => {
+  const { enabled, ptsPerRupee10, redemptionPts, redemptionRupees } = req.body as {
+    enabled?: boolean;
+    ptsPerRupee10?: number;
+    redemptionPts?: number;
+    redemptionRupees?: number;
+  };
+
+  if (typeof enabled === "boolean") loyaltyConfig.enabled = enabled;
+  if (ptsPerRupee10 != null && ptsPerRupee10 >= 0 && ptsPerRupee10 <= 10) loyaltyConfig.ptsPerRupee10 = ptsPerRupee10;
+  if (redemptionPts != null && redemptionPts >= 10 && redemptionPts <= 1000) loyaltyConfig.redemptionPts = redemptionPts;
+  if (redemptionRupees != null && redemptionRupees >= 1 && redemptionRupees <= 500) loyaltyConfig.redemptionRupees = redemptionRupees;
+
+  res.json({ success: true, config: loyaltyConfig, message: "Loyalty config update ho gaya" });
+});
+
 export default router;
