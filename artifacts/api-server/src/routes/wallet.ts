@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { usersTable, walletTransactionsTable } from "@workspace/db/schema";
+import { usersTable, walletTransactionsTable, driversTable } from "@workspace/db/schema";
 import { eq, desc, like } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -74,6 +74,7 @@ router.post("/wallet/topup", userAuth, async (req: Request, res: Response) => {
     const [user] = await db.select({
       walletBalance: usersTable.walletBalance,
       pendingCancellationFee: usersTable.pendingCancellationFee,
+      pendingCancellationDriverId: usersTable.pendingCancellationDriverId,
     }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { res.status(404).json({ success: false, error: "User not found" }); return; }
 
@@ -93,10 +94,12 @@ router.post("/wallet/topup", userAuth, async (req: Request, res: Response) => {
       recoveredFee = parseFloat(Math.min(pendingFee, creditedBalance).toFixed(2));
       finalBalance = parseFloat((creditedBalance - recoveredFee).toFixed(2));
       const remainingPending = parseFloat((pendingFee - recoveredFee).toFixed(2));
+      const pendingDriverId = user.pendingCancellationDriverId ?? null;
 
       await db.update(usersTable).set({
         walletBalance: String(finalBalance),
         pendingCancellationFee: String(remainingPending),
+        pendingCancellationDriverId: remainingPending > 0 ? pendingDriverId : null,
       }).where(eq(usersTable.id, userId));
 
       await db.insert(walletTransactionsTable).values({
@@ -105,6 +108,35 @@ router.post("/wallet/topup", userAuth, async (req: Request, res: Response) => {
         amount: String(-recoveredFee),
         description: `Pending cancellation fee auto-recovered — ₹${recoveredFee.toFixed(2)} kata gaya`,
       });
+
+      /* ── Credit recovered fee to the driver who waited ── */
+      if (pendingDriverId) {
+        const [drv] = await db.select({ walletBalance: driversTable.walletBalance, totalEarnings: driversTable.totalEarnings, pushToken: driversTable.pushToken })
+          .from(driversTable).where(eq(driversTable.id, pendingDriverId)).limit(1);
+        if (drv) {
+          const drvNewWallet = parseFloat((parseFloat(String(drv.walletBalance ?? "0")) + recoveredFee).toFixed(2));
+          const drvNewEarning = parseFloat((parseFloat(String(drv.totalEarnings ?? "0")) + recoveredFee).toFixed(2));
+          await db.update(driversTable).set({
+            walletBalance: String(drvNewWallet),
+            totalEarnings: String(drvNewEarning),
+          }).where(eq(driversTable.id, pendingDriverId));
+          await db.insert(walletTransactionsTable).values({
+            driverId: pendingDriverId,
+            type: "credit",
+            amount: String(recoveredFee),
+            description: `Cancellation compensation received — ₹${recoveredFee.toFixed(2)} (passenger ne wallet recharge kiya)`,
+          });
+          if (drv.pushToken) {
+            const { sendPushNotification } = await import("../lib/expoPush");
+            await sendPushNotification({
+              to: drv.pushToken,
+              title: "💰 Cancellation Compensation Mila!",
+              body: `₹${recoveredFee.toFixed(2)} wallet mein — pehle ka pending compensation recover hua`,
+              data: { type: "cancellation_compensation", amount: recoveredFee },
+            });
+          }
+        }
+      }
     } else {
       await db.update(usersTable).set({ walletBalance: String(finalBalance) }).where(eq(usersTable.id, userId));
     }

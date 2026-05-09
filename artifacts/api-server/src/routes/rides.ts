@@ -292,6 +292,7 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
         await db.update(usersTable).set({
           walletBalance: String(newBal),
           pendingCancellationFee: String(newPending),
+          pendingCancellationDriverId: pendingAmt > 0 ? (ride.driverId ?? null) : null,
         }).where(eq(usersTable.id, ride.userId));
 
         if (deducted > 0) {
@@ -317,6 +318,42 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
       }
     }
 
+    /* ── Credit cancellation fee to driver wallet (if applicable) ── */
+    if (ride.driverId && cancelFee > 0) {
+      const [drv] = await db.select({ walletBalance: driversTable.walletBalance, totalEarnings: driversTable.totalEarnings, pushToken: driversTable.pushToken })
+        .from(driversTable).where(eq(driversTable.id, ride.driverId)).limit(1);
+      if (drv) {
+        /* Only credit what was actually deducted from user right now (not pending) */
+        const deductedNow = rideUser
+          ? (ride.paymentMethod === "RaftaarWallet"
+              ? cancelFee
+              : Math.min(parseFloat(String(rideUser.walletBalance ?? "0")), cancelFee))
+          : 0;
+        if (deductedNow > 0) {
+          const drvNewWallet = parseFloat((parseFloat(String(drv.walletBalance ?? "0")) + deductedNow).toFixed(2));
+          const drvNewEarning = parseFloat((parseFloat(String(drv.totalEarnings ?? "0")) + deductedNow).toFixed(2));
+          await db.update(driversTable).set({
+            walletBalance: String(drvNewWallet),
+            totalEarnings: String(drvNewEarning),
+          }).where(eq(driversTable.id, ride.driverId));
+          await db.insert(walletTransactionsTable).values({
+            driverId: ride.driverId,
+            type: "credit",
+            amount: String(deductedNow),
+            description: `Ride #${rideId} cancellation compensation — passenger ne cancel kiya (${ride.status === "arrived" ? "driver wait kar raha tha" : "driver raste mein tha"})`,
+          });
+          if (drv.pushToken) {
+            await sendPushNotification({
+              to: drv.pushToken,
+              title: "💰 Cancellation Compensation Mila!",
+              body: `₹${deductedNow.toFixed(2)} aapke wallet mein — passenger ne cancel kiya tha`,
+              data: { type: "cancellation_compensation", rideId, amount: deductedNow },
+            });
+          }
+        }
+      }
+    }
+
     /* ── Notify driver + set back online ── */
     if (ride.driverId) {
       await db.update(driversTable).set({ isOnline: true }).where(eq(driversTable.id, ride.driverId));
@@ -327,7 +364,7 @@ router.post("/rides/:id/cancel", userAuth, async (req: Request, res: Response) =
           to: drv.pushToken,
           title: "❌ Ride Cancel Ho Gayi",
           body: cancelFee > 0
-            ? `Passenger ne cancel kiya — ₹${cancelFee} cancellation charge apply hua.`
+            ? `Passenger ne cancel kiya — aap wapas online hain.`
             : "Passenger ne ride cancel kar di. Aap ab online hain.",
           data: { type: "ride_cancelled", rideId },
         });
