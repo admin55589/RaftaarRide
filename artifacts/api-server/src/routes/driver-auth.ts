@@ -1199,4 +1199,78 @@ router.patch("/driver-auth/profile", async (req: Request, res: Response) => {
   }
 });
 
+/* GET /api/driver-auth/performance — driver's weekly performance stats (last 4 weeks) */
+router.get("/driver-auth/performance", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) { res.status(401).json({ message: "Token required" }); return; }
+  try {
+    const payload = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { driverId: number; role: string };
+    if (payload.role !== "driver") { res.status(403).json({ message: "Driver token required" }); return; }
+
+    const since = new Date();
+    since.setDate(since.getDate() - 28);
+
+    const rides = await db.select({
+      id: ridesTable.id,
+      status: ridesTable.status,
+      cancelledBy: ridesTable.cancelledBy,
+      driverEarning: ridesTable.driverEarning,
+      createdAt: ridesTable.createdAt,
+    })
+      .from(ridesTable)
+      .where(and(eq(ridesTable.driverId, payload.driverId), gte(ridesTable.createdAt, since)))
+      .orderBy(desc(ridesTable.createdAt));
+
+    const [driverRow] = await db.select({ rating: driversTable.rating })
+      .from(driversTable).where(eq(driversTable.id, payload.driverId));
+
+    const now = new Date();
+    const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0);
+    const dayOfWeek = startOfToday.getDay(); /* 0=Sun */
+
+    /* Build 4 calendar weeks (Mon–Sun) ending with the current week */
+    const weeks = [0, 1, 2, 3].map(w => {
+      const weekStart = new Date(startOfToday);
+      weekStart.setDate(startOfToday.getDate() - dayOfWeek - (w * 7) + 1); /* Monday */
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 7); /* exclusive */
+
+      const weekRides = rides.filter(r => {
+        if (!r.createdAt) return false;
+        const d = new Date(r.createdAt);
+        return d >= weekStart && d < weekEnd;
+      });
+
+      const assigned = weekRides.length;
+      const completed = weekRides.filter(r => r.status === "completed").length;
+      const cancelledByDriver = weekRides.filter(r => r.status === "cancelled" && r.cancelledBy === "driver").length;
+      const earnings = weekRides
+        .filter(r => r.status === "completed")
+        .reduce((s, r) => s + parseFloat(String(r.driverEarning ?? "0")), 0);
+
+      const labels = ["Is Hafte", "Pichhle Hafte", "2 Hafte Pahle", "3 Hafte Pahle"];
+      return {
+        label: labels[w],
+        weekStart: weekStart.toISOString(),
+        assigned,
+        completed,
+        cancelledByDriver,
+        completionRate: assigned > 0 ? Math.round((completed / assigned) * 100) : 0,
+        cancelRate: assigned > 0 ? Math.round((cancelledByDriver / assigned) * 100) : 0,
+        earnings: parseFloat(earnings.toFixed(2)),
+      };
+    });
+
+    res.json({
+      success: true,
+      rating: driverRow?.rating ? parseFloat(String(driverRow.rating)) : null,
+      thisWeek: weeks[0],
+      weeks,
+    });
+  } catch (err) {
+    logger.error({ err }, "driver performance fetch error");
+    res.status(401).json({ message: "Invalid token" });
+  }
+});
+
 export default router;

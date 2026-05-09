@@ -63,7 +63,24 @@ interface RatingsData {
   recentRatings: RecentRating[];
 }
 
-type ActiveTab = "earnings" | "ratings";
+type ActiveTab = "earnings" | "ratings" | "performance";
+
+interface WeekStat {
+  label: string;
+  weekStart: string;
+  assigned: number;
+  completed: number;
+  cancelledByDriver: number;
+  completionRate: number;
+  cancelRate: number;
+  earnings: number;
+}
+
+interface PerfData {
+  rating: number | null;
+  thisWeek: WeekStat;
+  weeks: WeekStat[];
+}
 
 export function DriverEarningsScreen() {
   const colors = useColors();
@@ -83,6 +100,9 @@ export function DriverEarningsScreen() {
 
   const [ratingsData, setRatingsData] = useState<RatingsData | null>(null);
   const [ratingsLoading, setRatingsLoading] = useState(false);
+
+  const [perfData, setPerfData] = useState<PerfData | null>(null);
+  const [perfLoading, setPerfLoading] = useState(false);
 
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -137,6 +157,19 @@ export function DriverEarningsScreen() {
     finally { setRatingsLoading(false); }
   }, [driverToken]);
 
+  const fetchPerformance = useCallback(async () => {
+    if (!driverToken) return;
+    try {
+      setPerfLoading(true);
+      const res = await fetch(`${BASE_URL}driver-auth/performance`, {
+        headers: { Authorization: `Bearer ${driverToken}` },
+      });
+      const data = await res.json();
+      if (data.success) setPerfData(data);
+    } catch { }
+    finally { setPerfLoading(false); }
+  }, [driverToken]);
+
   useEffect(() => {
     fetchWallet();
     fetchProfile();
@@ -146,6 +179,7 @@ export function DriverEarningsScreen() {
 
   useEffect(() => {
     if (activeTab === "ratings") fetchRatings();
+    if (activeTab === "performance") fetchPerformance();
   }, [activeTab]);
 
   const handleWithdraw = async () => {
@@ -680,15 +714,171 @@ export function DriverEarningsScreen() {
     );
   };
 
+  const renderPerformanceTab = () => {
+    if (perfLoading) return <ActivityIndicator color="#F5A623" size="large" style={{ marginTop: 48 }} />;
+    if (!perfData) return <Text style={styles.emptyText}>Performance data load nahi ho saka</Text>;
+
+    const { thisWeek, rating, weeks } = perfData;
+
+    const completionGrade = thisWeek.completionRate >= 80
+      ? { label: "Excellent 🏆", color: "#4ADE80" }
+      : thisWeek.completionRate >= 60
+        ? { label: "Theek Hai 👍", color: "#F5A623" }
+        : { label: "Improve Karo ⚠️", color: "#F87171" };
+
+    const cancelGrade = thisWeek.cancelRate <= 5
+      ? { label: "Bahut Achha 🏆", color: "#4ADE80" }
+      : thisWeek.cancelRate <= 15
+        ? { label: "Theek Hai 👍", color: "#F5A623" }
+        : { label: "Zyada Hai ⚠️", color: "#F87171" };
+
+    return (
+      <Animated.View entering={FadeInDown.delay(50)}>
+        {/* This week hero stats */}
+        <View style={{ marginHorizontal: 20, marginBottom: 16, borderRadius: 20, padding: 20, backgroundColor: "rgba(245,166,35,0.08)", borderWidth: 1.5, borderColor: "rgba(245,166,35,0.25)" }}>
+          <Text style={{ color: "#F5A623", fontSize: 12, fontFamily: "Inter_600SemiBold", marginBottom: 4 }}>IS HAFTE (Mon–Aaj)</Text>
+          <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <Text style={{ fontSize: 32, fontWeight: "800", color: colors.text, fontFamily: "Inter_700Bold" }}>{thisWeek.assigned}</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2, fontFamily: "Inter_400Regular", textAlign: "center" }}>Rides Mili</Text>
+            </View>
+            <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.08)" }} />
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <Text style={{ fontSize: 32, fontWeight: "800", color: "#4ADE80", fontFamily: "Inter_700Bold" }}>{thisWeek.completed}</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2, fontFamily: "Inter_400Regular", textAlign: "center" }}>Complete</Text>
+            </View>
+            <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.08)" }} />
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <Text style={{ fontSize: 32, fontWeight: "800", color: "#F87171", fontFamily: "Inter_700Bold" }}>{thisWeek.cancelledByDriver}</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2, fontFamily: "Inter_400Regular", textAlign: "center" }}>Tune Cancel</Text>
+            </View>
+          </View>
+          <View style={{ marginTop: 16, padding: 12, borderRadius: 12, backgroundColor: "rgba(74,222,128,0.08)", borderWidth: 1, borderColor: "rgba(74,222,128,0.2)" }}>
+            <Text style={{ color: "#4ADE80", fontFamily: "Inter_700Bold", fontSize: 15 }}>
+              ₹{thisWeek.earnings.toFixed(0)} is hafte kamaaye
+            </Text>
+          </View>
+        </View>
+
+        {/* Completion Rate Card */}
+        <Animated.View entering={FadeInDown.delay(80)} style={{ marginHorizontal: 20, marginBottom: 12, borderRadius: 16, padding: 18, backgroundColor: "rgba(255,255,255,0.04)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.text }}>✅ Completion Rate</Text>
+            <View style={{ backgroundColor: `${completionGrade.color}22`, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: `${completionGrade.color}55` }}>
+              <Text style={{ fontSize: 11, color: completionGrade.color, fontFamily: "Inter_600SemiBold" }}>{completionGrade.label}</Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Text style={{ fontSize: 40, fontWeight: "800", color: completionGrade.color, fontFamily: "Inter_700Bold" }}>
+              {thisWeek.completionRate}%
+            </Text>
+            <View style={{ flex: 1 }}>
+              <View style={{ height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                <View style={{ width: `${thisWeek.completionRate}%`, height: "100%", backgroundColor: completionGrade.color, borderRadius: 4 }} />
+              </View>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 6, fontFamily: "Inter_400Regular" }}>
+                {thisWeek.completed} complete / {thisWeek.assigned} mili
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Cancel Rate Card */}
+        <Animated.View entering={FadeInDown.delay(100)} style={{ marginHorizontal: 20, marginBottom: 12, borderRadius: 16, padding: 18, backgroundColor: "rgba(255,255,255,0.04)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.text }}>❌ Cancel Rate (Tera)</Text>
+            <View style={{ backgroundColor: `${cancelGrade.color}22`, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: `${cancelGrade.color}55` }}>
+              <Text style={{ fontSize: 11, color: cancelGrade.color, fontFamily: "Inter_600SemiBold" }}>{cancelGrade.label}</Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Text style={{ fontSize: 40, fontWeight: "800", color: cancelGrade.color, fontFamily: "Inter_700Bold" }}>
+              {thisWeek.cancelRate}%
+            </Text>
+            <View style={{ flex: 1 }}>
+              <View style={{ height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                <View style={{ width: `${Math.min(thisWeek.cancelRate, 100)}%`, height: "100%", backgroundColor: cancelGrade.color, borderRadius: 4 }} />
+              </View>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 6, fontFamily: "Inter_400Regular" }}>
+                {thisWeek.cancelledByDriver} cancel / {thisWeek.assigned} mili
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Rating */}
+        {rating !== null && (
+          <Animated.View entering={FadeInDown.delay(120)} style={{ marginHorizontal: 20, marginBottom: 16, borderRadius: 16, padding: 16, backgroundColor: "rgba(255,255,255,0.04)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <View>
+              <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.text }}>⭐ Overall Rating</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2, fontFamily: "Inter_400Regular" }}>Passengers ki average</Text>
+            </View>
+            <Text style={{ fontSize: 32, fontWeight: "800", color: rating >= 4.5 ? "#4ADE80" : rating >= 4.0 ? "#F5A623" : "#F87171", fontFamily: "Inter_700Bold" }}>
+              {rating.toFixed(1)}★
+            </Text>
+          </Animated.View>
+        )}
+
+        {/* 4-Week Breakdown Table */}
+        <Animated.View entering={FadeInDown.delay(140)} style={{ marginHorizontal: 20, marginBottom: 20, borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" }}>
+          <View style={{ backgroundColor: "rgba(255,255,255,0.06)", paddingHorizontal: 16, paddingVertical: 10 }}>
+            <Text style={{ fontSize: 14, fontFamily: "Inter_700Bold", color: colors.text }}>📅 4 Hafte Ka Record</Text>
+          </View>
+          {/* Header */}
+          <View style={{ flexDirection: "row", paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" }}>
+            <Text style={{ flex: 2, fontSize: 10, color: colors.textSecondary, fontFamily: "Inter_600SemiBold" }}>HAFTE</Text>
+            <Text style={{ flex: 1, fontSize: 10, color: colors.textSecondary, textAlign: "center", fontFamily: "Inter_600SemiBold" }}>MILI</Text>
+            <Text style={{ flex: 1, fontSize: 10, color: "#4ADE80", textAlign: "center", fontFamily: "Inter_600SemiBold" }}>DONE</Text>
+            <Text style={{ flex: 1, fontSize: 10, color: "#F87171", textAlign: "center", fontFamily: "Inter_600SemiBold" }}>CANCEL</Text>
+            <Text style={{ flex: 2, fontSize: 10, color: "#F5A623", textAlign: "right", fontFamily: "Inter_600SemiBold" }}>KAMAAI</Text>
+          </View>
+          {weeks.map((w, i) => (
+            <View key={i} style={{ flexDirection: "row", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: i < weeks.length - 1 ? 1 : 0, borderBottomColor: "rgba(255,255,255,0.04)", backgroundColor: i === 0 ? "rgba(245,166,35,0.04)" : "transparent" }}>
+              <View style={{ flex: 2 }}>
+                <Text style={{ fontSize: 12, color: i === 0 ? "#F5A623" : colors.text, fontFamily: i === 0 ? "Inter_600SemiBold" : "Inter_400Regular" }}>{w.label}</Text>
+                <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 1, fontFamily: "Inter_400Regular" }}>
+                  {w.completionRate}% complete
+                </Text>
+              </View>
+              <Text style={{ flex: 1, fontSize: 14, color: colors.text, textAlign: "center", fontFamily: "Inter_600SemiBold" }}>{w.assigned}</Text>
+              <Text style={{ flex: 1, fontSize: 14, color: "#4ADE80", textAlign: "center", fontFamily: "Inter_600SemiBold" }}>{w.completed}</Text>
+              <Text style={{ flex: 1, fontSize: 14, color: w.cancelledByDriver > 0 ? "#F87171" : colors.textSecondary, textAlign: "center", fontFamily: "Inter_600SemiBold" }}>{w.cancelledByDriver}</Text>
+              <Text style={{ flex: 2, fontSize: 13, color: "#F5A623", textAlign: "right", fontFamily: "Inter_700Bold" }}>₹{w.earnings.toFixed(0)}</Text>
+            </View>
+          ))}
+        </Animated.View>
+
+        {/* Tips */}
+        <Animated.View entering={FadeInDown.delay(160)} style={{ marginHorizontal: 20, marginBottom: 20, borderRadius: 14, padding: 16, backgroundColor: "rgba(99,102,241,0.08)", borderWidth: 1, borderColor: "rgba(99,102,241,0.2)" }}>
+          <Text style={{ fontSize: 13, fontFamily: "Inter_700Bold", color: "#818CF8", marginBottom: 10 }}>💡 Performance Tips</Text>
+          {[
+            thisWeek.cancelRate > 15 && "Cancel rate 15% se zyada hai — zyada cancel karne se account suspend ho sakta hai",
+            thisWeek.completionRate < 60 && thisWeek.assigned > 3 && "Completion rate improve karo — zyada rides complete karo",
+            rating !== null && rating < 4.0 && "Rating 4.0 se kam hai — customers se politely baat karo",
+            thisWeek.assigned === 0 && "Is hafte koi ride nahi mili — online raho aur peak hours (7–10am, 5–9pm) mein kaam karo",
+            thisWeek.assigned > 0 && thisWeek.cancelRate <= 5 && thisWeek.completionRate >= 80 && "Zabardast performance! Top driver ban ne ke raaste par ho",
+          ].filter(Boolean).map((tip, i) => (
+            <Text key={i} style={{ fontSize: 12, color: "#A5B4FC", fontFamily: "Inter_400Regular", marginBottom: i < 2 ? 6 : 0, lineHeight: 18 }}>
+              • {tip as string}
+            </Text>
+          ))}
+          {[thisWeek.cancelRate > 15, thisWeek.completionRate < 60 && thisWeek.assigned > 3, rating !== null && rating < 4.0, thisWeek.assigned === 0, thisWeek.assigned > 0 && thisWeek.cancelRate <= 5 && thisWeek.completionRate >= 80].every(v => !v) && (
+            <Text style={{ fontSize: 12, color: "#A5B4FC", fontFamily: "Inter_400Regular" }}>• Sab theek chal raha hai! Aise hi karte raho 💪</Text>
+          )}
+        </Animated.View>
+      </Animated.View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.delay(50)} style={styles.header}>
           <Text style={styles.title}>
-            {activeTab === "earnings" ? `💵 ${t("earnings")}` : "⭐ Meri Ratings"}
+            {activeTab === "earnings" ? `💵 ${t("earnings")}` : activeTab === "ratings" ? "⭐ Meri Ratings" : "📊 Performance"}
           </Text>
           <Text style={styles.subtitle}>
-            {activeTab === "earnings" ? t("earnings_subtitle") : "Recent ratings aur average dekho"}
+            {activeTab === "earnings" ? t("earnings_subtitle") : activeTab === "ratings" ? "Recent ratings aur average dekho" : "Acceptance rate, cancel rate, weekly data"}
           </Text>
         </Animated.View>
 
@@ -711,9 +901,17 @@ export function DriverEarningsScreen() {
               {ratingsData?.ratingCount ? ` (${ratingsData.ratingCount})` : ""}
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabBtn, activeTab === "performance" && styles.tabBtnActive]}
+            onPress={() => setActiveTab("performance")}
+          >
+            <Text style={[styles.tabBtnText, activeTab === "performance" && styles.tabBtnTextActive]}>
+              📊 Stats
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {activeTab === "earnings" ? renderEarningsTab() : renderRatingsTab()}
+        {activeTab === "earnings" ? renderEarningsTab() : activeTab === "ratings" ? renderRatingsTab() : renderPerformanceTab()}
 
         <View style={{ height: 100 }} />
       </ScrollView>
