@@ -51,69 +51,110 @@ function StatCard({
 
 function SmsBalanceCard() {
   const { token } = useAuth();
-  const { data, isLoading, refetch, isFetching } = useQuery<{ credits: number | null; error?: string }>({
+  const { data, isLoading, refetch, isFetching } = useQuery<{
+    credits: number | null;
+    fast2SmsWallet: number | null;
+    error?: string;
+    fast2SmsError?: string;
+  }>({
     queryKey: ["sms-balance"],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/admin/sms-balance`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     },
     enabled: !!token,
     refetchInterval: 2 * 60 * 1000,
+    retry: 1,
   });
 
-  const credits: number | null = data == null ? null : (data.credits ?? null);
+  const credits: number | null = data?.credits ?? null;
+  const fast2SmsWallet: number | null = data?.fast2SmsWallet ?? null;
   const hasCredits = credits !== null && !Number.isNaN(credits);
+  const hasFast2Sms = fast2SmsWallet !== null && !Number.isNaN(fast2SmsWallet);
   const isLow = hasCredits && credits! < 50;
   const isCritical = hasCredits && credits! < 10;
 
   return (
-    <div className={`rounded-2xl border p-5 flex items-center gap-4 ${
+    <div className={`rounded-2xl border p-5 ${
       isCritical ? "bg-red-500/10 border-red-500/40" :
-      isLow     ? "bg-amber-500/10 border-amber-500/40" :
-                  "bg-blue-500/10 border-blue-500/20"
+      isLow      ? "bg-amber-500/10 border-amber-500/40" :
+                   "bg-blue-500/10 border-blue-500/20"
     }`}>
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-        isCritical ? "bg-red-500/20" : isLow ? "bg-amber-500/20" : "bg-blue-500/20"
-      }`}>
-        {isCritical || isLow
-          ? <AlertTriangle className={`w-5 h-5 ${isCritical ? "text-red-400" : "text-amber-400"}`} />
-          : <MessageSquare className="w-5 h-5 text-blue-400" />
-        }
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+            isCritical ? "bg-red-500/20" : isLow ? "bg-amber-500/20" : "bg-blue-500/20"
+          }`}>
+            {isCritical || isLow
+              ? <AlertTriangle className={`w-5 h-5 ${isCritical ? "text-red-400" : "text-amber-400"}`} />
+              : <MessageSquare className="w-5 h-5 text-blue-400" />
+            }
+          </div>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">SMS Provider Balance</p>
+        </div>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="shrink-0 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+          title="Refresh"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isFetching ? "animate-spin" : ""}`} />
+        </button>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">2Factor SMS Credits</p>
-        {isLoading ? (
-          <p className="text-lg font-bold text-muted-foreground mt-0.5">Loading...</p>
-        ) : !hasCredits ? (
-          <p className="text-sm text-muted-foreground mt-0.5">{data?.error ?? "Credits fetch nahi hua"}</p>
-        ) : (
-          <>
-            <p className={`text-2xl font-bold mt-0.5 ${isCritical ? "text-red-400" : isLow ? "text-amber-400" : "text-blue-400"}`}>
-              {credits!} SMS
-            </p>
-            {isCritical && <p className="text-xs text-red-400 mt-0.5 font-medium">⚠️ Critical! Recharge karo — OTP fail ho sakta hai</p>}
-            {isLow && !isCritical && <p className="text-xs text-amber-400 mt-0.5 font-medium">⚠️ Low credits — jald recharge karo</p>}
-            {!isLow && <p className="text-xs text-muted-foreground mt-0.5">SMS credits sufficient hain</p>}
-          </>
-        )}
-      </div>
-      <button
-        onClick={() => refetch()}
-        disabled={isFetching}
-        className="shrink-0 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
-        title="Refresh credits"
-      >
-        <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isFetching ? "animate-spin" : ""}`} />
-      </button>
+
+      {isLoading ? (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="h-14 bg-white/5 rounded-xl animate-pulse" />
+          <div className="h-14 bg-white/5 rounded-xl animate-pulse" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {/* 2Factor */}
+          <div className="bg-white/5 rounded-xl p-3">
+            <p className="text-xs text-muted-foreground mb-1">2Factor (OTP)</p>
+            {hasCredits ? (
+              <>
+                <p className={`text-xl font-bold ${isCritical ? "text-red-400" : isLow ? "text-amber-400" : "text-blue-400"}`}>
+                  {credits!} <span className="text-xs font-normal">SMS</span>
+                </p>
+                {isCritical && <p className="text-xs text-red-400 mt-0.5">⚠️ Critical! Recharge now</p>}
+                {isLow && !isCritical && <p className="text-xs text-amber-400 mt-0.5">⚠️ Low — recharge soon</p>}
+                {!isLow && <p className="text-xs text-green-400 mt-0.5">✅ Sufficient</p>}
+              </>
+            ) : (
+              <p className="text-xs text-red-400 mt-1">{data?.error ?? "Fetch failed"}</p>
+            )}
+          </div>
+          {/* Fast2SMS */}
+          <div className="bg-white/5 rounded-xl p-3">
+            <p className="text-xs text-muted-foreground mb-1">Fast2SMS (Wallet)</p>
+            {hasFast2Sms ? (
+              <>
+                <p className="text-xl font-bold text-emerald-400">
+                  ₹{fast2SmsWallet!.toFixed(2)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">Available balance</p>
+              </>
+            ) : (
+              <p className="text-xs text-red-400 mt-1">{data?.fast2SmsError ?? "Fetch failed"}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isCritical && (
+        <p className="text-xs text-red-400 mt-2 font-medium">⚠️ OTP delivery fail ho sakti hai — 2Factor recharge karo</p>
+      )}
     </div>
   );
 }
 
 type MapsUsageData = {
-  apis?: { geocoding: string; directions: string; places: string };
-  pricing?: { freeCreditUSD: number; freeCreditINR: number; geocodingPer1k: number; directionsPer1k: number; placesPer1k: number; note: string };
+  apis?: { geocoding: string; directions: string };
+  pricing?: { freeCreditUSD: number; freeCreditINR: number; geocodingPer1k: number; directionsPer1k: number; note: string };
   fetchedAt?: string;
   error?: string;
 };
@@ -174,14 +215,22 @@ function MapsStatusCard() {
 
       {isLoading ? (
         <div className="space-y-2">
-          {[1, 2, 3].map((i) => <div key={i} className="h-6 bg-white/5 rounded animate-pulse" />)}
+          {[1, 2].map((i) => <div key={i} className="h-12 bg-white/5 rounded-xl animate-pulse" />)}
         </div>
       ) : data?.error ? (
-        <p className="text-xs text-red-400">{data.error}</p>
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+          <p className="text-xs text-red-400">{data.error}</p>
+          <button onClick={() => refetch()} className="text-xs text-blue-400 underline mt-1">Retry</button>
+        </div>
+      ) : !data ? (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+          <p className="text-xs text-red-400">Data load nahi hua — refresh karo</p>
+          <button onClick={() => refetch()} className="text-xs text-blue-400 underline mt-1">Retry</button>
+        </div>
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            {data?.apis && (
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            {data.apis && (
               <>
                 <div className="bg-white/5 rounded-xl p-2.5 text-center">
                   <p className="text-xs text-muted-foreground mb-1">Geocoding</p>
@@ -191,15 +240,11 @@ function MapsStatusCard() {
                   <p className="text-xs text-muted-foreground mb-1">Directions</p>
                   <ApiStatusDot status={data.apis.directions} />
                 </div>
-                <div className="bg-white/5 rounded-xl p-2.5 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Places</p>
-                  <ApiStatusDot status={data.apis.places} />
-                </div>
               </>
             )}
           </div>
 
-          {data?.pricing && (
+          {data.pricing && (
             <div className={`rounded-xl p-3 ${allOk ? "bg-green-500/10 border border-green-500/20" : "bg-amber-500/10 border border-amber-500/20"}`}>
               <p className={`text-xs font-semibold mb-2 ${allOk ? "text-green-400" : "text-amber-400"}`}>
                 Free Credit: ${data.pricing.freeCreditUSD}/month (~₹{data.pricing.freeCreditINR.toLocaleString()})
@@ -207,13 +252,12 @@ function MapsStatusCard() {
               <div className="space-y-0.5">
                 <p className="text-xs text-muted-foreground">Geocoding: ${data.pricing.geocodingPer1k}/1000 calls</p>
                 <p className="text-xs text-muted-foreground">Directions: ${data.pricing.directionsPer1k}/1000 calls</p>
-                <p className="text-xs text-muted-foreground">Places: ${data.pricing.placesPer1k}/1000 calls</p>
               </div>
               <p className="text-xs text-green-400/80 mt-2 font-medium">{data.pricing.note}</p>
             </div>
           )}
 
-          {data?.fetchedAt && (
+          {data.fetchedAt && (
             <p className="text-xs text-muted-foreground mt-2 text-right">
               Updated: {new Date(data.fetchedAt).toLocaleTimeString("en-IN")}
             </p>
@@ -247,7 +291,7 @@ function CloudCostCard() {
   if (!data?.configured) {
     return (
       <div className="bg-card border border-card-border rounded-2xl p-5">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-3">
           <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
             <Cloud className="w-4 h-4 text-purple-400" />
           </div>
@@ -257,35 +301,16 @@ function CloudCostCard() {
           </div>
         </div>
 
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Settings className="w-3.5 h-3.5 text-amber-400" />
-            <p className="text-xs font-semibold text-amber-400">Setup Required — 3 Steps</p>
+        <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-start gap-3">
+          <Settings className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-medium text-foreground mb-0.5">Optional — Not Configured</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Real-time GCP billing monitor ke liye <code className="bg-white/10 px-1 rounded text-xs">GOOGLE_SERVICE_ACCOUNT_KEY</code> env var set karo.
+              Abhi Railway/Replit dashboard se billing manually check karo.
+            </p>
           </div>
-          <ol className="space-y-1.5 text-xs text-muted-foreground list-decimal list-inside">
-            <li>
-              <span className="text-foreground font-medium">Service Account banao:</span>{" "}
-              <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noreferrer" className="text-blue-400 underline">GCP Console</a>
-              {" "}→ "Create Service Account" → Name: "billing-reader"
-            </li>
-            <li>
-              <span className="text-foreground font-medium">Role assign karo:</span>{" "}
-              Billing → Account Management → "Add Member" → role: <code className="bg-white/10 px-1 rounded">Billing Account Viewer</code>
-            </li>
-            <li>
-              <span className="text-foreground font-medium">JSON Key download karo</span>{" "}
-              →{" "}
-              <a href="https://railway.com/project" target="_blank" rel="noreferrer" className="text-blue-400 underline">Railway Dashboard</a>
-              {" "}→ Variables →{" "}
-              <code className="bg-white/10 px-1 rounded">GOOGLE_SERVICE_ACCOUNT_KEY</code>{" "}
-              naam se paste karo
-            </li>
-          </ol>
         </div>
-
-        <p className="text-xs text-muted-foreground">
-          Setup ke baad real-time Google Cloud billing status dikh jayega — account status, budgets, aur current month ka data.
-        </p>
       </div>
     );
   }

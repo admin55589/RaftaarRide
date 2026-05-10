@@ -1336,22 +1336,57 @@ router.get("/admin/plan-revenue", authMiddleware, async (_req: Request, res: Res
   } catch (err: any) { res.status(500).json({ message: "Server error", error: err?.message }); }
 });
 
-/* GET /api/admin/sms-balance — 2Factor.in SMS credits balance */
+/* GET /api/admin/sms-balance — 2Factor.in + Fast2SMS credits balance */
 router.get("/admin/sms-balance", authMiddleware, async (req: Request, res: Response) => {
-  const apiKey = process.env.TWOFACTOR_API_KEY;
-  if (!apiKey) { res.json({ credits: null, error: "API key not configured" }); return; }
-  try {
-    const r = await fetch(`https://2factor.in/API/V1/${apiKey}/BAL/SMS`);
-    const data = (await r.json()) as { Status: string; Details: string };
-    if (data.Status === "Success") {
-      res.json({ credits: Number(data.Details ?? 0) });
+  const twoFactorKey = process.env.TWOFACTOR_API_KEY;
+  const fast2SmsKey = process.env.FAST2SMS_API_KEY;
+
+  let twoFactorCredits: number | null = null;
+  let twoFactorError: string | null = null;
+  let fast2SmsWallet: number | null = null;
+  let fast2SmsError: string | null = null;
+
+  const [tfResult, f2Result] = await Promise.allSettled([
+    twoFactorKey
+      ? fetch(`https://2factor.in/API/V1/${twoFactorKey}/BAL/SMS`, { signal: AbortSignal.timeout(8000) })
+          .then((r) => r.json() as Promise<{ Status: string; Details: string }>)
+      : Promise.reject(new Error("TWOFACTOR_API_KEY not configured")),
+    fast2SmsKey
+      ? fetch(`https://www.fast2sms.com/dev/wallet`, {
+          headers: { authorization: fast2SmsKey },
+          signal: AbortSignal.timeout(8000),
+        }).then((r) => r.json() as Promise<{ return: boolean; wallet: string; message?: string | string[] }>)
+      : Promise.reject(new Error("FAST2SMS_API_KEY not configured")),
+  ]);
+
+  if (tfResult.status === "fulfilled") {
+    if (tfResult.value.Status === "Success") {
+      twoFactorCredits = Number(tfResult.value.Details ?? 0);
     } else {
-      req.log.warn({ details: data.Details }, "[2Factor] balance fetch failed");
-      res.json({ credits: null, error: data.Details ?? "Unknown error" });
+      twoFactorError = tfResult.value.Details ?? "Unknown error";
+      req.log.warn({ details: twoFactorError }, "[2Factor] balance fetch failed");
     }
-  } catch (err: any) {
-    res.json({ credits: null, error: err?.message });
+  } else {
+    twoFactorError = tfResult.reason?.message ?? "Fetch failed";
   }
+
+  if (f2Result.status === "fulfilled") {
+    if (f2Result.value.return === true) {
+      fast2SmsWallet = parseFloat(f2Result.value.wallet ?? "0");
+    } else {
+      const msg = f2Result.value.message;
+      fast2SmsError = Array.isArray(msg) ? msg.join(", ") : (msg ?? "Unknown error");
+    }
+  } else {
+    fast2SmsError = f2Result.reason?.message ?? "Fetch failed";
+  }
+
+  res.json({
+    credits: twoFactorCredits,
+    fast2SmsWallet,
+    error: twoFactorCredits === null ? (twoFactorError ?? "Fetch failed") : undefined,
+    fast2SmsError: fast2SmsWallet === null ? (fast2SmsError ?? undefined) : undefined,
+  });
 });
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -1483,43 +1518,50 @@ router.get("/admin/cloud-costs", authMiddleware, async (req: Request, res: Respo
 router.get("/admin/maps-usage", authMiddleware, async (req: Request, res: Response) => {
   const mapsKey = process.env.GOOGLE_MAPS_SERVER_KEY ?? process.env.GOOGLE_MAPS_API_KEY ?? "";
 
-  /* Test each API and check if it's responding */
+  if (!mapsKey) {
+    res.json({ error: "GOOGLE_MAPS_SERVER_KEY not configured" });
+    return;
+  }
+
+  /* Test only authorized APIs — Geocoding and Directions (Places/Distance Matrix not enabled) */
   try {
-    const [geocoding, directions, places] = await Promise.allSettled([
-      fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=Delhi&key=${mapsKey}`).then((r) => r.json()) as Promise<{ status: string }>,
-      fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=Delhi&destination=Mumbai&key=${mapsKey}`).then((r) => r.json()) as Promise<{ status: string }>,
-      fetch(`https://maps.googleapis.com/maps/api/place/autocomplete/json?input=Connaught&key=${mapsKey}`).then((r) => r.json()) as Promise<{ status: string }>,
+    const [geocoding, directions] = await Promise.allSettled([
+      fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=Delhi,India&key=${mapsKey}`,
+        { signal: AbortSignal.timeout(8000) }
+      ).then((r) => r.json() as Promise<{ status: string; error_message?: string }>),
+      fetch(
+        `https://maps.googleapis.com/maps/api/directions/json?origin=Delhi&destination=Mumbai&key=${mapsKey}`,
+        { signal: AbortSignal.timeout(8000) }
+      ).then((r) => r.json() as Promise<{ status: string; error_message?: string }>),
     ]);
 
-    const toStatus = (r: PromiseSettledResult<{ status: string }>) =>
-      r.status === "fulfilled" ? (r.value.status === "OK" || r.value.status === "ZERO_RESULTS" ? "ok" : r.value.status) : "error";
+    const toStatus = (r: PromiseSettledResult<{ status: string; error_message?: string }>) => {
+      if (r.status !== "fulfilled") return "error";
+      const s = r.value.status;
+      return s === "OK" || s === "ZERO_RESULTS" ? "ok" : (r.value.error_message ?? s);
+    };
 
-    /* Google Maps free tier: $200/month credit (~28,500 Geocoding calls, ~40,000 Directions calls) */
-    const GEOCODING_PRICE_PER_1K = 5;
-    const DIRECTIONS_PRICE_PER_1K = 10;
-    const PLACES_PRICE_PER_1K = 17;
     const FREE_CREDIT_USD = 200;
     const USD_TO_INR = 84;
-    const freeCredit_INR = FREE_CREDIT_USD * USD_TO_INR;
 
     res.json({
       apis: {
         geocoding: toStatus(geocoding),
         directions: toStatus(directions),
-        places: toStatus(places),
       },
       pricing: {
-        geocodingPer1k: GEOCODING_PRICE_PER_1K,
-        directionsPer1k: DIRECTIONS_PRICE_PER_1K,
-        placesPer1k: PLACES_PRICE_PER_1K,
+        geocodingPer1k: 5,
+        directionsPer1k: 10,
         freeCreditUSD: FREE_CREDIT_USD,
-        freeCreditINR: freeCredit_INR,
+        freeCreditINR: FREE_CREDIT_USD * USD_TO_INR,
         note: "$200/month free credit (~₹16,800) — renews each month",
       },
       fetchedAt: new Date().toISOString(),
     });
   } catch (err: any) {
-    res.json({ error: err?.message });
+    req.log.error({ err: err?.message }, "[maps-usage] fetch failed");
+    res.json({ error: err?.message ?? "Fetch failed" });
   }
 });
 
