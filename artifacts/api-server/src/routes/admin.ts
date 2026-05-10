@@ -142,6 +142,23 @@ function authMiddleware(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+/* GET /api/surge — public endpoint: returns active surge multiplier for mobile app */
+router.get("/surge", async (_req: Request, res: Response) => {
+  try {
+    const [surge] = await db.select({
+      multiplier: surgeSettingsTable.multiplier,
+      isActive: surgeSettingsTable.isActive,
+      reason: surgeSettingsTable.reason,
+    }).from(surgeSettingsTable).orderBy(desc(surgeSettingsTable.updatedAt)).limit(1);
+    if (!surge) { res.json({ isActive: false, multiplier: 1, reason: null }); return; }
+    res.json({
+      isActive: surge.isActive,
+      multiplier: parseFloat(String(surge.multiplier)),
+      reason: surge.reason ?? null,
+    });
+  } catch { res.json({ isActive: false, multiplier: 1, reason: null }); }
+});
+
 router.post("/admin/login", async (req: Request, res: Response) => {
   const { email, password } = req.body as { email: string; password: string };
   if (email !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {

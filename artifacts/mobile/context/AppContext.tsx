@@ -23,7 +23,7 @@ export function calcRealDistance(
 ): { distanceKm: number; timeMin: number } | null {
   if (!pickupCoords || !dropCoords) return null;
   const straightLine = haversineKm(pickupCoords.lat, pickupCoords.lng, dropCoords.lat, dropCoords.lng);
-  const roadFactor = 1.38; // Indian urban roads typically 35-40% longer than straight line
+  const roadFactor = 1.28; // Indian roads typically 25-35% longer than straight line (lower = less overestimate on short routes)
   const distanceKm = parseFloat((straightLine * roadFactor).toFixed(1));
   const avgSpeedKmh = 26; // avg urban speed Delhi/NCR
   const timeMin = Math.max(3, Math.round((distanceKm / avgSpeedKmh) * 60));
