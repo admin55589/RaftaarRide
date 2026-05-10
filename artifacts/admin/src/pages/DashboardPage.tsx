@@ -81,20 +81,22 @@ function SmsBalanceCard() {
   const isCritical = hasCredits && credits! < 10;
 
   const isNetworkError = !!fetchError;
-  const networkErrMsg = isNetworkError ? "Connection error — check Railway CORS config" : null;
 
-  const twoFactorErrMsg = networkErrMsg ?? data?.error ?? null;
-  const fast2SmsErrMsg  = networkErrMsg ?? data?.fast2SmsError ?? null;
+  const twoFactorErrMsg = isNetworkError ? null : (data?.error ?? null);
+  const fast2SmsErrMsg  = isNetworkError ? null : (data?.fast2SmsError ?? null);
 
   const isNotConfigured = (msg: string | null) =>
     msg?.toLowerCase().includes("not configured") || msg?.toLowerCase().includes("api_key");
 
+  const fast2SmsNotConfigured = isNetworkError ? false : isNotConfigured(fast2SmsErrMsg);
+  const twoFactorNotConfigured = isNetworkError ? false : isNotConfigured(twoFactorErrMsg);
+
+  const borderClass = isCritical ? "bg-red-500/10 border-red-500/40" :
+                      isLow      ? "bg-amber-500/10 border-amber-500/40" :
+                                   "bg-card border-card-border";
+
   return (
-    <div className={`rounded-2xl border p-5 ${
-      isCritical ? "bg-red-500/10 border-red-500/40" :
-      isLow      ? "bg-amber-500/10 border-amber-500/40" :
-                   "bg-blue-500/10 border-blue-500/20"
-    }`}>
+    <div className={`rounded-2xl border p-5 ${borderClass}`}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
@@ -117,6 +119,19 @@ function SmsBalanceCard() {
         </button>
       </div>
 
+      {/* Network/CORS error banner */}
+      {isNetworkError && (
+        <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2">
+          <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-red-400 mb-0.5">Connection Error</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Railway API se connect nahi ho pa raha. CORS fix deploy hone ke baad theek ho jaayega.
+            </p>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="grid grid-cols-2 gap-3">
           <div className="h-14 bg-white/5 rounded-xl animate-pulse" />
@@ -127,7 +142,16 @@ function SmsBalanceCard() {
           {/* 2Factor */}
           <div className="bg-white/5 rounded-xl p-3">
             <p className="text-xs text-muted-foreground mb-1">2Factor (OTP)</p>
-            {hasCredits ? (
+            {isNetworkError ? (
+              <p className="text-xs text-red-400 mt-1">Connection error</p>
+            ) : twoFactorNotConfigured ? (
+              <div className="mt-1">
+                <p className="text-xs text-red-400 font-semibold">Not configured</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Set <code className="bg-white/10 px-1 rounded">TWOFACTOR_API_KEY</code> on Railway</p>
+              </div>
+            ) : twoFactorErrMsg ? (
+              <p className="text-xs text-red-400 mt-1">{twoFactorErrMsg}</p>
+            ) : hasCredits ? (
               <>
                 <p className={`text-xl font-bold ${isCritical ? "text-red-400" : isLow ? "text-amber-400" : "text-blue-400"}`}>
                   {credits!} <span className="text-xs font-normal">SMS</span>
@@ -137,15 +161,23 @@ function SmsBalanceCard() {
                 {!isLow && <p className="text-xs text-green-400 mt-0.5">✅ Sufficient</p>}
               </>
             ) : (
-              <p className="text-xs text-red-400 mt-1">
-                {isNotConfigured(twoFactorErrMsg) ? "API key not set in env" : (twoFactorErrMsg ?? "Could not fetch")}
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">—</p>
             )}
           </div>
+
           {/* Fast2SMS */}
           <div className="bg-white/5 rounded-xl p-3">
             <p className="text-xs text-muted-foreground mb-1">Fast2SMS (Wallet)</p>
-            {hasFast2Sms ? (
+            {isNetworkError ? (
+              <p className="text-xs text-red-400 mt-1">Connection error</p>
+            ) : fast2SmsNotConfigured ? (
+              <div className="mt-1">
+                <p className="text-xs text-amber-400 font-semibold">Optional</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Set <code className="bg-white/10 px-1 rounded">FAST2SMS_API_KEY</code> on Railway</p>
+              </div>
+            ) : fast2SmsErrMsg ? (
+              <p className="text-xs text-amber-400 mt-1">{fast2SmsErrMsg}</p>
+            ) : hasFast2Sms ? (
               <>
                 <p className="text-xl font-bold text-emerald-400">
                   ₹{fast2SmsWallet!.toFixed(2)}
@@ -153,9 +185,7 @@ function SmsBalanceCard() {
                 <p className="text-xs text-muted-foreground mt-0.5">Available balance</p>
               </>
             ) : (
-              <p className="text-xs text-amber-400 mt-1">
-                {isNotConfigured(fast2SmsErrMsg) ? "API key not set in env" : (fast2SmsErrMsg ?? "Could not fetch")}
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">—</p>
             )}
           </div>
         </div>
