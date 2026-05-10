@@ -85,10 +85,8 @@ export function WalletScreen() {
         fetch(`${BASE_URL}wallet/balance`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${BASE_URL}wallet/transactions`, { headers: { Authorization: `Bearer ${token}` } }),
       ]);
-      const balData = await balRes.json();
-      const txnData = await txnRes.json();
-      if (balData.success) setBalance(balData.balance);
-      if (txnData.success) setTransactions(txnData.transactions);
+      if (balRes.ok) { const balData = await balRes.json(); if (balData.success) setBalance(balData.balance); }
+      if (txnRes.ok) { const txnData = await txnRes.json(); if (txnData.success) setTransactions(txnData.transactions); }
     } catch { }
     finally { setLoading(false); }
   }, [token]);

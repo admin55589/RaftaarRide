@@ -1,6 +1,7 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import Razorpay from "razorpay";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 
 const router: IRouter = Router();
 
@@ -9,7 +10,19 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET ?? "",
 });
 
-router.post("/payment/create-order", async (req: Request, res: Response) => {
+const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
+
+/* Minimal auth guard — ensures caller has a valid JWT (user or driver) */
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) { res.status(401).json({ success: false, message: "Unauthorized" }); return; }
+  try {
+    jwt.verify(auth.slice(7), JWT_SECRET);
+    next();
+  } catch { res.status(401).json({ success: false, message: "Invalid token" }); }
+}
+
+router.post("/payment/create-order", requireAuth, async (req: Request, res: Response) => {
   const { amount, currency = "INR", receipt } = req.body as {
     amount: number;
     currency?: string;

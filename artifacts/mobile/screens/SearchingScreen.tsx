@@ -379,11 +379,12 @@ export function SearchingScreen() {
         } catch { }
       }, 5000);
     } else {
+      /* No rideId — ride was likely already cancelled or state is inconsistent; go home safely */
       const fallbackTimer = setTimeout(() => {
         clearInterval(timerRef.current!);
         clearInterval(msgTimer);
-        setScreen("driver_assigned");
-      }, 6000);
+        setScreen("home");
+      }, 3000);
       return () => { clearTimeout(fallbackTimer); clearInterval(timerRef.current!); clearInterval(msgTimer); };
     }
     return () => {

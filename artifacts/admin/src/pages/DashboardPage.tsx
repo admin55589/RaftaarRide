@@ -456,7 +456,6 @@ function PendingCommissionsCard() {
   });
 
   const handleCollect = async (driverId: number, name: string) => {
-    if (!confirm(`${name} ki saari pending commission collected mark karein?`)) return;
     setCollecting(driverId);
     try {
       const res = await fetch(`${API_BASE}/api/admin/pending-commissions/${driverId}/collect`, {
@@ -465,10 +464,7 @@ function PendingCommissionsCard() {
       });
       const result = await res.json();
       if (result.success) {
-        alert(`✅ ${result.message}`);
         refetch();
-      } else {
-        alert(`❌ ${result.error}`);
       }
     } finally {
       setCollecting(null);

@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { usersTable, walletTransactionsTable } from "@workspace/db/schema";
-import { eq, or } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { logger } from "../lib/logger";
@@ -537,28 +537,27 @@ router.post("/auth/apply-referral", async (req: Request, res: Response) => {
 
     if (!referrer) { res.status(404).json({ success: false, message: "Yeh referral code sahi nahi hai" }); return; }
 
-    const CREDIT = "50";
-    const myNewBal = Number(me.walletBalance ?? "0") + 50;
+    /* Wrap both credit operations in a transaction — if one fails, both roll back */
+    await db.transaction(async (tx) => {
+      await tx.update(usersTable)
+        .set({ referredBy: code.toUpperCase(), walletBalance: sql`${usersTable.walletBalance}::numeric + 50` })
+        .where(eq(usersTable.id, payload.userId));
+      await tx.insert(walletTransactionsTable).values({
+        userId: payload.userId,
+        type: "referral_credit",
+        amount: "50",
+        description: `Referral bonus — code ${code.toUpperCase()} use kiya`,
+      });
 
-    await db.update(usersTable)
-      .set({ referredBy: code.toUpperCase(), walletBalance: String(myNewBal) })
-      .where(eq(usersTable.id, payload.userId));
-    await db.insert(walletTransactionsTable).values({
-      userId: payload.userId,
-      type: "referral_credit",
-      amount: CREDIT,
-      description: `Referral bonus — code ${code.toUpperCase()} use kiya`,
-    });
-
-    const newReferrerBal = Number(referrer.walletBalance ?? "0") + 50;
-    await db.update(usersTable)
-      .set({ walletBalance: String(newReferrerBal) })
-      .where(eq(usersTable.id, referrer.id));
-    await db.insert(walletTransactionsTable).values({
-      userId: referrer.id,
-      type: "referral_credit",
-      amount: CREDIT,
-      description: `Referral bonus — kisi ne aapka code use kiya`,
+      await tx.update(usersTable)
+        .set({ walletBalance: sql`${usersTable.walletBalance}::numeric + 50` })
+        .where(eq(usersTable.id, referrer.id));
+      await tx.insert(walletTransactionsTable).values({
+        userId: referrer.id,
+        type: "referral_credit",
+        amount: "50",
+        description: `Referral bonus — kisi ne aapka code use kiya`,
+      });
     });
 
     logger.info({ userId: payload.userId, referrerId: referrer.id, code }, "Referral applied");

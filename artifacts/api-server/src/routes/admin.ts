@@ -176,7 +176,7 @@ router.post("/admin/firebase-verify", async (req: Request, res: Response) => {
     return;
   }
   try {
-    const FIREBASE_API_KEY = process.env.FIREBASE_WEB_API_KEY ?? "AIzaSyC1bBRw_CsD8y_nlI5szxYk4aFZBxOVjW8";
+    const FIREBASE_API_KEY = process.env.FIREBASE_WEB_API_KEY ?? "";
     const lookupRes = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`,
       {
@@ -466,36 +466,46 @@ router.get("/admin/rides/recent", authMiddleware, async (_req: Request, res: Res
 
 router.get("/admin/analytics/daily", authMiddleware, async (_req: Request, res: Response) => {
   try {
-    const days = Array.from({ length: 30 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (29 - i));
-      return d;
+    const since = new Date();
+    since.setDate(since.getDate() - 29);
+    since.setHours(0, 0, 0, 0);
+
+    /* 3 aggregated queries instead of 90 — group by calendar day in DB timezone */
+    const [ridesPerDay, earningsPerDay, usersPerDay] = await Promise.all([
+      db.select({
+        day: sql<string>`to_char(date_trunc('day', ${ridesTable.createdAt}), 'YYYY-MM-DD')`,
+        count: sql<number>`count(*)`,
+      }).from(ridesTable).where(gte(ridesTable.createdAt, since))
+        .groupBy(sql`date_trunc('day', ${ridesTable.createdAt})`),
+
+      db.select({
+        day: sql<string>`to_char(date_trunc('day', ${ridesTable.createdAt}), 'YYYY-MM-DD')`,
+        total: sql<number>`coalesce(sum(price::numeric), 0)`,
+      }).from(ridesTable).where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, since)))
+        .groupBy(sql`date_trunc('day', ${ridesTable.createdAt})`),
+
+      db.select({
+        day: sql<string>`to_char(date_trunc('day', ${usersTable.createdAt}), 'YYYY-MM-DD')`,
+        count: sql<number>`count(*)`,
+      }).from(usersTable).where(gte(usersTable.createdAt, since))
+        .groupBy(sql`date_trunc('day', ${usersTable.createdAt})`),
+    ]);
+
+    const ridesMap = new Map(ridesPerDay.map((r) => [r.day, Number(r.count)]));
+    const earningsMap = new Map(earningsPerDay.map((r) => [r.day, Number(r.total)]));
+    const usersMap = new Map(usersPerDay.map((r) => [r.day, Number(r.count)]));
+
+    const analytics = Array.from({ length: 30 }, (_, i) => {
+      const d = new Date(since);
+      d.setDate(since.getDate() + i);
+      const dateStr = d.toISOString().split("T")[0];
+      return {
+        date: dateStr,
+        rides: ridesMap.get(dateStr) ?? 0,
+        earnings: earningsMap.get(dateStr) ?? 0,
+        newUsers: usersMap.get(dateStr) ?? 0,
+      };
     });
-
-    const analytics = await Promise.all(
-      days.map(async (date) => {
-        const start = new Date(date);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(date);
-        end.setHours(23, 59, 59, 999);
-
-        const [[ridesResult], [earningsResult], [newUsersResult]] = await Promise.all([
-          db.select({ count: sql<number>`count(*)` }).from(ridesTable)
-            .where(and(gte(ridesTable.createdAt, start), sql`${ridesTable.createdAt} <= ${end}`)),
-          db.select({ total: sql<number>`coalesce(sum(price::numeric), 0)` }).from(ridesTable)
-            .where(and(eq(ridesTable.status, "completed"), gte(ridesTable.createdAt, start), sql`${ridesTable.createdAt} <= ${end}`)),
-          db.select({ count: sql<number>`count(*)` }).from(usersTable)
-            .where(and(gte(usersTable.createdAt, start), sql`${usersTable.createdAt} <= ${end}`)),
-        ]);
-
-        return {
-          date: date.toISOString().split("T")[0],
-          rides: Number(ridesResult?.count ?? 0),
-          earnings: Number(earningsResult?.total ?? 0),
-          newUsers: Number(newUsersResult?.count ?? 0),
-        };
-      })
-    );
 
     res.json(analytics);
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }

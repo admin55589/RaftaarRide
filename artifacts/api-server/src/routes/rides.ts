@@ -134,17 +134,13 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       packageDetails: packageDetails ?? null,
     }).returning();
 
-    /* Increment promo usedCount */
+    /* Increment promo usedCount — atomic to prevent concurrency issues */
     if (promoCode) {
       const cleanCode = promoCode.toUpperCase().trim();
-      const [existingPromo] = await db.select({ id: promoCodesTable.id, usedCount: promoCodesTable.usedCount })
-        .from(promoCodesTable).where(eq(promoCodesTable.code, cleanCode)).limit(1);
-      if (existingPromo) {
-        await db.update(promoCodesTable)
-          .set({ usedCount: existingPromo.usedCount + 1 })
-          .where(eq(promoCodesTable.id, existingPromo.id))
-          .catch((err: unknown) => { req.log.error({ err }, "[rides] promo usedCount update failed"); });
-      }
+      await db.update(promoCodesTable)
+        .set({ usedCount: sql`${promoCodesTable.usedCount} + 1` })
+        .where(eq(promoCodesTable.code, cleanCode))
+        .catch((err: unknown) => { req.log.error({ err }, "[rides] promo usedCount update failed"); });
     }
 
     emitAdminUpdate("admin:ride:new", { ride, driver: null });
@@ -211,7 +207,7 @@ router.get("/rides/my", userAuth, async (req: Request, res: Response) => {
     }));
 
     res.json({ success: true, rides: ridesWithDrivers });
-  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+  } catch (err) { req.log.error({ err }, "[rides] my rides error"); res.status(500).json({ success: false, error: "Server error" }); }
 });
 
 router.get("/rides/:id", flexAuth, async (req: Request, res: Response) => {

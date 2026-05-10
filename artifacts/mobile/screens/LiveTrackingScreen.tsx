@@ -76,7 +76,7 @@ export function LiveTrackingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { lang, toggleLanguage } = useLanguage();
-  const { assignedDriver, setScreen, addRideToHistory, destination, pickup, selectedVehicle, rideMode, estimatedPrice, currentRideId } = useApp();
+  const { assignedDriver, setScreen, destination, pickup, selectedVehicle, rideMode, estimatedPrice, currentRideId } = useApp();
   const { showNotification } = useNotification();
   const { announcePickupReached, announceRideStarted, announceArrived } = useVoiceAI();
   const [stage, setStage] = useState(0);

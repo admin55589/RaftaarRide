@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
 import { usersTable, walletTransactionsTable, driversTable } from "@workspace/db/schema";
-import { eq, desc, like } from "drizzle-orm";
+import { eq, desc, like, sql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
@@ -70,86 +70,103 @@ router.post("/wallet/topup", userAuth, async (req: Request, res: Response) => {
     } catch { /* non-fatal idempotency check failure — proceed */ }
   }
 
+  type TopupResult = { newBalance: number; recoveredFee: number; notifyDriverId: number | null; notifyAmount: number };
+  let topupResult: TopupResult | null = null;
+
   try {
-    const [user] = await db.select({
-      walletBalance: usersTable.walletBalance,
-      pendingCancellationFee: usersTable.pendingCancellationFee,
-      pendingCancellationDriverId: usersTable.pendingCancellationDriverId,
-    }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-    if (!user) { res.status(404).json({ success: false, error: "User not found" }); return; }
+    await db.transaction(async (tx) => {
+      const [user] = await tx.select({
+        walletBalance: usersTable.walletBalance,
+        pendingCancellationFee: usersTable.pendingCancellationFee,
+        pendingCancellationDriverId: usersTable.pendingCancellationDriverId,
+      }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+      if (!user) throw new Error("USER_NOT_FOUND");
 
-    const txnDesc = method === "razorpay" && paymentId
-      ? `Razorpay Wallet Top-up — ₹${amount} (ID: ${paymentId})`
-      : `Wallet top-up via ${method.toUpperCase()} — ₹${amount}`;
+      const txnDesc = method === "razorpay" && paymentId
+        ? `Razorpay Wallet Top-up — ₹${amount} (ID: ${paymentId})`
+        : `Wallet top-up via ${method.toUpperCase()} — ₹${amount}`;
 
-    await db.insert(walletTransactionsTable).values({ userId, type: "topup", amount: String(amount), description: txnDesc });
+      await tx.insert(walletTransactionsTable).values({ userId, type: "topup", amount: String(amount), description: txnDesc });
 
-    /* ── Auto-recover pending cancellation fee ── */
-    const pendingFee = parseFloat(String(user.pendingCancellationFee ?? "0"));
-    const creditedBalance = parseFloat(String(user.walletBalance)) + Number(amount);
-    let finalBalance = creditedBalance;
-    let recoveredFee = 0;
+      /* ── Auto-recover pending cancellation fee ── */
+      const pendingFee = parseFloat(String(user.pendingCancellationFee ?? "0"));
+      const creditedBalance = parseFloat(String(user.walletBalance)) + Number(amount);
+      let finalBalance = creditedBalance;
+      let recoveredFee = 0;
+      let notifyDriverId: number | null = null;
 
-    if (pendingFee > 0 && creditedBalance > 0) {
-      recoveredFee = parseFloat(Math.min(pendingFee, creditedBalance).toFixed(2));
-      finalBalance = parseFloat((creditedBalance - recoveredFee).toFixed(2));
-      const remainingPending = parseFloat((pendingFee - recoveredFee).toFixed(2));
-      const pendingDriverId = user.pendingCancellationDriverId ?? null;
+      if (pendingFee > 0 && creditedBalance > 0) {
+        recoveredFee = parseFloat(Math.min(pendingFee, creditedBalance).toFixed(2));
+        finalBalance = parseFloat((creditedBalance - recoveredFee).toFixed(2));
+        const remainingPending = parseFloat((pendingFee - recoveredFee).toFixed(2));
+        const pendingDriverId = user.pendingCancellationDriverId ?? null;
 
-      await db.update(usersTable).set({
-        walletBalance: String(finalBalance),
-        pendingCancellationFee: String(remainingPending),
-        pendingCancellationDriverId: remainingPending > 0 ? pendingDriverId : null,
-      }).where(eq(usersTable.id, userId));
+        await tx.update(usersTable).set({
+          walletBalance: String(finalBalance),
+          pendingCancellationFee: String(remainingPending),
+          pendingCancellationDriverId: remainingPending > 0 ? pendingDriverId : null,
+        }).where(eq(usersTable.id, userId));
 
-      await db.insert(walletTransactionsTable).values({
-        userId,
-        type: "debit",
-        amount: String(-recoveredFee),
-        description: `Pending cancellation fee auto-recovered — ₹${recoveredFee.toFixed(2)} kata gaya`,
-      });
+        await tx.insert(walletTransactionsTable).values({
+          userId,
+          type: "debit",
+          amount: String(-recoveredFee),
+          description: `Pending cancellation fee auto-recovered — ₹${recoveredFee.toFixed(2)} kata gaya`,
+        });
 
-      /* ── Credit recovered fee to the driver who waited ── */
-      if (pendingDriverId) {
-        const [drv] = await db.select({ walletBalance: driversTable.walletBalance, totalEarnings: driversTable.totalEarnings, pushToken: driversTable.pushToken })
-          .from(driversTable).where(eq(driversTable.id, pendingDriverId)).limit(1);
-        if (drv) {
-          const drvNewWallet = parseFloat((parseFloat(String(drv.walletBalance ?? "0")) + recoveredFee).toFixed(2));
-          const drvNewEarning = parseFloat((parseFloat(String(drv.totalEarnings ?? "0")) + recoveredFee).toFixed(2));
-          await db.update(driversTable).set({
-            walletBalance: String(drvNewWallet),
-            totalEarnings: String(drvNewEarning),
+        /* ── Credit recovered fee to the driver who waited ── */
+        if (pendingDriverId) {
+          await tx.update(driversTable).set({
+            walletBalance: sql`${driversTable.walletBalance}::numeric + ${recoveredFee}`,
+            totalEarnings: sql`${driversTable.totalEarnings}::numeric + ${recoveredFee}`,
           }).where(eq(driversTable.id, pendingDriverId));
-          await db.insert(walletTransactionsTable).values({
+          await tx.insert(walletTransactionsTable).values({
             driverId: pendingDriverId,
             type: "credit",
             amount: String(recoveredFee),
             description: `Cancellation compensation received — ₹${recoveredFee.toFixed(2)} (passenger ne wallet recharge kiya)`,
           });
-          if (drv.pushToken) {
-            const { sendPushNotification } = await import("../lib/expoPush");
-            await sendPushNotification({
-              to: drv.pushToken,
-              title: "💰 Cancellation Compensation Mila!",
-              body: `₹${recoveredFee.toFixed(2)} wallet mein — pehle ka pending compensation recover hua`,
-              data: { type: "cancellation_compensation", amount: recoveredFee },
-            });
-          }
+          notifyDriverId = pendingDriverId;
         }
+      } else {
+        /* Simple atomic credit — no pending fee to recover */
+        await tx.update(usersTable)
+          .set({ walletBalance: sql`${usersTable.walletBalance}::numeric + ${Number(amount)}` })
+          .where(eq(usersTable.id, userId));
+        finalBalance = creditedBalance;
       }
-    } else {
-      await db.update(usersTable).set({ walletBalance: String(finalBalance) }).where(eq(usersTable.id, userId));
+
+      topupResult = { newBalance: finalBalance, recoveredFee, notifyDriverId, notifyAmount: recoveredFee };
+    });
+
+    if (!topupResult) { res.status(404).json({ success: false, error: "User not found" }); return; }
+    const result = topupResult as TopupResult;
+
+    /* Push notification after transaction commits — non-critical, fire-and-forget */
+    if (result.notifyDriverId) {
+      const drvId = result.notifyDriverId;
+      const amt = result.notifyAmount;
+      db.select({ pushToken: driversTable.pushToken }).from(driversTable).where(eq(driversTable.id, drvId)).limit(1)
+        .then(async ([drv]) => {
+          if (drv?.pushToken) {
+            const { sendPushNotification } = await import("../lib/expoPush");
+            await sendPushNotification({ to: drv.pushToken, title: "💰 Cancellation Compensation Mila!", body: `₹${amt.toFixed(2)} wallet mein — pehle ka pending compensation recover hua`, data: { type: "cancellation_compensation", amount: amt } });
+          }
+        }).catch(() => {});
     }
 
     res.json({
       success: true,
-      newBalance: finalBalance,
-      recoveredCancellationFee: recoveredFee > 0 ? recoveredFee : undefined,
-      message: recoveredFee > 0
-        ? `₹${amount} add hue. ₹${recoveredFee.toFixed(2)} pending cancellation fee auto-recover hua.`
+      newBalance: result.newBalance,
+      recoveredCancellationFee: result.recoveredFee > 0 ? result.recoveredFee : undefined,
+      message: result.recoveredFee > 0
+        ? `₹${amount} add hue. ₹${result.recoveredFee.toFixed(2)} pending cancellation fee auto-recover hua.`
         : `₹${amount} wallet mein add ho gaye!`,
     });
-  } catch { res.status(500).json({ success: false, error: "Server error" }); }
+  } catch (err: any) {
+    if (err?.message === "USER_NOT_FOUND") { res.status(404).json({ success: false, error: "User not found" }); return; }
+    res.status(500).json({ success: false, error: "Server error" });
+  }
 });
 
 router.get("/wallet/transactions", userAuth, async (req: Request, res: Response) => {
@@ -216,39 +233,52 @@ router.get("/users/loyalty", userAuth, async (req: Request, res: Response) => {
   } catch { res.status(500).json({ success: false, error: "Server error" }); }
 });
 
-/* POST /api/wallet/redeem-points — redeem 100 points = ₹10 wallet credit */
+/* POST /api/wallet/redeem-points — redeem 150 points = ₹10 wallet credit */
 router.post("/wallet/redeem-points", userAuth, async (req: Request, res: Response) => {
   const userId = (req as any).userId;
   try {
-    const [user] = await db.select({ loyaltyPoints: usersTable.loyaltyPoints, walletBalance: usersTable.walletBalance })
-      .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-    if (!user) { res.status(404).json({ success: false, error: "User not found" }); return; }
+    let result: { pointsToRedeem: number; rupees: number; newPoints: number; newBalance: number } | null = null;
 
-    const pts = user.loyaltyPoints ?? 0;
-    const redeemableSets = Math.floor(pts / 150);
-    if (redeemableSets < 1) {
-      res.status(400).json({ success: false, error: `Abhi sirf ${pts} points hain. 150 points pe ₹10 milenge.` }); return;
-    }
+    await db.transaction(async (tx) => {
+      const [user] = await tx.select({ loyaltyPoints: usersTable.loyaltyPoints, walletBalance: usersTable.walletBalance })
+        .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+      if (!user) throw new Error("USER_NOT_FOUND");
 
-    const pointsToRedeem = redeemableSets * 150;
-    const rupees = redeemableSets * 10;
-    const newPoints = pts - pointsToRedeem;
-    const newBalance = parseFloat(String(user.walletBalance ?? "0")) + rupees;
+      const pts = user.loyaltyPoints ?? 0;
+      const redeemableSets = Math.floor(pts / 150);
+      if (redeemableSets < 1) throw new Error(`INSUFFICIENT:${pts}`);
 
-    await db.update(usersTable).set({
-      loyaltyPoints: newPoints,
-      walletBalance: String(newBalance.toFixed(2)),
-    }).where(eq(usersTable.id, userId));
+      const pointsToRedeem = redeemableSets * 150;
+      const rupees = redeemableSets * 10;
+      const newPoints = pts - pointsToRedeem;
+      const newBalance = parseFloat((parseFloat(String(user.walletBalance ?? "0")) + rupees).toFixed(2));
 
-    await db.insert(walletTransactionsTable).values({
-      userId,
-      type: "loyalty_redeem",
-      amount: String(rupees),
-      description: `🏆 ${pointsToRedeem} RaftaarPoints redeem kiye → ₹${rupees} wallet mein credit`,
+      await tx.update(usersTable).set({
+        loyaltyPoints: newPoints,
+        walletBalance: String(newBalance),
+      }).where(eq(usersTable.id, userId));
+
+      await tx.insert(walletTransactionsTable).values({
+        userId,
+        type: "loyalty_redeem",
+        amount: String(rupees),
+        description: `🏆 ${pointsToRedeem} RaftaarPoints redeem kiye → ₹${rupees} wallet mein credit`,
+      });
+
+      result = { pointsToRedeem, rupees, newPoints, newBalance };
     });
 
+    if (!result) throw new Error("Transaction failed");
+    const { pointsToRedeem, rupees, newPoints, newBalance } = result as NonNullable<typeof result>;
     res.json({ success: true, pointsRedeemed: pointsToRedeem, rupees, newPoints, newBalance, message: `₹${rupees} wallet mein add ho gaye!` });
-  } catch { res.status(500).json({ success: false, error: "Server error" }); }
+  } catch (err: any) {
+    if (err?.message === "USER_NOT_FOUND") { res.status(404).json({ success: false, error: "User not found" }); return; }
+    if (err?.message?.startsWith("INSUFFICIENT:")) {
+      const pts = err.message.split(":")[1];
+      res.status(400).json({ success: false, error: `Abhi sirf ${pts} points hain. 150 points pe ₹10 milenge.` }); return;
+    }
+    res.status(500).json({ success: false, error: "Server error" });
+  }
 });
 
 router.patch("/wallet/language", userAuth, async (req: Request, res: Response) => {
