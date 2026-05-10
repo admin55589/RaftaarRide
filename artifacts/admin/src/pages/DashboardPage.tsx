@@ -15,7 +15,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet, MessageSquare, AlertTriangle, RefreshCw, Cloud, CheckCircle, XCircle, Settings, Clock, Radio, Navigation } from "lucide-react";
+import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet, MessageSquare, AlertTriangle, RefreshCw, Cloud, CheckCircle, XCircle, Settings, Clock, Radio, Navigation, LogOut } from "lucide-react";
 import { StatusBadge, VehicleBadge, formatCurrency, formatDate } from "@/components/shared";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/apiBase";
@@ -53,7 +53,7 @@ function StatCard({
 }
 
 function SmsBalanceCard() {
-  const { token } = useAuth();
+  const { token, logout } = useAuth();
   const { data, isLoading, error: fetchError, refetch, isFetching } = useQuery<{
     credits: number | null;
     fast2SmsWallet: number | null;
@@ -65,7 +65,11 @@ function SmsBalanceCard() {
       const res = await fetch(`${API_BASE}/api/admin/sms-balance`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      if (!res.ok) {
+        const err = new Error(`Server error ${res.status}`);
+        (err as any).status = res.status;
+        throw err;
+      }
       return res.json();
     },
     enabled: !!token,
@@ -80,10 +84,12 @@ function SmsBalanceCard() {
   const isLow = hasCredits && credits! < 50;
   const isCritical = hasCredits && credits! < 10;
 
-  const isNetworkError = !!fetchError;
+  const errStatus = (fetchError as any)?.status as number | undefined;
+  const isAuthError = errStatus === 401;
+  const isNetworkError = !!fetchError && !isAuthError;
 
-  const twoFactorErrMsg = isNetworkError ? null : (data?.error ?? null);
-  const fast2SmsErrMsg  = isNetworkError ? null : (data?.fast2SmsError ?? null);
+  const twoFactorErrMsg = (isNetworkError || isAuthError) ? null : (data?.error ?? null);
+  const fast2SmsErrMsg  = (isNetworkError || isAuthError) ? null : (data?.fast2SmsError ?? null);
 
   const isNotConfigured = (msg: string | null) =>
     msg?.toLowerCase().includes("not configured") || msg?.toLowerCase().includes("api_key");
@@ -119,6 +125,25 @@ function SmsBalanceCard() {
         </button>
       </div>
 
+      {/* Auth error banner — session expired */}
+      {isAuthError && (
+        <div className="mb-3 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex items-start gap-2">
+          <LogOut className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="text-xs font-semibold text-amber-400 mb-0.5">Session Expired</p>
+            <p className="text-xs text-muted-foreground leading-relaxed mb-2">
+              Admin session expire ho gayi. Dobara login karo.
+            </p>
+            <button
+              onClick={() => logout()}
+              className="text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-2 py-1 rounded-lg transition-colors"
+            >
+              Logout &amp; Login Again
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Network/CORS error banner */}
       {isNetworkError && (
         <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2">
@@ -126,7 +151,7 @@ function SmsBalanceCard() {
           <div>
             <p className="text-xs font-semibold text-red-400 mb-0.5">Connection Error</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Railway API se connect nahi ho pa raha. CORS fix deploy hone ke baad theek ho jaayega.
+              API server se connect nahi ho pa raha. Network check karo ya page refresh karo.
             </p>
           </div>
         </div>
@@ -223,18 +248,27 @@ function ApiStatusDot({ status }: { status: string }) {
 }
 
 function MapsStatusCard() {
-  const { token } = useAuth();
-  const { data, isLoading, refetch, isFetching } = useQuery<MapsUsageData>({
+  const { token, logout } = useAuth();
+  const { data, isLoading, error: fetchError, refetch, isFetching } = useQuery<MapsUsageData>({
     queryKey: ["maps-usage"],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/admin/maps-usage`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok) {
+        const err = new Error(`Server error ${res.status}`);
+        (err as any).status = res.status;
+        throw err;
+      }
       return res.json();
     },
     enabled: !!token,
     refetchInterval: 10 * 60 * 1000,
   });
+
+  const mapsErrStatus = (fetchError as any)?.status as number | undefined;
+  const mapsAuthError = mapsErrStatus === 401;
+  const mapsNetworkError = !!fetchError && !mapsAuthError;
 
   const allOk = data?.apis && Object.values(data.apis).every((s) => s === "ok");
 
@@ -262,6 +296,25 @@ function MapsStatusCard() {
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2].map((i) => <div key={i} className="h-12 bg-white/5 rounded-xl animate-pulse" />)}
+        </div>
+      ) : mapsAuthError ? (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-2">
+          <LogOut className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="text-xs font-semibold text-amber-400 mb-1">Session Expired</p>
+            <button onClick={() => logout()} className="text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-2 py-1 rounded-lg transition-colors">
+              Logout &amp; Login Again
+            </button>
+          </div>
+        </div>
+      ) : mapsNetworkError ? (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-start gap-2">
+          <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-red-400 mb-0.5">Connection Error</p>
+            <p className="text-xs text-muted-foreground">API server se connect nahi ho pa raha.</p>
+            <button onClick={() => refetch()} className="text-xs text-blue-400 underline mt-1">Retry</button>
+          </div>
         </div>
       ) : data?.error?.toLowerCase().includes("not configured") ? (
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-3">
@@ -325,18 +378,27 @@ function MapsStatusCard() {
 }
 
 function CloudCostCard() {
-  const { token } = useAuth();
-  const { data, isLoading, refetch, isFetching } = useQuery<CloudCostData>({
+  const { token, logout } = useAuth();
+  const { data, isLoading, error: fetchError, refetch, isFetching } = useQuery<CloudCostData>({
     queryKey: ["cloud-costs"],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/api/admin/cloud-costs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok) {
+        const err = new Error(`Server error ${res.status}`);
+        (err as any).status = res.status;
+        throw err;
+      }
       return res.json();
     },
     enabled: !!token,
     refetchInterval: 15 * 60 * 1000,
   });
+
+  const cloudErrStatus = (fetchError as any)?.status as number | undefined;
+  const cloudAuthError = cloudErrStatus === 401;
+  const cloudNetworkError = !!fetchError && !cloudAuthError;
 
   if (isLoading) {
     return (
@@ -344,19 +406,55 @@ function CloudCostCard() {
     );
   }
 
+  const cloudCardHeader = (
+    <div className="flex items-center gap-3 mb-3">
+      <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+        <Cloud className="w-4 h-4 text-purple-400" />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-foreground">Google Cloud Billing</p>
+        <p className="text-xs text-muted-foreground">Real-time cost monitoring</p>
+      </div>
+    </div>
+  );
+
+  if (cloudAuthError) {
+    return (
+      <div className="bg-card border border-card-border rounded-2xl p-5">
+        {cloudCardHeader}
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex items-start gap-2">
+          <LogOut className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="text-xs font-semibold text-amber-400 mb-1">Session Expired</p>
+            <button onClick={() => logout()} className="text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-2 py-1 rounded-lg transition-colors">
+              Logout &amp; Login Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (cloudNetworkError) {
+    return (
+      <div className="bg-card border border-card-border rounded-2xl p-5">
+        {cloudCardHeader}
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2">
+          <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-red-400 mb-0.5">Connection Error</p>
+            <p className="text-xs text-muted-foreground mb-1">API server se connect nahi ho pa raha.</p>
+            <button onClick={() => refetch()} className="text-xs text-blue-400 underline">Retry</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!data?.configured) {
     return (
       <div className="bg-card border border-card-border rounded-2xl p-5">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-            <Cloud className="w-4 h-4 text-purple-400" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">Google Cloud Billing</p>
-            <p className="text-xs text-muted-foreground">Real-time cost monitoring</p>
-          </div>
-        </div>
-
+        {cloudCardHeader}
         <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-start gap-3">
           <Settings className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
           <div>
