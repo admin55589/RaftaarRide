@@ -91,11 +91,12 @@ function SmsBalanceCard() {
   const isLow = hasCredits && credits! < 50;
   const isCritical = hasCredits && credits! < 10;
 
-  const isAuthError = isHttpError(fetchError) && fetchError.status === 401;
-  const isNetworkError = !!fetchError && !isAuthError;
+  const isAuthError    = isHttpError(fetchError) && fetchError.status === 401;
+  const isHttpFail     = isHttpError(fetchError) && !isAuthError;   // 403/500/etc.
+  const isNetworkError = !!fetchError && !isHttpError(fetchError);  // fetch threw — no response
 
-  const twoFactorErrMsg = (isNetworkError || isAuthError) ? null : (data?.error ?? null);
-  const fast2SmsErrMsg  = (isNetworkError || isAuthError) ? null : (data?.fast2SmsError ?? null);
+  const twoFactorErrMsg = (isAuthError || isHttpFail || isNetworkError) ? null : (data?.error ?? null);
+  const fast2SmsErrMsg  = (isAuthError || isHttpFail || isNetworkError) ? null : (data?.fast2SmsError ?? null);
 
   const isNotConfigured = (msg: string | null) =>
     msg?.toLowerCase().includes("not configured") || msg?.toLowerCase().includes("api_key");
@@ -150,7 +151,22 @@ function SmsBalanceCard() {
         </div>
       )}
 
-      {/* Network/CORS error banner */}
+      {/* HTTP server/client error banner (403, 500, etc.) */}
+      {isHttpFail && (
+        <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2">
+          <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-red-400 mb-0.5">
+              Server Error {isHttpError(fetchError) ? `(${fetchError.status})` : ""}
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              API ne error return ki. Retry karo ya Railway logs check karo.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* True network / CORS error banner */}
       {isNetworkError && (
         <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2">
           <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
@@ -268,8 +284,9 @@ function MapsStatusCard() {
     refetchInterval: 10 * 60 * 1000,
   });
 
-  const mapsAuthError = isHttpError(fetchError) && fetchError.status === 401;
-  const mapsNetworkError = !!fetchError && !mapsAuthError;
+  const mapsAuthError    = isHttpError(fetchError) && fetchError.status === 401;
+  const mapsHttpFail     = isHttpError(fetchError) && !mapsAuthError;
+  const mapsNetworkError = !!fetchError && !isHttpError(fetchError);
 
   const allOk = data?.apis && Object.values(data.apis).every((s) => s === "ok");
 
@@ -306,6 +323,17 @@ function MapsStatusCard() {
             <button onClick={() => logout()} className="text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-2 py-1 rounded-lg transition-colors">
               Logout &amp; Login Again
             </button>
+          </div>
+        </div>
+      ) : mapsHttpFail ? (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-start gap-2">
+          <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-red-400 mb-0.5">
+              Server Error {isHttpError(fetchError) ? `(${fetchError.status})` : ""}
+            </p>
+            <p className="text-xs text-muted-foreground">API ne error return ki.</p>
+            <button onClick={() => refetch()} className="text-xs text-blue-400 underline mt-1">Retry</button>
           </div>
         </div>
       ) : mapsNetworkError ? (
@@ -393,8 +421,9 @@ function CloudCostCard() {
     refetchInterval: 15 * 60 * 1000,
   });
 
-  const cloudAuthError = isHttpError(fetchError) && fetchError.status === 401;
-  const cloudNetworkError = !!fetchError && !cloudAuthError;
+  const cloudAuthError    = isHttpError(fetchError) && fetchError.status === 401;
+  const cloudHttpFail     = isHttpError(fetchError) && !cloudAuthError;
+  const cloudNetworkError = !!fetchError && !isHttpError(fetchError);
 
   if (isLoading) {
     return (
@@ -431,6 +460,24 @@ function CloudCostCard() {
     );
   }
 
+  if (cloudHttpFail) {
+    return (
+      <div className="bg-card border border-card-border rounded-2xl p-5">
+        {cloudCardHeader}
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2">
+          <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-red-400 mb-0.5">
+              Server Error {isHttpError(fetchError) ? `(${fetchError.status})` : ""}
+            </p>
+            <p className="text-xs text-muted-foreground mb-1">API ne error return ki. Retry karo ya Railway logs check karo.</p>
+            <button onClick={() => refetch()} className="text-xs text-blue-400 underline">Retry</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (cloudNetworkError) {
     return (
       <div className="bg-card border border-card-border rounded-2xl p-5">
@@ -439,7 +486,7 @@ function CloudCostCard() {
           <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
           <div>
             <p className="text-xs font-semibold text-red-400 mb-0.5">Connection Error</p>
-            <p className="text-xs text-muted-foreground mb-1">API server se connect nahi ho pa raha.</p>
+            <p className="text-xs text-muted-foreground mb-1">API server se connect nahi ho pa raha. Network check karo ya page refresh karo.</p>
             <button onClick={() => refetch()} className="text-xs text-blue-400 underline">Retry</button>
           </div>
         </div>
