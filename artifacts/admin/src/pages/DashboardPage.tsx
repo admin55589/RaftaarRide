@@ -20,6 +20,17 @@ import { StatusBadge, VehicleBadge, formatCurrency, formatDate } from "@/compone
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/apiBase";
 
+class HttpError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+    this.name = "HttpError";
+  }
+}
+
+function isHttpError(err: unknown): err is HttpError {
+  return err instanceof HttpError;
+}
+
 
 function StatCard({
   label,
@@ -65,11 +76,7 @@ function SmsBalanceCard() {
       const res = await fetch(`${API_BASE}/api/admin/sms-balance`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) {
-        const err = new Error(`Server error ${res.status}`);
-        (err as any).status = res.status;
-        throw err;
-      }
+      if (!res.ok) throw new HttpError(res.status, `Server error ${res.status}`);
       return res.json();
     },
     enabled: !!token,
@@ -84,8 +91,7 @@ function SmsBalanceCard() {
   const isLow = hasCredits && credits! < 50;
   const isCritical = hasCredits && credits! < 10;
 
-  const errStatus = (fetchError as any)?.status as number | undefined;
-  const isAuthError = errStatus === 401;
+  const isAuthError = isHttpError(fetchError) && fetchError.status === 401;
   const isNetworkError = !!fetchError && !isAuthError;
 
   const twoFactorErrMsg = (isNetworkError || isAuthError) ? null : (data?.error ?? null);
@@ -255,19 +261,14 @@ function MapsStatusCard() {
       const res = await fetch(`${API_BASE}/api/admin/maps-usage`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) {
-        const err = new Error(`Server error ${res.status}`);
-        (err as any).status = res.status;
-        throw err;
-      }
+      if (!res.ok) throw new HttpError(res.status, `Server error ${res.status}`);
       return res.json();
     },
     enabled: !!token,
     refetchInterval: 10 * 60 * 1000,
   });
 
-  const mapsErrStatus = (fetchError as any)?.status as number | undefined;
-  const mapsAuthError = mapsErrStatus === 401;
+  const mapsAuthError = isHttpError(fetchError) && fetchError.status === 401;
   const mapsNetworkError = !!fetchError && !mapsAuthError;
 
   const allOk = data?.apis && Object.values(data.apis).every((s) => s === "ok");
@@ -385,19 +386,14 @@ function CloudCostCard() {
       const res = await fetch(`${API_BASE}/api/admin/cloud-costs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) {
-        const err = new Error(`Server error ${res.status}`);
-        (err as any).status = res.status;
-        throw err;
-      }
+      if (!res.ok) throw new HttpError(res.status, `Server error ${res.status}`);
       return res.json();
     },
     enabled: !!token,
     refetchInterval: 15 * 60 * 1000,
   });
 
-  const cloudErrStatus = (fetchError as any)?.status as number | undefined;
-  const cloudAuthError = cloudErrStatus === 401;
+  const cloudAuthError = isHttpError(fetchError) && fetchError.status === 401;
   const cloudNetworkError = !!fetchError && !cloudAuthError;
 
   if (isLoading) {
