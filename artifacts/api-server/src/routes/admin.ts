@@ -20,8 +20,108 @@ import { sendPushNotification } from "../lib/expoPush";
 import { isAutomationEnabled, setAutomationEnabled } from "../lib/automation-state";
 import { calculateAiSurge, generateNext24hForecast } from "../lib/surgeAi";
 import { referralConfig } from "../lib/referral-config";
+import OpenAI from "openai";
 
 const router: IRouter = Router();
+
+/* ── AI KYC Verification ─────────────────────────────── */
+const openaiKyc = new OpenAI({
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY ?? "dummy",
+});
+
+interface KycAiResult {
+  verdict: "APPROVE" | "REJECT" | "NEEDS_REVIEW";
+  confidence: number;
+  findings: { aadhaar: string; license: string; rc: string; selfie: string };
+  issues: string[];
+  summary: string;
+}
+
+async function runAiKycVerification(kyc: {
+  driverName: string | null;
+  vehicleType: string | null;
+  vehicleNumber: string | null;
+  aadhaarFront: string | null;
+  aadhaarBack: string | null;
+  licenseFront: string | null;
+  licenseBack: string | null;
+  rcFront: string | null;
+  selfie: string | null;
+}): Promise<KycAiResult> {
+  const docs = [
+    { label: "Aadhaar Front", url: kyc.aadhaarFront },
+    { label: "Aadhaar Back", url: kyc.aadhaarBack },
+    { label: "Driving License Front", url: kyc.licenseFront },
+    { label: "Driving License Back", url: kyc.licenseBack },
+    { label: "RC Book", url: kyc.rcFront },
+    { label: "Driver Selfie", url: kyc.selfie },
+  ].filter((d): d is { label: string; url: string } => !!d.url);
+
+  if (docs.length === 0) {
+    return {
+      verdict: "NEEDS_REVIEW",
+      confidence: 0,
+      findings: { aadhaar: "Not provided", license: "Not provided", rc: "Not provided", selfie: "Not provided" },
+      issues: ["Koi bhi document upload nahi kiya gaya"],
+      summary: "No documents uploaded — manual review required.",
+    };
+  }
+
+  const imageContent: OpenAI.Chat.ChatCompletionContentPart[] = docs.map((d) => ({
+    type: "image_url" as const,
+    image_url: { url: d.url, detail: "low" as const },
+  }));
+
+  const prompt = `You are a KYC verification AI for an Indian ride-hailing app (RaftaarRide).
+Analyze these driver documents carefully.
+
+Driver Name: ${kyc.driverName ?? "Unknown"}
+Vehicle Type: ${kyc.vehicleType ?? "Unknown"}
+Vehicle Number: ${kyc.vehicleNumber ?? "Unknown"}
+Documents provided: ${docs.map((d) => d.label).join(", ")}
+
+Check each document for:
+1. Clarity — is it readable, not blurry or cropped?
+2. Correct document type — does it match the label?
+3. Name consistency — same name across all documents?
+4. For RC: vehicle number should match ${kyc.vehicleNumber ?? "stated number"}
+5. For Selfie: clear face, no obstructions
+
+Respond ONLY with valid JSON (no markdown, no code blocks):
+{
+  "verdict": "APPROVE" or "REJECT" or "NEEDS_REVIEW",
+  "confidence": <integer 0-100>,
+  "findings": {
+    "aadhaar": "<what you see or 'Not provided'>",
+    "license": "<what you see or 'Not provided'>",
+    "rc": "<what you see or 'Not provided'>",
+    "selfie": "<what you see or 'Not provided'>"
+  },
+  "issues": ["<issue 1>", "<issue 2>"],
+  "summary": "<1-2 sentences summarizing verification result>"
+}
+
+Verdict rules:
+- APPROVE (confidence >= 80): all documents clear, authentic, consistent
+- REJECT (confidence >= 75): clearly fake, tampered, or wrong document
+- NEEDS_REVIEW: uncertain, partially readable, or minor issues`;
+
+  const response = await openaiKyc.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "user",
+        content: [{ type: "text", text: prompt }, ...imageContent],
+      },
+    ],
+    max_tokens: 600,
+  });
+
+  const rawText = response.choices[0]?.message?.content ?? "{}";
+  const cleaned = rawText.replace(/```json|```/g, "").trim();
+  return JSON.parse(cleaned) as KycAiResult;
+}
 
 const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
 const ADMIN_EMAIL = "admin.raftaarride@gmail.com";
@@ -479,6 +579,174 @@ router.patch("/admin/kyc/:id/verify", authMiddleware, async (req: Request, res: 
 
     res.json({ success: true, kyc: updated, message: action === "approve" ? "KYC approve ho gaya!" : "KYC reject ho gaya" });
   } catch { res.status(500).json({ message: "Server error" }); }
+});
+
+/* POST /api/admin/kyc/auto-verify-all — bulk AI verify all pending KYC */
+router.post("/admin/kyc/auto-verify-all", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const pendingList = await db
+      .select({
+        id: driverKycTable.id,
+        driverId: driverKycTable.driverId,
+        driverName: driversTable.name,
+        vehicleType: driversTable.vehicleType,
+        vehicleNumber: driversTable.vehicleNumber,
+        aadhaarFront: driverKycTable.aadhaarFront,
+        aadhaarBack: driverKycTable.aadhaarBack,
+        licenseFront: driverKycTable.licenseFront,
+        licenseBack: driverKycTable.licenseBack,
+        rcFront: driverKycTable.rcFront,
+        selfie: driverKycTable.selfie,
+      })
+      .from(driverKycTable)
+      .leftJoin(driversTable, eq(driverKycTable.driverId, driversTable.id))
+      .where(eq(driverKycTable.status, "pending"))
+      .orderBy(desc(driverKycTable.createdAt))
+      .limit(20);
+
+    if (pendingList.length === 0) {
+      res.json({ success: true, processed: 0, approved: 0, rejected: 0, needsReview: 0, message: "Koi pending KYC nahi hai" });
+      return;
+    }
+
+    let approved = 0, rejected = 0, needsReview = 0;
+
+    for (const kyc of pendingList) {
+      try {
+        const aiResult = await runAiKycVerification(kyc);
+        let newStatus: string = "pending";
+        let newRejectionReason: string | null = null;
+
+        if (aiResult.verdict === "APPROVE" && aiResult.confidence >= 80) {
+          newStatus = "verified";
+          approved++;
+        } else if (aiResult.verdict === "REJECT" && aiResult.confidence >= 75) {
+          newStatus = "rejected";
+          newRejectionReason = aiResult.issues?.join("; ") || "AI verification failed";
+          rejected++;
+        } else {
+          needsReview++;
+        }
+
+        await db.update(driverKycTable).set({
+          aiNote: aiResult.summary,
+          aiConfidence: aiResult.confidence,
+          status: newStatus,
+          rejectionReason: newStatus === "rejected" ? newRejectionReason : null,
+          verifiedAt: newStatus === "verified" ? new Date() : null,
+          verifiedBy: newStatus === "verified" ? "AI Auto-Verify" : null,
+        }).where(eq(driverKycTable.id, kyc.id));
+
+        if (newStatus !== "pending") {
+          await db.update(driversTable).set({
+            kycStatus: newStatus,
+            ...(newStatus === "verified" ? { status: "active" } : {}),
+          }).where(eq(driversTable.id, kyc.driverId!));
+        }
+      } catch (err) {
+        req.log.error({ kycId: kyc.id, err }, "AI KYC verification failed for record");
+        needsReview++;
+      }
+    }
+
+    res.json({
+      success: true,
+      processed: pendingList.length,
+      approved,
+      rejected,
+      needsReview,
+      message: `${pendingList.length} records processed: ${approved} approved, ${rejected} rejected, ${needsReview} need manual review`,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Bulk AI KYC verification failed");
+    res.status(500).json({ success: false, error: "AI verification failed — try again" });
+  }
+});
+
+/* POST /api/admin/kyc/:id/auto-verify — AI verify single KYC record */
+router.post("/admin/kyc/:id/auto-verify", authMiddleware, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ success: false, error: "Invalid KYC ID" }); return; }
+
+  try {
+    const [kyc] = await db
+      .select({
+        id: driverKycTable.id,
+        driverId: driverKycTable.driverId,
+        status: driverKycTable.status,
+        rejectionReason: driverKycTable.rejectionReason,
+        verifiedAt: driverKycTable.verifiedAt,
+        verifiedBy: driverKycTable.verifiedBy,
+        driverName: driversTable.name,
+        vehicleType: driversTable.vehicleType,
+        vehicleNumber: driversTable.vehicleNumber,
+        aadhaarFront: driverKycTable.aadhaarFront,
+        aadhaarBack: driverKycTable.aadhaarBack,
+        licenseFront: driverKycTable.licenseFront,
+        licenseBack: driverKycTable.licenseBack,
+        rcFront: driverKycTable.rcFront,
+        selfie: driverKycTable.selfie,
+      })
+      .from(driverKycTable)
+      .leftJoin(driversTable, eq(driverKycTable.driverId, driversTable.id))
+      .where(eq(driverKycTable.id, id))
+      .limit(1);
+
+    if (!kyc) { res.status(404).json({ success: false, error: "KYC record nahi mila" }); return; }
+
+    const aiResult = await runAiKycVerification(kyc);
+
+    let newStatus = kyc.status;
+    let newRejectionReason = kyc.rejectionReason;
+
+    if (aiResult.verdict === "APPROVE" && aiResult.confidence >= 80) {
+      newStatus = "verified";
+      newRejectionReason = null;
+    } else if (aiResult.verdict === "REJECT" && aiResult.confidence >= 75) {
+      newStatus = "rejected";
+      newRejectionReason = aiResult.issues?.join("; ") || "AI verification failed";
+    }
+
+    const autoActioned = newStatus !== kyc.status;
+
+    const [updated] = await db.update(driverKycTable).set({
+      aiNote: aiResult.summary,
+      aiConfidence: aiResult.confidence,
+      status: newStatus,
+      rejectionReason: newRejectionReason,
+      verifiedAt: newStatus === "verified" ? new Date() : (newStatus !== "verified" ? null : kyc.verifiedAt),
+      verifiedBy: newStatus === "verified" ? "AI Auto-Verify" : kyc.verifiedBy,
+    }).where(eq(driverKycTable.id, id)).returning();
+
+    if (autoActioned) {
+      await db.update(driversTable).set({
+        kycStatus: newStatus,
+        ...(newStatus === "verified" ? { status: "active" } : {}),
+      }).where(eq(driversTable.id, kyc.driverId!));
+
+      if (newStatus === "verified") {
+        const [driver] = await db.select({ pushToken: driversTable.pushToken }).from(driversTable).where(eq(driversTable.id, kyc.driverId!)).limit(1);
+        if (driver?.pushToken) {
+          await sendPushNotification({ to: driver.pushToken, title: "✅ KYC Approved!", body: "Aapki KYC AI se verify ho gayi — ab rides accept karo!", data: { type: "kyc_approved" } });
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      verdict: aiResult.verdict,
+      confidence: aiResult.confidence,
+      findings: aiResult.findings,
+      issues: aiResult.issues ?? [],
+      summary: aiResult.summary,
+      autoActioned,
+      newStatus,
+      kyc: updated,
+    });
+  } catch (err) {
+    req.log.error({ err }, "AI KYC auto-verify failed");
+    res.status(500).json({ success: false, error: "AI verification failed — try again baad mein" });
+  }
 });
 
 router.get("/admin/withdrawals", authMiddleware, async (_req: Request, res: Response) => {

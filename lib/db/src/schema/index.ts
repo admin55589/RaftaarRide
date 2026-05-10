@@ -136,6 +136,8 @@ export const driverKycTable = pgTable("driver_kyc", {
   selfie: text("selfie"),
   status: text("status").notNull().default("pending"),
   rejectionReason: text("rejection_reason"),
+  aiNote: text("ai_note"),
+  aiConfidence: integer("ai_confidence"),
   verifiedAt: timestamp("verified_at"),
   verifiedBy: text("verified_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
