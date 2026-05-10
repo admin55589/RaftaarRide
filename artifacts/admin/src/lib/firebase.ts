@@ -21,6 +21,13 @@ export const auth = getAuth(app);
 
 const ADMIN_EMAILS = ["admin.raftaarride@gmail.com"];
 
+const PRODUCTION_API_URL = "https://workspaceapi-server-production-2e22.up.railway.app";
+
+function getApiBase(): string {
+  return ((import.meta.env.VITE_API_URL as string | undefined) ??
+    (import.meta.env.DEV ? "" : PRODUCTION_API_URL)).replace(/\/+$/, "");
+}
+
 export async function firebaseAdminLogin(email: string, password: string): Promise<string> {
   const cred = await signInWithEmailAndPassword(auth, email, password);
 
@@ -29,13 +36,11 @@ export async function firebaseAdminLogin(email: string, password: string): Promi
     throw new Error("ACCESS_DENIED");
   }
 
-  const firebaseToken = await cred.user.getIdToken();
+  const apiBase = getApiBase();
 
-  const PRODUCTION_API_URL = "https://workspaceapi-server-production-2e22.up.railway.app";
-  const apiBase = ((import.meta.env.VITE_API_URL as string | undefined) ??
-    (import.meta.env.DEV ? "" : PRODUCTION_API_URL)).replace(/\/+$/, "");
-
+  /* ── Try 1: firebase-verify (exchanges Firebase ID token for API JWT) ── */
   try {
+    const firebaseToken = await cred.user.getIdToken();
     const res = await fetch(`${apiBase}/api/admin/firebase-verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -45,9 +50,13 @@ export async function firebaseAdminLogin(email: string, password: string): Promi
       const data = await res.json() as { token: string };
       if (data.token) return data.token;
     }
+    /* Non-ok but reachable (e.g. 403 wrong admin) — fall through to login */
   } catch {
+    /* Network / CORS error on firebase-verify — try the direct login path */
   }
 
+  /* ── Try 2: direct email+password login → API JWT ── */
+  let apiLoginError = "API server se connect nahi ho pa raha.";
   try {
     const res2 = await fetch(`${apiBase}/api/admin/login`, {
       method: "POST",
@@ -58,10 +67,33 @@ export async function firebaseAdminLogin(email: string, password: string): Promi
       const data = await res2.json() as { token: string };
       if (data.token) return data.token;
     }
-  } catch {
+    /* Server responded but login failed */
+    const errData = await res2.json().catch(() => ({})) as { message?: string };
+    apiLoginError = errData.message ?? `Login failed (${res2.status})`;
+  } catch (networkErr: unknown) {
+    /* Network / CORS error — surface a clear message instead of silently
+       falling back to the Firebase token (which the API cannot verify and
+       would cause an immediate 401-logout loop). */
+    await signOut(auth).catch(() => {});
+
+    const isCors =
+      networkErr instanceof TypeError &&
+      (networkErr.message.includes("Failed to fetch") ||
+        networkErr.message.includes("NetworkError") ||
+        networkErr.message.includes("CORS"));
+
+    if (isCors) {
+      throw new Error(
+        "API server allow nahi kar raha is domain ko (CORS). " +
+        "Railway mein ALLOWED_ORIGINS=https://raftaarride.com add karo."
+      );
+    }
+    throw new Error("Network error — internet connection check karo aur dobara try karo.");
   }
 
-  return firebaseToken;
+  /* Both tries reached the server but neither returned a token */
+  await signOut(auth).catch(() => {});
+  throw new Error(apiLoginError);
 }
 
 export async function firebaseAdminLogout(): Promise<void> {

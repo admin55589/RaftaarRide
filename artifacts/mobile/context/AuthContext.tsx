@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { authApi } from "@/lib/authApi";
 import { registerForPushNotificationsAsync, savePushTokenForUser } from "@/hooks/usePushNotifications";
 
@@ -19,7 +19,6 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   isLoggedIn: boolean;
-  loginInProgress: React.MutableRefObject<boolean>;
   login: (token: string, user: AuthUser) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: AuthUser) => void;
@@ -35,26 +34,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  /**
-   * loginInProgress — set to true when login() starts, cleared only AFTER
-   * React commits the new token+user state (via useEffect below).
-   *
-   * AuthGuard reads this ref to skip the "redirect to /auth/login" guard
-   * during the brief window between router.replace() and the state commit,
-   * preventing the race condition that caused immediate post-login logout.
-   */
-  const loginInProgress = useRef(false);
-
   useEffect(() => {
     loadAuth();
   }, []);
-
-  /* Clear the loginInProgress flag only after state is committed */
-  useEffect(() => {
-    if (token && user) {
-      loginInProgress.current = false;
-    }
-  }, [token, user]);
 
   const loadAuth = async () => {
     try {
@@ -73,7 +55,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (newToken: string, newUser: AuthUser) => {
-    loginInProgress.current = true;
     await Promise.all([
       AsyncStorage.setItem(AUTH_TOKEN_KEY, newToken),
       AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(newUser)),
@@ -87,7 +68,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    loginInProgress.current = false;
     setToken(null);
     setUser(null);
     await Promise.all([
@@ -109,7 +89,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token,
         isLoading,
         isLoggedIn: !!token && !!user,
-        loginInProgress,
         login,
         logout,
         updateUser,
