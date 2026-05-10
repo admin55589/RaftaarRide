@@ -64,6 +64,8 @@ export const driversTable = pgTable("drivers", {
   planEndAt: timestamp("plan_end_at"),
   isTrial: boolean("is_trial").default(false),
   trialUsed: boolean("trial_used").notNull().default(false),
+  resetOtp: text("reset_otp"),
+  resetOtpExpiry: timestamp("reset_otp_expiry"),
 });
 
 export type InsertDriver = typeof driversTable.$inferInsert;

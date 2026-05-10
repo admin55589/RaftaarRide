@@ -18,7 +18,8 @@ function generateReferralCode(): string {
 
 const router: IRouter = Router();
 
-const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
+if (!process.env.SESSION_SECRET) throw new Error("SESSION_SECRET environment variable is required");
+const JWT_SECRET = process.env.SESSION_SECRET;
 
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();

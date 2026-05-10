@@ -12,9 +12,6 @@ import { emitRideUpdate } from "../lib/socket";
 import { logger } from "../lib/logger";
 import { sendPushNotification } from "../lib/expoPush";
 
-/* In-memory OTP store for driver password reset (phone → {otp, expiresAt}) */
-const driverResetOtps = new Map<string, { otp: string; expiresAt: Date }>();
-
 async function sendDriverResetOtp(phone: string, otp: string): Promise<{ sent: boolean; dev: boolean }> {
   const apiKey = process.env.TWOFACTOR_API_KEY;
   if (apiKey) {
@@ -62,7 +59,8 @@ function getPlanStatus(driver: { planEndAt: Date | null; planType: string | null
 }
 
 const router: IRouter = Router();
-const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
+if (!process.env.SESSION_SECRET) throw new Error("SESSION_SECRET environment variable is required");
+const JWT_SECRET = process.env.SESSION_SECRET;
 
 router.post("/driver-auth/register", async (req: Request, res: Response) => {
   const { name, phone, email, password, vehicleType, vehicleNumber, licenseNumber, gender } = req.body as {
@@ -953,7 +951,7 @@ router.post("/driver-auth/forgot-password", async (req: Request, res: Response) 
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    driverResetOtps.set(phone, { otp, expiresAt });
+    await db.update(driversTable).set({ resetOtp: otp, resetOtpExpiry: expiresAt }).where(eq(driversTable.phone, phone));
 
     const { sent, dev } = await sendDriverResetOtp(phone, otp);
     res.json({
@@ -981,35 +979,37 @@ router.post("/driver-auth/reset-password", async (req: Request, res: Response) =
     return;
   }
 
-  const stored = driverResetOtps.get(phone);
-  if (!stored) {
-    res.status(400).json({ success: false, message: "OTP nahi mila. Dobara request karo." });
-    return;
-  }
-  if (new Date() > stored.expiresAt) {
-    driverResetOtps.delete(phone);
-    res.status(400).json({ success: false, message: "OTP expire ho gaya. Dobara request karo." });
-    return;
-  }
-  if (stored.otp !== otp) {
-    res.status(400).json({ success: false, message: "OTP galat hai" });
-    return;
-  }
-
-  if (flowStep === "verify") {
-    res.json({ success: true, message: "OTP sahi hai. Naya password set karo." });
-    return;
-  }
-
-  if (!newPassword || newPassword.length < 6) {
-    res.status(400).json({ success: false, message: "Password kam se kam 6 characters ka hona chahiye" });
-    return;
-  }
-
   try {
+    const [driver] = await db
+      .select({ id: driversTable.id, resetOtp: driversTable.resetOtp, resetOtpExpiry: driversTable.resetOtpExpiry })
+      .from(driversTable).where(eq(driversTable.phone, phone)).limit(1);
+
+    if (!driver?.resetOtp) {
+      res.status(400).json({ success: false, message: "OTP nahi mila. Dobara request karo." });
+      return;
+    }
+    if (!driver.resetOtpExpiry || new Date() > driver.resetOtpExpiry) {
+      await db.update(driversTable).set({ resetOtp: null, resetOtpExpiry: null }).where(eq(driversTable.phone, phone));
+      res.status(400).json({ success: false, message: "OTP expire ho gaya. Dobara request karo." });
+      return;
+    }
+    if (driver.resetOtp !== otp) {
+      res.status(400).json({ success: false, message: "OTP galat hai" });
+      return;
+    }
+
+    if (flowStep === "verify") {
+      res.json({ success: true, message: "OTP sahi hai. Naya password set karo." });
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      res.status(400).json({ success: false, message: "Password kam se kam 6 characters ka hona chahiye" });
+      return;
+    }
+
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await db.update(driversTable).set({ passwordHash }).where(eq(driversTable.phone, phone));
-    driverResetOtps.delete(phone);
+    await db.update(driversTable).set({ passwordHash, resetOtp: null, resetOtpExpiry: null }).where(eq(driversTable.phone, phone));
     res.json({ success: true, message: "Password reset ho gaya! Ab login karein." });
   } catch (err) {
     logger.error({ err }, "driver reset-password error");

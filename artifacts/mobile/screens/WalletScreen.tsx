@@ -87,8 +87,9 @@ export function WalletScreen() {
       ]);
       if (balRes.ok) { const balData = await balRes.json(); if (balData.success) setBalance(balData.balance); }
       if (txnRes.ok) { const txnData = await txnRes.json(); if (txnData.success) setTransactions(txnData.transactions); }
-    } catch { }
-    finally { setLoading(false); }
+    } catch {
+      Alert.alert("Network Error", "Wallet balance load nahi hua. Dobara try karein.");
+    } finally { setLoading(false); }
   }, [token]);
 
   useEffect(() => { fetchWallet(); }, [fetchWallet]);

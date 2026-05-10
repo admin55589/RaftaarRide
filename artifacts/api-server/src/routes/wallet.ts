@@ -6,7 +6,8 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
 const router: IRouter = Router();
-const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
+if (!process.env.SESSION_SECRET) throw new Error("SESSION_SECRET environment variable is required");
+const JWT_SECRET = process.env.SESSION_SECRET;
 
 interface JwtPayload { userId: number; phone: string; role: string; }
 
@@ -191,28 +192,37 @@ router.post("/wallet/spend", userAuth, async (req: Request, res: Response) => {
   }
 
   try {
-    const [user] = await db.select({ walletBalance: usersTable.walletBalance })
-      .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-    if (!user) { res.status(404).json({ success: false, error: "User not found" }); return; }
+    let newBalance = 0;
+    await db.transaction(async (tx) => {
+      const [user] = await tx
+        .select({ walletBalance: usersTable.walletBalance })
+        .from(usersTable)
+        .where(eq(usersTable.id, userId))
+        .for("update")
+        .limit(1);
+      if (!user) throw new Error("USER_NOT_FOUND");
 
-    const currentBalance = Number(user.walletBalance);
-    if (currentBalance < amount) {
-      res.status(400).json({ success: false, error: "Insufficient wallet balance", balance: currentBalance });
-      return;
-    }
+      const currentBalance = Number(user.walletBalance);
+      if (currentBalance < amount) throw new Error("INSUFFICIENT");
 
-    const newBalance = currentBalance - amount;
-    await db.update(usersTable).set({ walletBalance: String(newBalance) }).where(eq(usersTable.id, userId));
-
-    await db.insert(walletTransactionsTable).values({
-      userId,
-      type: "spend",
-      amount: String(-amount),
-      description: description ?? `Ride payment — ₹${amount}`,
+      newBalance = parseFloat((currentBalance - amount).toFixed(2));
+      await tx.update(usersTable).set({ walletBalance: String(newBalance) }).where(eq(usersTable.id, userId));
+      await tx.insert(walletTransactionsTable).values({
+        userId,
+        type: "spend",
+        amount: String(-amount),
+        description: description ?? `Ride payment — ₹${amount}`,
+      });
     });
 
     res.json({ success: true, newBalance, message: `₹${amount} wallet se deduct ho gaya` });
-  } catch { res.status(500).json({ success: false, error: "Server error" }); }
+  } catch (err) {
+    if (err instanceof Error) {
+      if (err.message === "USER_NOT_FOUND") { res.status(404).json({ success: false, error: "User not found" }); return; }
+      if (err.message === "INSUFFICIENT") { res.status(400).json({ success: false, error: "Insufficient wallet balance" }); return; }
+    }
+    res.status(500).json({ success: false, error: "Server error" });
+  }
 });
 
 /* GET /api/users/loyalty — user's loyalty points balance */

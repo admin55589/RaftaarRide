@@ -9,7 +9,8 @@ import { sendPushNotification } from "../lib/expoPush";
 import { startRideBroadcast, cancelQueue, allowMaleDrivers } from "../lib/rideQueue";
 
 const router: IRouter = Router();
-const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
+if (!process.env.SESSION_SECRET) throw new Error("SESSION_SECRET environment variable is required");
+const JWT_SECRET = process.env.SESSION_SECRET;
 
 interface JwtPayload { userId: number; phone: string; role: string; }
 
