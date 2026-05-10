@@ -572,10 +572,27 @@ router.patch("/rides/:id/status", flexAuth, async (req: Request, res: Response) 
         res.json({ success: true, ride: updated, driverRating });
         return;
       }
-      const [driver] = await db.select().from(driversTable).where(eq(driversTable.id, updated.driverId)).limit(1);
-      if (driver) {
-        const price = parseFloat(String(updated.price));
-        const isCash = updated.paymentMethod === "Cash";
+
+      const price = parseFloat(String(updated.price));
+      const isCash = updated.paymentMethod === "Cash";
+      const vt = String(updated.vehicleType ?? "cab").toLowerCase();
+      const PLATFORM_FEE_MAP: Record<string, number> = {
+        bike: 4, auto: 6, cab: 12, prime: 12, suv: 15,
+      };
+      const platformFee = PLATFORM_FEE_MAP[vt] ?? 12;
+      const earning = parseFloat((price - platformFee).toFixed(2));
+
+      let commissionStatusValue: string | null = null;
+
+      /* Atomic driver balance update — FOR UPDATE prevents double-credit race condition */
+      await db.transaction(async (tx) => {
+        const [driver] = await tx.select({
+          walletBalance: driversTable.walletBalance,
+          pendingCommission: driversTable.pendingCommission,
+          totalEarnings: driversTable.totalEarnings,
+          totalRides: driversTable.totalRides,
+        }).from(driversTable).where(eq(driversTable.id, updated.driverId!)).for("update").limit(1);
+        if (!driver) return;
 
         /*
          * Business Model: 0% commission — driver earns full Ride Fare.
@@ -590,13 +607,6 @@ router.patch("/rides/:id/status", flexAuth, async (req: Request, res: Response) 
          *   → Credit rideFare (price - platformFee) to driver wallet.
          *   → Platform keeps platformFee.
          */
-        const vt = String(updated.vehicleType ?? "cab").toLowerCase();
-        const PLATFORM_FEE_MAP: Record<string, number> = {
-          bike: 4, auto: 6, cab: 12, prime: 12, suv: 15,
-        };
-        const platformFee = PLATFORM_FEE_MAP[vt] ?? 12;
-        const earning = parseFloat((price - platformFee).toFixed(2));
-
         const currentBalance = parseFloat(String(driver.walletBalance ?? "0"));
         const currentPending = parseFloat(String(driver.pendingCommission ?? "0"));
 
@@ -605,7 +615,6 @@ router.patch("/rides/:id/status", flexAuth, async (req: Request, res: Response) 
          * If not enough → flag as pending, add to pendingCommission counter */
         let newWalletBalance: number;
         let newPendingCommission = currentPending;
-        let commissionStatusValue: string | null = null;
 
         if (isCash) {
           const hasSufficientBalance = currentBalance >= platformFee;
@@ -630,15 +639,15 @@ router.patch("/rides/:id/status", flexAuth, async (req: Request, res: Response) 
 
         const totalEarningsNew = parseFloat(String(driver.totalEarnings ?? "0")) + earning;
 
-        await db.update(driversTable).set({
+        await tx.update(driversTable).set({
           totalEarnings: String(totalEarningsNew.toFixed(2)),
           walletBalance: String(newWalletBalance.toFixed(2)),
           pendingCommission: String(newPendingCommission.toFixed(2)),
           totalRides: (driver.totalRides ?? 0) + 1,
           isOnline: false,
-        }).where(eq(driversTable.id, updated.driverId));
+        }).where(eq(driversTable.id, updated.driverId!));
 
-        await db.update(ridesTable).set({
+        await tx.update(ridesTable).set({
           commissionAmount: String(platformFee),
           commissionStatus: commissionStatusValue,
           driverEarning: String(earning),
@@ -647,7 +656,7 @@ router.patch("/rides/:id/status", flexAuth, async (req: Request, res: Response) 
 
         /* Wallet transaction(s) */
         if (isCash) {
-          await db.insert(walletTransactionsTable).values({
+          await tx.insert(walletTransactionsTable).values({
             driverId: updated.driverId,
             type: commissionStatusValue === "collected" ? "commission_debit" : "commission_pending",
             amount: String(-platformFee),
@@ -658,7 +667,7 @@ router.patch("/rides/:id/status", flexAuth, async (req: Request, res: Response) 
           });
         } else {
           /* Online earning credit */
-          await db.insert(walletTransactionsTable).values({
+          await tx.insert(walletTransactionsTable).values({
             driverId: updated.driverId,
             type: "earning",
             amount: String(earning),
@@ -668,7 +677,7 @@ router.patch("/rides/:id/status", flexAuth, async (req: Request, res: Response) 
           /* Auto-recover pending commission if any was deducted */
           const autoDeducted = parseFloat((currentPending - newPendingCommission).toFixed(2));
           if (autoDeducted > 0) {
-            await db.insert(walletTransactionsTable).values({
+            await tx.insert(walletTransactionsTable).values({
               driverId: updated.driverId,
               type: "commission_debit",
               amount: String(-autoDeducted),
@@ -677,26 +686,28 @@ router.patch("/rides/:id/status", flexAuth, async (req: Request, res: Response) 
             });
             /* Mark now-cleared pending rides as auto_collected */
             if (newPendingCommission === 0) {
-              await db.update(ridesTable)
+              await tx.update(ridesTable)
                 .set({ commissionStatus: "auto_collected" })
                 .where(and(eq(ridesTable.driverId, updated.driverId!), eq(ridesTable.commissionStatus, "pending")));
             }
           }
         }
+      });
 
-        /* Push notification if commission is pending */
-        if (isCash && commissionStatusValue === "pending") {
-          const [driverForPush] = await db.select({ pushToken: driversTable.pushToken })
-            .from(driversTable).where(eq(driversTable.id, updated.driverId)).limit(1);
-          if (driverForPush?.pushToken) {
-            await sendPushNotification({
-              to: driverForPush.pushToken,
-              title: "⚠️ Platform Fee Pending",
-              body: `Ride #${rideId} ki platform fee ₹${platformFee} pending hai. Agla online ride aane par auto-clear ho jaayega.`,
-              data: { type: "commission_pending", rideId },
-            });
-          }
-        }
+      /* Push notification if commission is pending — fire-and-forget after transaction */
+      if (isCash && commissionStatusValue === "pending") {
+        db.select({ pushToken: driversTable.pushToken })
+          .from(driversTable).where(eq(driversTable.id, updated.driverId)).limit(1)
+          .then(async ([driverForPush]) => {
+            if (driverForPush?.pushToken) {
+              await sendPushNotification({
+                to: driverForPush.pushToken,
+                title: "⚠️ Platform Fee Pending",
+                body: `Ride #${rideId} ki platform fee ₹${platformFee} pending hai. Agla online ride aane par auto-clear ho jaayega.`,
+                data: { type: "commission_pending", rideId },
+              });
+            }
+          }).catch(() => {});
       }
     }
 

@@ -28,59 +28,85 @@ function getApiBase(): string {
     (import.meta.env.DEV ? "" : PRODUCTION_API_URL)).replace(/\/+$/, "");
 }
 
+/** Credential-related Firebase error codes that should fall through to API login */
+const FIREBASE_CREDENTIAL_ERRORS = new Set([
+  "auth/invalid-credential",
+  "auth/wrong-password",
+  "auth/user-not-found",
+  "auth/invalid-email",
+  "auth/user-disabled",
+]);
+
 export async function firebaseAdminLogin(email: string, password: string): Promise<string> {
-  const cred = await signInWithEmailAndPassword(auth, email, password);
-
-  if (!ADMIN_EMAILS.includes(cred.user.email ?? "")) {
-    await signOut(auth);
-    throw new Error("ACCESS_DENIED");
-  }
-
   const apiBase = getApiBase();
 
-  /* ── Try 1: firebase-verify (exchanges Firebase ID token for API JWT) ── */
+  /* ── Try 1: Firebase auth → firebase-verify → API JWT ─────────────────
+     Works when the admin Firebase account exists with the same password.
+     Falls through on credential errors so the API login below always runs. */
+  let firebaseSignedIn = false;
   try {
-    const firebaseToken = await cred.user.getIdToken();
-    const res = await fetch(`${apiBase}/api/admin/firebase-verify`, {
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+
+    if (!ADMIN_EMAILS.includes(cred.user.email ?? "")) {
+      await signOut(auth);
+      throw new Error("ACCESS_DENIED");
+    }
+
+    firebaseSignedIn = true;
+
+    try {
+      const firebaseToken = await cred.user.getIdToken();
+      const res = await fetch(`${apiBase}/api/admin/firebase-verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken: firebaseToken }),
+      });
+      if (res.ok) {
+        const data = await res.json() as { token: string };
+        if (data.token) return data.token;
+      }
+    } catch {
+      /* firebase-verify unreachable (CORS / network) — continue to API login */
+    }
+  } catch (err: unknown) {
+    const code = (err as any)?.code ?? "";
+    const msg = (err as any)?.message ?? "";
+
+    /* Re-throw non-credential errors immediately */
+    if (msg === "ACCESS_DENIED") throw err;
+    if (code === "auth/too-many-requests") throw err;
+
+    /* Credential errors: Firebase account may not exist or has different
+       password — silently fall through to direct API login below */
+    if (!FIREBASE_CREDENTIAL_ERRORS.has(code)) throw err;
+  }
+
+  /* ── Try 2: direct email+password → API JWT ────────────────────────────
+     Always attempted when Firebase auth fails with credential errors,
+     or when firebase-verify is unreachable. */
+  try {
+    const res = await fetch(`${apiBase}/api/admin/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken: firebaseToken }),
+      body: JSON.stringify({ email, password }),
     });
     if (res.ok) {
       const data = await res.json() as { token: string };
       if (data.token) return data.token;
     }
-    /* Non-ok but reachable (e.g. 403 wrong admin) — fall through to login */
-  } catch {
-    /* Network / CORS error on firebase-verify — try the direct login path */
-  }
-
-  /* ── Try 2: direct email+password login → API JWT ── */
-  let apiLoginError = "API server se connect nahi ho pa raha.";
-  try {
-    const res2 = await fetch(`${apiBase}/api/admin/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    if (res2.ok) {
-      const data = await res2.json() as { token: string };
-      if (data.token) return data.token;
-    }
-    /* Server responded but login failed */
-    const errData = await res2.json().catch(() => ({})) as { message?: string };
-    apiLoginError = errData.message ?? `Login failed (${res2.status})`;
+    const errData = await res.json().catch(() => ({})) as { message?: string };
+    if (firebaseSignedIn) await signOut(auth).catch(() => {});
+    throw new Error(errData.message ?? `Login failed (${res.status})`);
   } catch (networkErr: unknown) {
-    /* Network / CORS error — surface a clear message instead of silently
-       falling back to the Firebase token (which the API cannot verify and
-       would cause an immediate 401-logout loop). */
-    await signOut(auth).catch(() => {});
+    if (firebaseSignedIn) await signOut(auth).catch(() => {});
+
+    /* Re-throw our own error (not a network error) */
+    if (!(networkErr instanceof TypeError)) throw networkErr;
 
     const isCors =
-      networkErr instanceof TypeError &&
-      (networkErr.message.includes("Failed to fetch") ||
-        networkErr.message.includes("NetworkError") ||
-        networkErr.message.includes("CORS"));
+      networkErr.message.includes("Failed to fetch") ||
+      networkErr.message.includes("NetworkError") ||
+      networkErr.message.includes("CORS");
 
     if (isCors) {
       throw new Error(
@@ -90,10 +116,6 @@ export async function firebaseAdminLogin(email: string, password: string): Promi
     }
     throw new Error("Network error — internet connection check karo aur dobara try karo.");
   }
-
-  /* Both tries reached the server but neither returned a token */
-  await signOut(auth).catch(() => {});
-  throw new Error(apiLoginError);
 }
 
 export async function firebaseAdminLogout(): Promise<void> {

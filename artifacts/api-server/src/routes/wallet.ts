@@ -80,7 +80,7 @@ router.post("/wallet/topup", userAuth, async (req: Request, res: Response) => {
         walletBalance: usersTable.walletBalance,
         pendingCancellationFee: usersTable.pendingCancellationFee,
         pendingCancellationDriverId: usersTable.pendingCancellationDriverId,
-      }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+      }).from(usersTable).where(eq(usersTable.id, userId)).for("update").limit(1);
       if (!user) throw new Error("USER_NOT_FOUND");
 
       const txnDesc = method === "razorpay" && paymentId
@@ -251,7 +251,7 @@ router.post("/wallet/redeem-points", userAuth, async (req: Request, res: Respons
 
     await db.transaction(async (tx) => {
       const [user] = await tx.select({ loyaltyPoints: usersTable.loyaltyPoints, walletBalance: usersTable.walletBalance })
-        .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+        .from(usersTable).where(eq(usersTable.id, userId)).for("update").limit(1);
       if (!user) throw new Error("USER_NOT_FOUND");
 
       const pts = user.loyaltyPoints ?? 0;

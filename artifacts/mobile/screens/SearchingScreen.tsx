@@ -78,26 +78,29 @@ function SpinningRing() {
   );
 }
 
+function PulsingDot({ delay }: { delay: number }) {
+  const op = useSharedValue(0.25);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      op.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 450 }),
+          withTiming(0.25, { duration: 450 }),
+        ), -1, false
+      );
+    }, delay);
+    return () => clearTimeout(t);
+  }, []);
+  const s = useAnimatedStyle(() => ({ opacity: op.value }));
+  return <Animated.View style={[styles.dot, s]} />;
+}
+
 function PulsingDots() {
-  const DOTS = [0, 1, 2];
   return (
     <View style={styles.dotsRow}>
-      {DOTS.map((i) => {
-        const op = useSharedValue(0.25);
-        useEffect(() => {
-          const t = setTimeout(() => {
-            op.value = withRepeat(
-              withSequence(
-                withTiming(1, { duration: 450 }),
-                withTiming(0.25, { duration: 450 }),
-              ), -1, false
-            );
-          }, i * 180);
-          return () => clearTimeout(t);
-        }, []);
-        const s = useAnimatedStyle(() => ({ opacity: op.value }));
-        return <Animated.View key={i} style={[styles.dot, s]} />;
-      })}
+      <PulsingDot delay={0} />
+      <PulsingDot delay={180} />
+      <PulsingDot delay={360} />
     </View>
   );
 }

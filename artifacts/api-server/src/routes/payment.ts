@@ -10,7 +10,8 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET ?? "",
 });
 
-const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
+if (!process.env.SESSION_SECRET) throw new Error("SESSION_SECRET environment variable is required");
+const JWT_SECRET = process.env.SESSION_SECRET;
 
 /* Minimal auth guard — ensures caller has a valid JWT (user or driver) */
 function requireAuth(req: Request, res: Response, next: NextFunction) {

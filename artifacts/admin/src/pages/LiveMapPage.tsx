@@ -156,7 +156,11 @@ export function LiveMapPage() {
       }
     };
 
-    initMap();
+    initMap().catch(() => {});
+    return () => {
+      markersRef.current.forEach((m) => { try { m.remove(); } catch { } });
+      markersRef.current = [];
+    };
   }, [rides]);
 
   const statusCounts = {
