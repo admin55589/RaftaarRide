@@ -508,6 +508,8 @@ router.get("/admin/kyc", authMiddleware, async (_req: Request, res: Response) =>
         selfie: driverKycTable.selfie,
         status: driverKycTable.status,
         rejectionReason: driverKycTable.rejectionReason,
+        aiNote: driverKycTable.aiNote,
+        aiConfidence: driverKycTable.aiConfidence,
         verifiedAt: driverKycTable.verifiedAt,
         verifiedBy: driverKycTable.verifiedBy,
         createdAt: driverKycTable.createdAt,
