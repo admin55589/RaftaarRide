@@ -80,8 +80,11 @@ function SmsBalanceCard() {
   const isLow = hasCredits && credits! < 50;
   const isCritical = hasCredits && credits! < 10;
 
-  const twoFactorErrMsg = data?.error ?? (fetchError ? (fetchError as Error).message : null);
-  const fast2SmsErrMsg  = data?.fast2SmsError ?? (fetchError ? (fetchError as Error).message : null);
+  const isNetworkError = !!fetchError;
+  const networkErrMsg = isNetworkError ? "Connection error — check Railway CORS config" : null;
+
+  const twoFactorErrMsg = networkErrMsg ?? data?.error ?? null;
+  const fast2SmsErrMsg  = networkErrMsg ?? data?.fast2SmsError ?? null;
 
   const isNotConfigured = (msg: string | null) =>
     msg?.toLowerCase().includes("not configured") || msg?.toLowerCase().includes("api_key");
@@ -230,14 +233,24 @@ function MapsStatusCard() {
         <div className="space-y-2">
           {[1, 2].map((i) => <div key={i} className="h-12 bg-white/5 rounded-xl animate-pulse" />)}
         </div>
+      ) : data?.error?.toLowerCase().includes("not configured") ? (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-3">
+          <Settings className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-medium text-amber-400 mb-0.5">Optional — Not Configured</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Live Maps API status ke liye <code className="bg-white/10 px-1 rounded">GOOGLE_MAPS_SERVER_KEY</code> Railway pe set karo.
+            </p>
+          </div>
+        </div>
       ) : data?.error ? (
         <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
           <p className="text-xs text-red-400">{data.error}</p>
           <button onClick={() => refetch()} className="text-xs text-blue-400 underline mt-1">Retry</button>
         </div>
       ) : !data ? (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
-          <p className="text-xs text-red-400">Data load nahi hua — refresh karo</p>
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+          <p className="text-xs text-amber-400">Maps data load nahi hua — check connection</p>
           <button onClick={() => refetch()} className="text-xs text-blue-400 underline mt-1">Retry</button>
         </div>
       ) : (

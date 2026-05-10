@@ -19,29 +19,34 @@ const IS_DEV = process.env.NODE_ENV !== "production";
 
 /* ─── CORS ──────────────────────────────────────────────────────────────
  * Dev  : allow everything (localhost, Replit preview, Expo)
- * Prod : only origins listed in ALLOWED_ORIGINS env var.
- *        Set on Railway dashboard:
- *        ALLOWED_ORIGINS=https://admin.raftaarride.com,https://raftaarride-admin.vercel.app
+ * Prod : BUILT_IN_ORIGINS (always allowed) + ALLOWED_ORIGINS env var.
+ *        Add custom domains in Railway:
+ *        ALLOWED_ORIGINS=https://admin.raftaarride.com
  *
  * NOTE: React Native mobile app is NOT a browser — it is never
  *       subject to CORS. Only the web admin panel needs this.
  * ─────────────────────────────────────────────────────────────────────── */
+
+/** These origins are always allowed in production — no env var needed. */
+const BUILT_IN_ORIGINS = [
+  "https://raftaar-ride.vercel.app",
+  "https://raftaarride-admin.vercel.app",
+];
+
 function buildCorsOrigin(): cors.CorsOptions["origin"] {
   if (IS_DEV) return true;
 
   const raw = process.env.ALLOWED_ORIGINS ?? "";
+  const envList = raw.split(",").map((o) => o.trim()).filter(Boolean);
+  const allowList = [...new Set([...BUILT_IN_ORIGINS, ...envList])];
+
   if (!raw.trim()) {
-    logger.warn(
-      "ALLOWED_ORIGINS env var is not set in production. " +
-      "Set it on Railway: ALLOWED_ORIGINS=https://admin.raftaarride.com"
-    );
-    return false;
+    logger.info({ allowList }, "ALLOWED_ORIGINS not set — using built-in default origins. Add custom domains via ALLOWED_ORIGINS on Railway.");
   }
 
-  const list = raw.split(",").map((o) => o.trim()).filter(Boolean);
   return (origin, callback) => {
     if (!origin) { callback(null, true); return; }
-    if (list.includes(origin)) {
+    if (allowList.includes(origin)) {
       callback(null, true);
     } else {
       logger.warn({ origin }, "[CORS] Blocked request from unknown origin");
