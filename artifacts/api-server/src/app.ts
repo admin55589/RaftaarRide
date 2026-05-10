@@ -29,6 +29,8 @@ const IS_DEV = process.env.NODE_ENV !== "production";
 
 /** These origins are always allowed in production — no env var needed. */
 const BUILT_IN_ORIGINS = [
+  "https://raftaarride.com",
+  "https://www.raftaarride.com",
   "https://raftaar-ride.vercel.app",
   "https://raftaarride-admin.vercel.app",
 ];
