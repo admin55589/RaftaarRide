@@ -67,9 +67,7 @@ function SmsBalanceCard() {
   const { token, logout } = useAuth();
   const { data, isLoading, error: fetchError, refetch, isFetching } = useQuery<{
     credits: number | null;
-    fast2SmsWallet: number | null;
     error?: string;
-    fast2SmsError?: string;
   }>({
     queryKey: ["sms-balance"],
     queryFn: async () => {
@@ -85,24 +83,18 @@ function SmsBalanceCard() {
   });
 
   const credits: number | null = data?.credits ?? null;
-  const fast2SmsWallet: number | null = data?.fast2SmsWallet ?? null;
   const hasCredits = credits !== null && !Number.isNaN(credits);
-  const hasFast2Sms = fast2SmsWallet !== null && !Number.isNaN(fast2SmsWallet);
   const isLow = hasCredits && credits! < 50;
   const isCritical = hasCredits && credits! < 10;
 
   const isAuthError    = isHttpError(fetchError) && fetchError.status === 401;
-  const isHttpFail     = isHttpError(fetchError) && !isAuthError;   // 403/500/etc.
-  const isNetworkError = !!fetchError && !isHttpError(fetchError);  // fetch threw — no response
+  const isHttpFail     = isHttpError(fetchError) && !isAuthError;
+  const isNetworkError = !!fetchError && !isHttpError(fetchError);
+  const anyError       = isAuthError || isHttpFail || isNetworkError;
 
-  const twoFactorErrMsg = (isAuthError || isHttpFail || isNetworkError) ? null : (data?.error ?? null);
-  const fast2SmsErrMsg  = (isAuthError || isHttpFail || isNetworkError) ? null : (data?.fast2SmsError ?? null);
-
-  const isNotConfigured = (msg: string | null) =>
-    msg?.toLowerCase().includes("not configured") || msg?.toLowerCase().includes("api_key");
-
-  const fast2SmsNotConfigured = isNetworkError ? false : isNotConfigured(fast2SmsErrMsg);
-  const twoFactorNotConfigured = isNetworkError ? false : isNotConfigured(twoFactorErrMsg);
+  const twoFactorErrMsg = anyError ? null : (data?.error ?? null);
+  const notConfigured   = twoFactorErrMsg?.toLowerCase().includes("not configured") ||
+                          twoFactorErrMsg?.toLowerCase().includes("api_key");
 
   const borderClass = isCritical ? "bg-red-500/10 border-red-500/40" :
                       isLow      ? "bg-amber-500/10 border-amber-500/40" :
@@ -110,7 +102,8 @@ function SmsBalanceCard() {
 
   return (
     <div className={`rounded-2xl border p-5 ${borderClass}`}>
-      <div className="flex items-center justify-between mb-3">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
             isCritical ? "bg-red-500/20" : isLow ? "bg-amber-500/20" : "bg-blue-500/20"
@@ -120,7 +113,10 @@ function SmsBalanceCard() {
               : <MessageSquare className="w-5 h-5 text-blue-400" />
             }
           </div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">SMS Provider Balance</p>
+          <div>
+            <p className="text-sm font-semibold text-foreground">2Factor OTP Balance</p>
+            <p className="text-xs text-muted-foreground">Live SMS credit monitoring</p>
+          </div>
         </div>
         <button
           onClick={() => refetch()}
@@ -132,114 +128,76 @@ function SmsBalanceCard() {
         </button>
       </div>
 
-      {/* Auth error banner — session expired */}
+      {/* Session expired */}
       {isAuthError && (
-        <div className="mb-3 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex items-start gap-2">
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex items-start gap-2">
           <LogOut className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
           <div className="flex-1">
-            <p className="text-xs font-semibold text-amber-400 mb-0.5">Session Expired</p>
-            <p className="text-xs text-muted-foreground leading-relaxed mb-2">
-              Admin session expire ho gayi. Dobara login karo.
-            </p>
-            <button
-              onClick={() => logout()}
-              className="text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-2 py-1 rounded-lg transition-colors"
-            >
+            <p className="text-xs font-semibold text-amber-400 mb-1">Session Expired</p>
+            <p className="text-xs text-muted-foreground mb-2">Admin session expire ho gayi. Dobara login karo.</p>
+            <button onClick={() => logout()} className="text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-2 py-1 rounded-lg transition-colors">
               Logout &amp; Login Again
             </button>
           </div>
         </div>
       )}
 
-      {/* HTTP server/client error banner (403, 500, etc.) */}
+      {/* HTTP error (403, 500…) */}
       {isHttpFail && (
-        <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2">
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2">
           <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
           <div>
             <p className="text-xs font-semibold text-red-400 mb-0.5">
               Server Error {isHttpError(fetchError) ? `(${fetchError.status})` : ""}
             </p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              API ne error return ki. Retry karo ya Railway logs check karo.
-            </p>
+            <p className="text-xs text-muted-foreground">Railway logs check karo ya retry karo.</p>
           </div>
         </div>
       )}
 
-      {/* True network / CORS error banner */}
+      {/* Network / CORS error */}
       {isNetworkError && (
-        <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2">
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2">
           <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
           <div>
             <p className="text-xs font-semibold text-red-400 mb-0.5">Connection Error</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              API server se connect nahi ho pa raha. Network check karo ya page refresh karo.
+            <p className="text-xs text-muted-foreground">API server se connect nahi ho pa raha. Page refresh karo.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Main content — only shown when no fetch error */}
+      {!anyError && (
+        isLoading ? (
+          <div className="h-20 bg-white/5 rounded-xl animate-pulse" />
+        ) : notConfigured ? (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+            <p className="text-sm font-semibold text-red-400 mb-1">2Factor Not Configured</p>
+            <p className="text-xs text-muted-foreground">
+              Railway pe <code className="bg-white/10 px-1 rounded">TWOFACTOR_API_KEY</code> set karo OTP delivery ke liye.
             </p>
           </div>
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="h-14 bg-white/5 rounded-xl animate-pulse" />
-          <div className="h-14 bg-white/5 rounded-xl animate-pulse" />
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {/* 2Factor */}
-          <div className="bg-white/5 rounded-xl p-3">
-            <p className="text-xs text-muted-foreground mb-1">2Factor (OTP)</p>
-            {isNetworkError ? (
-              <p className="text-xs text-red-400 mt-1">Connection error</p>
-            ) : twoFactorNotConfigured ? (
-              <div className="mt-1">
-                <p className="text-xs text-red-400 font-semibold">Not configured</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Set <code className="bg-white/10 px-1 rounded">TWOFACTOR_API_KEY</code> on Railway</p>
-              </div>
-            ) : twoFactorErrMsg ? (
-              <p className="text-xs text-red-400 mt-1">{twoFactorErrMsg}</p>
-            ) : hasCredits ? (
-              <>
-                <p className={`text-xl font-bold ${isCritical ? "text-red-400" : isLow ? "text-amber-400" : "text-blue-400"}`}>
-                  {credits!} <span className="text-xs font-normal">SMS</span>
-                </p>
-                {isCritical && <p className="text-xs text-red-400 mt-0.5">⚠️ Critical — Recharge now</p>}
-                {isLow && !isCritical && <p className="text-xs text-amber-400 mt-0.5">⚠️ Low — recharge soon</p>}
-                {!isLow && <p className="text-xs text-green-400 mt-0.5">✅ Sufficient</p>}
-              </>
-            ) : (
-              <p className="text-xs text-muted-foreground mt-1">—</p>
-            )}
+        ) : twoFactorErrMsg ? (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+            <p className="text-xs text-red-400">{twoFactorErrMsg}</p>
           </div>
-
-          {/* Fast2SMS */}
-          <div className="bg-white/5 rounded-xl p-3">
-            <p className="text-xs text-muted-foreground mb-1">Fast2SMS (Wallet)</p>
-            {isNetworkError ? (
-              <p className="text-xs text-red-400 mt-1">Connection error</p>
-            ) : fast2SmsNotConfigured ? (
-              <div className="mt-1">
-                <p className="text-xs text-amber-400 font-semibold">Optional</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Set <code className="bg-white/10 px-1 rounded">FAST2SMS_API_KEY</code> on Railway</p>
-              </div>
-            ) : fast2SmsErrMsg ? (
-              <p className="text-xs text-amber-400 mt-1">{fast2SmsErrMsg}</p>
-            ) : hasFast2Sms ? (
-              <>
-                <p className="text-xl font-bold text-emerald-400">
-                  ₹{fast2SmsWallet!.toFixed(2)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">Available balance</p>
-              </>
-            ) : (
-              <p className="text-xs text-muted-foreground mt-1">—</p>
-            )}
+        ) : hasCredits ? (
+          <div className={`rounded-xl p-4 ${isCritical ? "bg-red-500/10 border border-red-500/20" : isLow ? "bg-amber-500/10 border border-amber-500/20" : "bg-blue-500/10 border border-blue-500/20"}`}>
+            <div className="flex items-end gap-2 mb-1">
+              <p className={`text-4xl font-bold ${isCritical ? "text-red-400" : isLow ? "text-amber-400" : "text-blue-400"}`}>
+                {credits!}
+              </p>
+              <p className="text-sm text-muted-foreground mb-1">SMS credits remaining</p>
+            </div>
+            {isCritical && <p className="text-xs text-red-400 font-semibold">⚠️ Critical — Abhi recharge karo, OTP fail ho sakti hai</p>}
+            {isLow && !isCritical && <p className="text-xs text-amber-400 font-semibold">⚠️ Low — Jaldi recharge karo</p>}
+            {!isLow && <p className="text-xs text-green-400 font-semibold">✅ Sufficient — OTP delivery normal hai</p>}
           </div>
-        </div>
-      )}
-
-      {isCritical && (
-        <p className="text-xs text-red-400 mt-2 font-medium">⚠️ OTP delivery fail ho sakti hai — 2Factor recharge karo</p>
+        ) : (
+          <div className="h-20 bg-white/5 rounded-xl flex items-center justify-center">
+            <p className="text-xs text-muted-foreground">Data load ho raha hai…</p>
+          </div>
+        )
       )}
     </div>
   );
