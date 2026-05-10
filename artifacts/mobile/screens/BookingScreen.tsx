@@ -446,8 +446,8 @@ export function BookingScreen() {
                     <Text style={[styles.priceValue, { color: colors.mutedForeground, fontSize: 12 }]}>Calculating…</Text>
                   </View>
                 ) : (
-                  <Text style={[styles.priceValue, { color: colors.mutedForeground }]}>
-                    {distanceKm.toFixed(1)} km
+                  <Text style={[styles.priceValue, { color: estimatedDistanceKm ? colors.foreground : colors.mutedForeground }]}>
+                    {estimatedDistanceKm ? `${estimatedDistanceKm.toFixed(1)} km` : `${distanceKm.toFixed(1)} km`}
                   </Text>
                 )}
               </View>

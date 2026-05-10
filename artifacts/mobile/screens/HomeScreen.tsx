@@ -440,8 +440,10 @@ export function HomeScreen() {
 
   const handleDestinationSelect = (dest: string) => {
     setDestination(dest);
+    /* Reset previous distance so BookingScreen never shows stale old distance */
+    setEstimatedDistanceKm(null);
     setDropCoords(null);
-    /* Show distance spinner immediately so BookingScreen never shows stale 8.2 km */
+    /* Show distance spinner immediately */
     setIsDistanceLoading(true);
 
     /* Use current pickup coords (or last GPS fix) as bias so ambiguous names like

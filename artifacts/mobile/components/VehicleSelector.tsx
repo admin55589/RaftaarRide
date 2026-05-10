@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,7 +25,7 @@ const VEHICLES: { type: VehicleType; timeMultiplier: number }[] = [
 
 function VehicleCard({ vehicle }: { vehicle: typeof VEHICLES[0] }) {
   const colors = useColors();
-  const { selectedVehicle, setSelectedVehicle, estimatedTime, rideMode, estimatedDistanceKm } = useApp();
+  const { selectedVehicle, setSelectedVehicle, estimatedTime, rideMode, estimatedDistanceKm, isDistanceLoading } = useApp();
   const scale = useSharedValue(1);
   const isSelected = selectedVehicle === vehicle.type;
 
@@ -33,8 +34,7 @@ function VehicleCard({ vehicle }: { vehicle: typeof VEHICLES[0] }) {
     vehicle.type === "auto" ? colors.autoColor :
     vehicle.type === "suv" ? "#9333ea" : colors.cabColor;
 
-  const rawDistanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
-  const distanceKm = rawDistanceKm;
+  const distanceKm = estimatedDistanceKm ?? DEFAULT_DISTANCE_KM;
   const fare = calculateFare(vehicle.type, distanceKm, 0, getRideModeMultiplier(rideMode));
   const rawTime = Math.round(estimatedTime * vehicle.timeMultiplier);
   const time = rawTime > 999 ? Math.round(DEFAULT_DISTANCE_KM * vehicle.timeMultiplier * 2.5) : rawTime;
@@ -62,8 +62,12 @@ function VehicleCard({ vehicle }: { vehicle: typeof VEHICLES[0] }) {
           <Text style={styles.vehicleEmoji}>{vp.emoji}</Text>
         </View>
         <Text style={[styles.label, { color: colors.foreground }]}>{vp.label}</Text>
-        <Text style={[styles.price, { color: vehicleColor }]}>₹{fare.total}</Text>
-        {fare.savingsPct > 0 && (
+        {isDistanceLoading ? (
+          <ActivityIndicator size="small" color={vehicleColor} style={{ marginVertical: 2 }} />
+        ) : (
+          <Text style={[styles.price, { color: vehicleColor }]}>₹{fare.total}</Text>
+        )}
+        {!isDistanceLoading && fare.savingsPct > 0 && (
           <Text style={styles.savings}>↓{fare.savingsPct}% sasta</Text>
         )}
         <Text style={[styles.time, { color: colors.mutedForeground }]}>{formatDuration(time)}</Text>
