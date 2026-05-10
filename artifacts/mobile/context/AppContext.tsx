@@ -204,6 +204,9 @@ interface AppContextType {
   referralEnabled: boolean;
   passStatus: PassStatus | null;
   refreshPassStatus: (token: string) => Promise<void>;
+  /** Raw GPS coordinates from device — more accurate than geocoded pickupCoords */
+  gpsCoords: GeoCoords | null;
+  setGpsCoords: (c: GeoCoords | null) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -254,6 +257,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [pendingDisputeRideId, setPendingDisputeRideId] = useState<number | null>(null);
   const [referralEnabled, setReferralEnabled] = useState<boolean>(true);
   const [passStatus, setPassStatus] = useState<PassStatus | null>(null);
+  /** Actual device GPS — set by HomeScreen whenever location is obtained */
+  const [gpsCoords, setGpsCoords] = useState<GeoCoords | null>(null);
 
   /* Fetch surge multiplier from API on mount */
   useEffect(() => {
@@ -280,53 +285,98 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!pickupCoords || !dropCoords) return;
     setIsDistanceLoading(true);
+
     /* Abort previous fetch if coords change rapidly */
     const controller = new AbortController();
-    /* Safety net: never block the Book button for more than 10 seconds */
-    const loadingTimeout = setTimeout(() => setIsDistanceLoading(false), 10000);
-    /* Try Google Maps Directions API via server proxy (key never in client) */
-    const origin = `${pickupCoords.lat},${pickupCoords.lng}`;
+    /* Safety net: never block the Book button for more than 15 seconds */
+    const loadingTimeout = setTimeout(() => setIsDistanceLoading(false), 15000);
+
+    /*
+     * GPS PRIORITY (Rapido/Ola/Uber approach):
+     * When user's real GPS is within 1.5 km of their pickup address, use GPS
+     * as the route origin — this is more accurate than the geocoded address center.
+     *
+     * Example: User is physically in Badka. They type "Badka" → geocoded to the
+     * village administrative center. But their GPS pin is 500m away on the actual
+     * road they'll start from. Using GPS gives Google Maps the correct road-entry
+     * point → more accurate distance (e.g. 156 km vs 163 km for Badka→Haridwar).
+     *
+     * If GPS is far from pickup (remote booking / booking for someone else),
+     * fall back to geocoded pickup address.
+     */
+    const gpsNearPickup =
+      gpsCoords &&
+      haversineKm(gpsCoords.lat, gpsCoords.lng, pickupCoords.lat, pickupCoords.lng) < 1.5;
+    const originCoords = gpsNearPickup ? gpsCoords! : pickupCoords;
+
+    const origin = `${originCoords.lat},${originCoords.lng}`;
     const destination = `${dropCoords.lat},${dropCoords.lng}`;
+
+    /*
+     * Google Maps Directions API — authoritative road distance.
+     * GPS origin (when within 1.5 km of pickup address) gives the most accurate
+     * result because it matches the user's actual road-entry point, not the
+     * geocoded address center. This is exactly how Rapido/Ola/Uber calculate
+     * the fare estimate shown before booking.
+     *
+     * Retry strategy: if first attempt fails (network blip), wait 1.5 s and
+     * retry once before falling back to the adaptive haversine estimate.
+     */
     const url = `${API_BASE}/maps/directions?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
-    fetch(url, { signal: controller.signal })
-      .then((r) => r.json())
-      .then((data: { routes?: Array<{ legs?: Array<{ distance?: { value: number }; duration?: { value: number } }> }> }) => {
-        const leg = data?.routes?.[0]?.legs?.[0];
-        if (leg?.distance?.value && leg?.duration?.value) {
-          /* Always accept Directions API result — it is the authoritative road distance.
-             BookingScreen shows a warning banner if distance looks suspiciously large. */
-          const distKm = parseFloat((leg.distance.value / 1000).toFixed(1));
-          const timeMin = Math.ceil(leg.duration.value / 60);
-          setEstimatedDistanceKm(distKm);
-          setEstimatedTime(timeMin);
-        } else {
-          /* No route found — fall back to haversine estimate */
-          const result = calcRealDistance(pickupCoords, dropCoords);
-          if (result) {
-            setEstimatedDistanceKm(result.distanceKm);
-            setEstimatedTime(result.timeMin);
+
+    type DirectionsData = {
+      routes?: Array<{ legs?: Array<{ distance?: { value: number }; duration?: { value: number } }> }>;
+    };
+
+    const applyResult = (distM: number, durS: number) => {
+      setEstimatedDistanceKm(parseFloat((distM / 1000).toFixed(1)));
+      setEstimatedTime(Math.ceil(durS / 60));
+      clearTimeout(loadingTimeout);
+      setIsDistanceLoading(false);
+    };
+
+    const applyHaversineFallback = () => {
+      const result = calcRealDistance(originCoords, dropCoords);
+      if (result) {
+        setEstimatedDistanceKm(result.distanceKm);
+        setEstimatedTime(result.timeMin);
+      }
+      clearTimeout(loadingTimeout);
+      setIsDistanceLoading(false);
+    };
+
+    const doFetch = (isRetry: boolean) => {
+      fetch(url, { signal: controller.signal })
+        .then((r) => r.json())
+        .then((data: DirectionsData) => {
+          const leg = data?.routes?.[0]?.legs?.[0];
+          if (leg?.distance?.value && leg?.duration?.value) {
+            applyResult(leg.distance.value, leg.duration.value);
+          } else {
+            /* API returned no route (e.g. unmappable area) — use haversine */
+            applyHaversineFallback();
           }
-        }
-        clearTimeout(loadingTimeout);
-        setIsDistanceLoading(false);
-      })
-      .catch((err: unknown) => {
-        /* Ignore aborted fetches (rapid coord changes) */
-        if (err instanceof Error && err.name === "AbortError") return;
-        /* Network/API error — fall back to haversine estimate */
-        const result = calcRealDistance(pickupCoords, dropCoords);
-        if (result) {
-          setEstimatedDistanceKm(result.distanceKm);
-          setEstimatedTime(result.timeMin);
-        }
-        clearTimeout(loadingTimeout);
-        setIsDistanceLoading(false);
-      });
+        })
+        .catch((err: unknown) => {
+          if (err instanceof Error && err.name === "AbortError") return;
+          if (!isRetry) {
+            /* Network blip — retry once after 1.5 s before falling back */
+            setTimeout(() => {
+              if (!controller.signal.aborted) doFetch(true);
+            }, 1500);
+          } else {
+            applyHaversineFallback();
+          }
+        });
+    };
+
+    doFetch(false);
+
     return () => {
       controller.abort();
       clearTimeout(loadingTimeout);
     };
-  }, [pickupCoords, dropCoords]);
+  }, [pickupCoords, dropCoords, gpsCoords]);
 
   useEffect(() => {
     loadCachedHistory();
@@ -411,6 +461,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         referralEnabled,
         passStatus,
         refreshPassStatus,
+        gpsCoords, setGpsCoords,
       }}
     >
       {children}

@@ -54,6 +54,43 @@ router.get("/maps/directions", async (req: Request, res: Response) => {
   }
 });
 
+/* ─── GET /api/maps/distance-matrix ──────────────────────────────────────── */
+/**
+ * Lighter than Directions API — purpose-built for distance/time estimates.
+ * Used by Rapido/Ola-style apps: no polyline/steps data, just km + seconds.
+ *
+ * Query params:
+ *   origins      — "lat,lng"
+ *   destinations — "lat,lng"
+ */
+router.get("/maps/distance-matrix", async (req: Request, res: Response) => {
+  const { origins, destinations } = req.query as {
+    origins?: string;
+    destinations?: string;
+  };
+
+  if (!origins || !destinations) {
+    res.status(400).json({ message: "origins aur destinations required hain" });
+    return;
+  }
+
+  const key = getMapsKey();
+  if (!key) {
+    res.status(503).json({ message: "Maps service unavailable" });
+    return;
+  }
+
+  try {
+    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(origins)}&destinations=${encodeURIComponent(destinations)}&mode=driving&key=${key}`;
+    const upstream = await fetch(url);
+    const data = (await upstream.json()) as object;
+    res.json(data);
+  } catch (err) {
+    logger.error({ err }, "[maps] distance-matrix proxy error");
+    res.status(502).json({ message: "Maps service error" });
+  }
+});
+
 /* ─── GET /api/maps/geocode ───────────────────────────────────────────────── */
 router.get("/maps/geocode", async (req: Request, res: Response) => {
   const { q, lat, lng } = req.query as {

@@ -87,7 +87,7 @@ export function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setScreen, setDestination, setDropCoords, setPickupCoords, pickupCoords, currentLocationAddress, setCurrentLocationAddress, setPickup, rideHistory, setEstimatedDistanceKm, setEstimatedTime, setIsDistanceLoading } = useApp();
+  const { setScreen, setDestination, setDropCoords, setPickupCoords, pickupCoords, currentLocationAddress, setCurrentLocationAddress, setPickup, rideHistory, setEstimatedDistanceKm, setEstimatedTime, setIsDistanceLoading, setGpsCoords } = useApp();
   const { user, token, logout, updateUser } = useAuth();
   const { lang, toggleLanguage, t } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
@@ -137,6 +137,7 @@ export function HomeScreen() {
           const gps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           gpsRef.current = gps;
           setPickupCoords(gps);
+          setGpsCoords(gps); /* Store raw GPS in AppContext for GPS-priority distance calc */
           const [geo] = await Location.reverseGeocodeAsync({ latitude: gps.lat, longitude: gps.lng });
           if (geo) {
             const parts = [geo.name, geo.street, geo.subregion ?? geo.district, geo.city].filter(Boolean);
@@ -360,8 +361,28 @@ export function HomeScreen() {
     setCurrentLocationAddress(val);
     setPickup(val);
     setShowPickupEdit(false);
-    /* Geocode the manually-entered pickup — bias toward last GPS fix if available */
-    geocodeAddress(val, (lat, lng) => setPickupCoords({ lat, lng }), gpsRef.current ?? undefined);
+    /* Geocode the manually-entered pickup — bias toward last GPS fix if available.
+     * GPS-priority: if user's GPS is within 2 km of the geocoded result, use GPS
+     * coordinates instead of the geocoded address center — same logic Rapido uses. */
+    geocodeAddress(val, (lat, lng) => {
+      const gps = gpsRef.current;
+      if (gps) {
+        const R = 6371;
+        const dLat = (lat - gps.lat) * (Math.PI / 180);
+        const dLng = (lng - gps.lng) * (Math.PI / 180);
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(gps.lat * (Math.PI / 180)) * Math.cos(lat * (Math.PI / 180)) *
+          Math.sin(dLng / 2) ** 2;
+        const distKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        if (distKm < 2.0) {
+          /* User is physically at/near the typed address — use GPS for accuracy */
+          setPickupCoords(gps);
+          return;
+        }
+      }
+      setPickupCoords({ lat, lng });
+    }, gpsRef.current ?? undefined);
   };
 
   const dotScale = useSharedValue(1);
@@ -400,6 +421,7 @@ export function HomeScreen() {
       const gps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       gpsRef.current = gps;
       setPickupCoords(gps);
+      setGpsCoords(gps); /* Keep AppContext GPS in sync for GPS-priority distance calc */
       const [geo] = await Location.reverseGeocodeAsync({ latitude: gps.lat, longitude: gps.lng });
       if (geo) {
         const parts = [geo.name, geo.street, geo.subregion ?? geo.district, geo.city].filter(Boolean);
