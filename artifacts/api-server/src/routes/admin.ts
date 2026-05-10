@@ -1843,6 +1843,11 @@ router.get("/admin/loyalty", authMiddleware, async (_req: Request, res: Response
   }
 });
 
+/* GET /api/admin/loyalty/config — read current loyalty config */
+router.get("/admin/loyalty/config", authMiddleware, (_req: Request, res: Response) => {
+  res.json({ success: true, config: loyaltyConfig });
+});
+
 /* PATCH /api/admin/loyalty/config — update loyalty program settings */
 router.patch("/admin/loyalty/config", authMiddleware, async (req: Request, res: Response) => {
   const { enabled, ptsPerRupee10, redemptionPts, redemptionRupees } = req.body as {

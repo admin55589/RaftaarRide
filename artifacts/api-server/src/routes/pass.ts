@@ -22,6 +22,8 @@ import { logger } from "../lib/logger";
 const router: IRouter = Router();
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "secret";
+/* Admin tokens are signed with SESSION_SECRET (same key as admin.ts) */
+const ADMIN_JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
 const PASS_PRICE_RUPEES = 149;
 const PASS_DURATION_DAYS = 30;
 const FREE_CANCELS_LIMIT = 5;
@@ -47,7 +49,7 @@ function adminAuth(req: Request, res: Response, next: NextFunction): void {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) { res.status(401).json({ success: false, error: "Unauthorized" }); return; }
   try {
-    const payload = jwt.verify(auth.split(" ")[1], JWT_SECRET) as { role: string };
+    const payload = jwt.verify(auth.split(" ")[1], ADMIN_JWT_SECRET) as { role: string };
     if (payload.role !== "admin") { res.status(403).json({ success: false, error: "Admin only" }); return; }
     next();
   } catch { res.status(401).json({ success: false, error: "Invalid token" }); }
