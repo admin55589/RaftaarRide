@@ -278,6 +278,7 @@ router.get("/admin/stats", authMiddleware, async (_req: Request, res: Response) 
 
 /* GET /api/admin/live-stats — real-time dashboard counters (online drivers, active rides) */
 router.get("/admin/live-stats", authMiddleware, async (_req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-store");
   try {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);

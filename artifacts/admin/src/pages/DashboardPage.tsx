@@ -594,38 +594,45 @@ export function DashboardPage() {
   return (
     <div className="p-6 space-y-6">
       {/* ── Live Status Bar — auto-refreshes every 15s ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
-          <div className="relative">
-            <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-400" />
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
+            <div className="relative shrink-0">
+              <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-400" />
+            </div>
+            <div>
+              <p className="text-xl font-bold text-green-400">{liveStats?.onlineDrivers ?? "—"}</p>
+              <p className="text-xs text-muted-foreground">Drivers Online</p>
+            </div>
           </div>
-          <div>
-            <p className="text-xl font-bold text-green-400">{liveStats?.onlineDrivers ?? "—"}</p>
-            <p className="text-xs text-muted-foreground">Drivers Online</p>
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
+            <Navigation className="w-4 h-4 text-blue-400 shrink-0" />
+            <div>
+              <p className="text-xl font-bold text-blue-400">{liveStats?.activeRides ?? "—"}</p>
+              <p className="text-xs text-muted-foreground">Active Rides</p>
+            </div>
+          </div>
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
+            <Radio className="w-4 h-4 text-amber-400 shrink-0" />
+            <div>
+              <p className="text-xl font-bold text-amber-400">{liveStats?.searchingRides ?? "—"}</p>
+              <p className="text-xs text-muted-foreground">Searching</p>
+            </div>
+          </div>
+          <div className="bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 flex items-center gap-3">
+            <MapPin className="w-4 h-4 text-primary shrink-0" />
+            <div>
+              <p className="text-xl font-bold text-primary">{liveStats?.todayRides ?? "—"}</p>
+              <p className="text-xs text-muted-foreground">Today's Rides</p>
+            </div>
           </div>
         </div>
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
-          <Navigation className="w-4 h-4 text-blue-400 shrink-0" />
-          <div>
-            <p className="text-xl font-bold text-blue-400">{liveStats?.activeRides ?? "—"}</p>
-            <p className="text-xs text-muted-foreground">Active Rides</p>
-          </div>
-        </div>
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
-          <Radio className="w-4 h-4 text-amber-400 shrink-0" />
-          <div>
-            <p className="text-xl font-bold text-amber-400">{liveStats?.searchingRides ?? "—"}</p>
-            <p className="text-xs text-muted-foreground">Searching</p>
-          </div>
-        </div>
-        <div className="bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 flex items-center gap-3">
-          <MapPin className="w-4 h-4 text-primary shrink-0" />
-          <div>
-            <p className="text-xl font-bold text-primary">{liveStats?.todayRides ?? "—"}</p>
-            <p className="text-xs text-muted-foreground">Today's Rides</p>
-          </div>
-        </div>
+        {liveStats?.updatedAt && (
+          <p className="text-xs text-muted-foreground text-right">
+            Live data — updated {new Date(liveStats.updatedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+          </p>
+        )}
       </div>
 
       <div className="flex items-center justify-between flex-wrap gap-3">
