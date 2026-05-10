@@ -45,7 +45,7 @@ function HistorySyncer() {
 }
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isLoggedIn, isLoading } = useAuth();
+  const { isLoggedIn, isLoading, loginInProgress } = useAuth();
   const { isDriverLoggedIn, isDriverLoading } = useDriverAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -79,7 +79,15 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     if (!isLoggedIn && !isDriverLoggedIn && inProtectedArea) {
-      router.replace("/auth/login");
+      /* Skip redirect if a login() call is in flight — the state commit
+         (setToken/setUser) hasn't propagated yet but the user is already
+         being navigated to the protected screen by the login handler.
+         Without this guard the AuthGuard would bounce the user back to
+         /auth/login during that brief window, causing the "immediate
+         logout" bug. */
+      if (!loginInProgress.current) {
+        router.replace("/auth/login");
+      }
     }
   }, [isLoggedIn, isDriverLoggedIn, anyLoading, segments]);
 
