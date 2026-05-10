@@ -23,9 +23,11 @@ export function calcRealDistance(
 ): { distanceKm: number; timeMin: number } | null {
   if (!pickupCoords || !dropCoords) return null;
   const straightLine = haversineKm(pickupCoords.lat, pickupCoords.lng, dropCoords.lat, dropCoords.lng);
-  const roadFactor = 1.28; // Indian roads typically 25-35% longer than straight line (lower = less overestimate on short routes)
+  /* Adaptive road factor: highways (long routes) are much more direct than city streets */
+  const roadFactor = straightLine > 80 ? 1.18 : straightLine > 30 ? 1.22 : straightLine > 10 ? 1.25 : 1.28;
   const distanceKm = parseFloat((straightLine * roadFactor).toFixed(1));
-  const avgSpeedKmh = 26; // avg urban speed Delhi/NCR
+  /* Adaptive speed: highways avg 60 km/h, suburban 40, city 26 */
+  const avgSpeedKmh = straightLine > 80 ? 60 : straightLine > 30 ? 40 : 26;
   const timeMin = Math.max(3, Math.round((distanceKm / avgSpeedKmh) * 60));
   return { distanceKm, timeMin };
 }
@@ -164,8 +166,8 @@ interface AppContextType {
   setEstimatedPrice: (p: number) => void;
   estimatedTime: number;
   setEstimatedTime: (t: number) => void;
-  estimatedDistanceKm: number;
-  setEstimatedDistanceKm: (d: number) => void;
+  estimatedDistanceKm: number | null;
+  setEstimatedDistanceKm: (d: number | null) => void;
   isDistanceLoading: boolean;
   setIsDistanceLoading: (b: boolean) => void;
   assignedDriver: Driver | null;
@@ -231,7 +233,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentLocationAddress, setCurrentLocationAddress] = useState("Connaught Place, New Delhi");
   const [estimatedPrice, setEstimatedPrice] = useState(180);
   const [estimatedTime, setEstimatedTime] = useState(12);
-  const [estimatedDistanceKm, setEstimatedDistanceKm] = useState(8.2);
+  const [estimatedDistanceKm, setEstimatedDistanceKm] = useState<number | null>(null);
   const [isDistanceLoading, setIsDistanceLoading] = useState(false);
   
   const [assignedDriver, setAssignedDriver] = useState<Driver | null>(null);

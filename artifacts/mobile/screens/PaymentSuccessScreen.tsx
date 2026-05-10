@@ -243,7 +243,7 @@ export function PaymentSuccessScreen() {
 
             {[
               { icon: "₹", label: "Amount Paid", value: `₹${price}` },
-              { icon: "🕐", label: "Duration",    value: `${duration} min` },
+              { icon: "🕐", label: "Duration",    value: duration < 60 ? `${duration} min` : `${Math.floor(duration / 60)}h ${duration % 60 ? `${duration % 60}min` : ""}`.trim() },
               { icon: "📍", label: "Distance",    value: `${distanceKm.toFixed ? distanceKm.toFixed(1) : distanceKm} km` },
               { icon: "💳", label: "Payment",     value: methodLabel },
               ...(fareBreakdown?.promoCode && fareBreakdown.promoDiscount > 0

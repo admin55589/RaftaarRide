@@ -13,7 +13,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/useColors";
 import { useApp, VehicleType } from "@/context/AppContext";
-import { calculateFare, getRideModeMultiplier, VEHICLE_PRICING, DEFAULT_DISTANCE_KM } from "@/lib/pricing";
+import { calculateFare, getRideModeMultiplier, VEHICLE_PRICING, DEFAULT_DISTANCE_KM, formatDuration } from "@/lib/pricing";
 
 const VEHICLES: { type: VehicleType; timeMultiplier: number }[] = [
   { type: "bike",  timeMultiplier: 0.7 },
@@ -66,7 +66,7 @@ function VehicleCard({ vehicle }: { vehicle: typeof VEHICLES[0] }) {
         {fare.savingsPct > 0 && (
           <Text style={styles.savings}>↓{fare.savingsPct}% sasta</Text>
         )}
-        <Text style={[styles.time, { color: colors.mutedForeground }]}>{time} min</Text>
+        <Text style={[styles.time, { color: colors.mutedForeground }]}>{formatDuration(time)}</Text>
       </Pressable>
     </Animated.View>
   );

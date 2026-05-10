@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
-import { calculateFare, getRideModeMultiplier, DEFAULT_DISTANCE_KM } from "@/lib/pricing";
+import { calculateFare, getRideModeMultiplier, DEFAULT_DISTANCE_KM, formatDuration } from "@/lib/pricing";
 import { ridesApi, type PaymentMethod } from "@/lib/ridesApi";
 import { GlassCard } from "@/components/GlassCard";
 import { VehicleSelector } from "@/components/VehicleSelector";

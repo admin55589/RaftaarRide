@@ -413,8 +413,8 @@ export function HomeScreen() {
     setLocating(false);
   };
 
-  /* Maximum straight-line distance (km) for an intra-city ride-hailing booking */
-  const MAX_RIDE_KM = 60;
+  /* Maximum straight-line distance (km) — 200km covers inter-city rides like Badka→Haridwar */
+  const MAX_RIDE_KM = 200;
 
   const handleDestinationSelect = (dest: string) => {
     setDestination(dest);
@@ -433,8 +433,8 @@ export function HomeScreen() {
         const straightLine = haversineKm(bias.lat, bias.lng, dropLat, dropLng);
         if (straightLine > MAX_RIDE_KM) {
           Alert.alert(
-            "Bahut Door Hai 🚗",
-            `"${dest}" aapke pickup se ~${Math.round(straightLine)} km door lag raha hai.\n\nRaftaarRide sirf shahar ke andar ki rides ke liye hai. Kya destination sahi hai?`,
+            "Door Destination 🚗",
+            `"${dest}" aapke pickup se ~${Math.round(straightLine)} km door lag raha hai.\n\nKya yahi sahi destination hai?`,
             [
               {
                 text: "Haan, sahi destination hai",

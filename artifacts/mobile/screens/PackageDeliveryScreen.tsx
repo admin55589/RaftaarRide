@@ -43,7 +43,7 @@ export function PackageDeliveryScreen() {
   const [loading, setLoading]               = useState(false);
 
   const wCfg   = WEIGHT_OPTIONS.find(w => w.key === selectedWeight)!;
-  const distKm = estimatedDistanceKm > 0 ? estimatedDistanceKm : 5;
+  const distKm = (estimatedDistanceKm ?? 0) > 0 ? estimatedDistanceKm! : 5;
   const rideFare     = Math.round(wCfg.base + wCfg.perKm * distKm);
   const platformFee  = 4;
   const totalFare    = rideFare + platformFee;

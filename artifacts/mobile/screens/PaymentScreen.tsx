@@ -24,7 +24,7 @@ import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { ridesApi } from "@/lib/ridesApi";
-import { calculateFare, getRideModeMultiplier, DEFAULT_DISTANCE_KM } from "@/lib/pricing";
+import { calculateFare, getRideModeMultiplier, DEFAULT_DISTANCE_KM, formatDuration } from "@/lib/pricing";
 import { GlassCard } from "@/components/GlassCard";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { RazorpayWebView } from "@/components/RazorpayWebView";
@@ -275,7 +275,7 @@ export function PaymentScreen() {
             <Animated.View entering={FadeInDown.delay(500).springify()} style={[s.receiptCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {[
                 { icon: "🏷️", label: "Amount Paid", value: `₹${price}` },
-                { icon: "🕐", label: "Duration",     value: `${duration} min` },
+                { icon: "🕐", label: "Duration",     value: formatDuration(duration) },
                 { icon: "📍", label: "Distance",     value: `${distanceKm} km` },
                 { icon: "💳", label: "Payment",      value: selectedMethod === "RaftaarWallet" ? "RaftaarRide Wallet 👛" : selectedMethod === "Cash" ? "💵 Cash (Driver ko diya)" : selectedMethod },
               ].map(({ icon, label, value }) => (
