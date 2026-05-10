@@ -123,7 +123,8 @@ Verdict rules:
   return JSON.parse(cleaned) as KycAiResult;
 }
 
-const JWT_SECRET = process.env.SESSION_SECRET ?? "raftaarride-admin-secret-2024";
+if (!process.env.SESSION_SECRET) throw new Error("SESSION_SECRET environment variable is required");
+const JWT_SECRET = process.env.SESSION_SECRET;
 const ADMIN_EMAIL = "admin.raftaarride@gmail.com";
 const ADMIN_PASSWORD = "Luck@12345RR";
 

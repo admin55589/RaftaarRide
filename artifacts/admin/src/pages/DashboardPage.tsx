@@ -71,11 +71,20 @@ function SmsBalanceCard() {
   }>({
     queryKey: ["sms-balance"],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/admin/sms-balance`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      let res: Response;
+      try {
+        res = await fetch(`${API_BASE}/api/admin/sms-balance`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (err) {
+        throw new Error(`Network error: ${err instanceof Error ? err.message : String(err)}`);
+      }
       if (!res.ok) throw new HttpError(res.status, `Server error ${res.status}`);
-      return res.json();
+      try {
+        return await res.json() as { credits: number | null; error?: string };
+      } catch {
+        throw new HttpError(200, "Server returned invalid JSON");
+      }
     },
     enabled: !!token,
     refetchInterval: 2 * 60 * 1000,
@@ -159,9 +168,13 @@ function SmsBalanceCard() {
       {isNetworkError && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2">
           <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-red-400 mb-0.5">Connection Error</p>
-            <p className="text-xs text-muted-foreground">API server se connect nahi ho pa raha. Page refresh karo.</p>
+            <p className="text-xs text-muted-foreground">API server se connect nahi ho pa raha.</p>
+            {fetchError instanceof Error && (
+              <p className="text-xs text-red-400/70 font-mono mt-1 break-all">{fetchError.message}</p>
+            )}
+            <button onClick={() => refetch()} className="text-xs text-blue-400 underline mt-1">Retry</button>
           </div>
         </div>
       )}
@@ -232,11 +245,20 @@ function MapsStatusCard() {
   const { data, isLoading, error: fetchError, refetch, isFetching } = useQuery<MapsUsageData>({
     queryKey: ["maps-usage"],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/admin/maps-usage`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      let res: Response;
+      try {
+        res = await fetch(`${API_BASE}/api/admin/maps-usage`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (err) {
+        throw new Error(`Network error: ${err instanceof Error ? err.message : String(err)}`);
+      }
       if (!res.ok) throw new HttpError(res.status, `Server error ${res.status}`);
-      return res.json();
+      try {
+        return await res.json() as MapsUsageData;
+      } catch {
+        throw new HttpError(200, "Server returned invalid JSON");
+      }
     },
     enabled: !!token,
     refetchInterval: 10 * 60 * 1000,
@@ -297,9 +319,12 @@ function MapsStatusCard() {
       ) : mapsNetworkError ? (
         <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-start gap-2">
           <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-red-400 mb-0.5">Connection Error</p>
             <p className="text-xs text-muted-foreground">API server se connect nahi ho pa raha.</p>
+            {fetchError instanceof Error && (
+              <p className="text-xs text-red-400/70 font-mono mt-1 break-all">{fetchError.message}</p>
+            )}
             <button onClick={() => refetch()} className="text-xs text-blue-400 underline mt-1">Retry</button>
           </div>
         </div>
@@ -369,11 +394,20 @@ function CloudCostCard() {
   const { data, isLoading, error: fetchError, refetch, isFetching } = useQuery<CloudCostData>({
     queryKey: ["cloud-costs"],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/admin/cloud-costs`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      let res: Response;
+      try {
+        res = await fetch(`${API_BASE}/api/admin/cloud-costs`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (err) {
+        throw new Error(`Network error: ${err instanceof Error ? err.message : String(err)}`);
+      }
       if (!res.ok) throw new HttpError(res.status, `Server error ${res.status}`);
-      return res.json();
+      try {
+        return await res.json() as CloudCostData;
+      } catch {
+        throw new HttpError(200, "Server returned invalid JSON");
+      }
     },
     enabled: !!token,
     refetchInterval: 15 * 60 * 1000,
@@ -442,10 +476,13 @@ function CloudCostCard() {
         {cloudCardHeader}
         <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2">
           <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-red-400 mb-0.5">Connection Error</p>
-            <p className="text-xs text-muted-foreground mb-1">API server se connect nahi ho pa raha. Network check karo ya page refresh karo.</p>
-            <button onClick={() => refetch()} className="text-xs text-blue-400 underline">Retry</button>
+            <p className="text-xs text-muted-foreground mb-1">API server se connect nahi ho pa raha.</p>
+            {fetchError instanceof Error && (
+              <p className="text-xs text-red-400/70 font-mono mt-1 break-all">{fetchError.message}</p>
+            )}
+            <button onClick={() => refetch()} className="text-xs text-blue-400 underline mt-1">Retry</button>
           </div>
         </div>
       </div>
