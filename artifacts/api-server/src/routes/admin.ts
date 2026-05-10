@@ -276,6 +276,35 @@ router.get("/admin/stats", authMiddleware, async (_req: Request, res: Response) 
   } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
 });
 
+/* GET /api/admin/live-stats — real-time dashboard counters (online drivers, active rides) */
+router.get("/admin/live-stats", authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [onlineDriversResult, activeRidesResult, todayRidesResult, searchingRidesResult] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` }).from(driversTable).where(eq(driversTable.isOnline, true)).then(r => r[0]),
+      db.select({ count: sql<number>`count(*)` }).from(ridesTable).where(
+        sql`status IN ('accepted','arrived','onRide')`
+      ).then(r => r[0]),
+      db.select({ count: sql<number>`count(*)` }).from(ridesTable).where(
+        gte(ridesTable.createdAt, todayStart)
+      ).then(r => r[0]),
+      db.select({ count: sql<number>`count(*)` }).from(ridesTable).where(
+        eq(ridesTable.status, "searching")
+      ).then(r => r[0]),
+    ]);
+
+    res.json({
+      onlineDrivers: Number(onlineDriversResult?.count ?? 0),
+      activeRides: Number(activeRidesResult?.count ?? 0),
+      todayRides: Number(todayRidesResult?.count ?? 0),
+      searchingRides: Number(searchingRidesResult?.count ?? 0),
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (err) { res.status(500).json({ success: false, error: String(err) }); }
+});
+
 router.get("/admin/users", authMiddleware, async (_req: Request, res: Response) => {
   try {
     const usersWithRides = await db

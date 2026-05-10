@@ -1,5 +1,8 @@
 import React from "react";
-import { useGetAdminStats, useGetRecentRides, useGetDailyAnalytics } from "@workspace/api-client-react";
+import {
+  useGetAdminStats, useGetRecentRides, useGetDailyAnalytics,
+  getGetAdminStatsQueryKey, getGetRecentRidesQueryKey, getGetDailyAnalyticsQueryKey,
+} from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   AreaChart,
@@ -12,7 +15,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet, MessageSquare, AlertTriangle, RefreshCw, Cloud, CheckCircle, XCircle, Settings, Clock } from "lucide-react";
+import { Users, Car, MapPin, IndianRupee, TrendingUp, Star, Zap, Wallet, MessageSquare, AlertTriangle, RefreshCw, Cloud, CheckCircle, XCircle, Settings, Clock, Radio, Navigation } from "lucide-react";
 import { StatusBadge, VehicleBadge, formatCurrency, formatDate } from "@/components/shared";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/apiBase";
@@ -535,9 +538,40 @@ function PendingCommissionsCard() {
 
 export function DashboardPage() {
   const { token } = useAuth();
-  const { data: stats, isLoading: statsLoading } = useGetAdminStats();
-  const { data: recentRides } = useGetRecentRides();
-  const { data: analytics } = useGetDailyAnalytics();
+
+  /* ── Main stats — auto-refresh every 30s ── */
+  const { data: stats, isLoading: statsLoading } = useGetAdminStats({
+    query: { queryKey: getGetAdminStatsQueryKey(), refetchInterval: 30_000, refetchOnWindowFocus: true },
+  });
+  const { data: recentRides } = useGetRecentRides({
+    query: { queryKey: getGetRecentRidesQueryKey(), refetchInterval: 30_000 },
+  });
+  const { data: analytics } = useGetDailyAnalytics({
+    query: { queryKey: getGetDailyAnalyticsQueryKey(), refetchInterval: 5 * 60_000 },
+  });
+
+  /* ── Live real-time counters — auto-refresh every 15s ── */
+  const { data: liveStats } = useQuery<{
+    onlineDrivers: number;
+    activeRides: number;
+    todayRides: number;
+    searchingRides: number;
+    updatedAt: string;
+  }>({
+    queryKey: ["admin-live-stats"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/admin/live-stats`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+    enabled: !!token,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+  });
+
+  /* ── Surge widget ── */
   const { data: surgeData } = useQuery({
     queryKey: ["admin-surge-widget"],
     queryFn: async () => {
@@ -549,7 +583,7 @@ export function DashboardPage() {
       return json.surge as { multiplier: string; isActive: boolean; reason: string | null } | null;
     },
     enabled: !!token,
-    staleTime: 30_000,
+    refetchInterval: 30_000,
   });
   const surgeActive = surgeData?.isActive ?? false;
   const surgeLabel = surgeActive ? `${Number(surgeData?.multiplier ?? 1).toFixed(2)}x` : "Normal";
@@ -559,6 +593,41 @@ export function DashboardPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* ── Live Status Bar — auto-refreshes every 15s ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
+          <div className="relative">
+            <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-green-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-400" />
+          </div>
+          <div>
+            <p className="text-xl font-bold text-green-400">{liveStats?.onlineDrivers ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">Drivers Online</p>
+          </div>
+        </div>
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
+          <Navigation className="w-4 h-4 text-blue-400 shrink-0" />
+          <div>
+            <p className="text-xl font-bold text-blue-400">{liveStats?.activeRides ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">Active Rides</p>
+          </div>
+        </div>
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
+          <Radio className="w-4 h-4 text-amber-400 shrink-0" />
+          <div>
+            <p className="text-xl font-bold text-amber-400">{liveStats?.searchingRides ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">Searching</p>
+          </div>
+        </div>
+        <div className="bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 flex items-center gap-3">
+          <MapPin className="w-4 h-4 text-primary shrink-0" />
+          <div>
+            <p className="text-xl font-bold text-primary">{liveStats?.todayRides ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">Today's Rides</p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
