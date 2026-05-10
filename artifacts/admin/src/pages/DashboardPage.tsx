@@ -54,7 +54,7 @@ function StatCard({
 
 function SmsBalanceCard() {
   const { token } = useAuth();
-  const { data, isLoading, refetch, isFetching } = useQuery<{
+  const { data, isLoading, error: fetchError, refetch, isFetching } = useQuery<{
     credits: number | null;
     fast2SmsWallet: number | null;
     error?: string;
@@ -65,7 +65,7 @@ function SmsBalanceCard() {
       const res = await fetch(`${API_BASE}/api/admin/sms-balance`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
       return res.json();
     },
     enabled: !!token,
@@ -79,6 +79,12 @@ function SmsBalanceCard() {
   const hasFast2Sms = fast2SmsWallet !== null && !Number.isNaN(fast2SmsWallet);
   const isLow = hasCredits && credits! < 50;
   const isCritical = hasCredits && credits! < 10;
+
+  const twoFactorErrMsg = data?.error ?? (fetchError ? (fetchError as Error).message : null);
+  const fast2SmsErrMsg  = data?.fast2SmsError ?? (fetchError ? (fetchError as Error).message : null);
+
+  const isNotConfigured = (msg: string | null) =>
+    msg?.toLowerCase().includes("not configured") || msg?.toLowerCase().includes("api_key");
 
   return (
     <div className={`rounded-2xl border p-5 ${
@@ -123,12 +129,14 @@ function SmsBalanceCard() {
                 <p className={`text-xl font-bold ${isCritical ? "text-red-400" : isLow ? "text-amber-400" : "text-blue-400"}`}>
                   {credits!} <span className="text-xs font-normal">SMS</span>
                 </p>
-                {isCritical && <p className="text-xs text-red-400 mt-0.5">⚠️ Critical! Recharge now</p>}
+                {isCritical && <p className="text-xs text-red-400 mt-0.5">⚠️ Critical — Recharge now</p>}
                 {isLow && !isCritical && <p className="text-xs text-amber-400 mt-0.5">⚠️ Low — recharge soon</p>}
                 {!isLow && <p className="text-xs text-green-400 mt-0.5">✅ Sufficient</p>}
               </>
             ) : (
-              <p className="text-xs text-red-400 mt-1">{data?.error ?? "Fetch failed"}</p>
+              <p className="text-xs text-red-400 mt-1">
+                {isNotConfigured(twoFactorErrMsg) ? "API key not set in env" : (twoFactorErrMsg ?? "Could not fetch")}
+              </p>
             )}
           </div>
           {/* Fast2SMS */}
@@ -142,7 +150,9 @@ function SmsBalanceCard() {
                 <p className="text-xs text-muted-foreground mt-0.5">Available balance</p>
               </>
             ) : (
-              <p className="text-xs text-red-400 mt-1">{data?.fast2SmsError ?? "Fetch failed"}</p>
+              <p className="text-xs text-amber-400 mt-1">
+                {isNotConfigured(fast2SmsErrMsg) ? "API key not set in env" : (fast2SmsErrMsg ?? "Could not fetch")}
+              </p>
             )}
           </div>
         </div>
