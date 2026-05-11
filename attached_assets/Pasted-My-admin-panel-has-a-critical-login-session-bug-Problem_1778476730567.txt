@@ -1,0 +1,64 @@
+My admin panel has a critical login/session bug.
+
+Problem:
+When I click the “Sign in” button, the admin panel opens for a few seconds and then automatically closes/logs out/redirects back. I need you to deeply analyze and permanently fix this issue.
+
+Please check everything step by step:
+
+1. Login flow
+- Check the Sign in button click handler.
+- Check Firebase Auth signInWithEmailAndPassword logic.
+- Make sure login success is not followed by accidental logout or redirect.
+- Add proper loading state and error handling.
+
+2. Firebase configuration
+- Confirm the app is connected to the correct Firebase project.
+- Check apiKey, authDomain, projectId, appId, and environment variables.
+- Make sure Vercel/Replit environment variables are correctly loaded.
+- Do not use undefined or wrong Firebase config values.
+
+3. Admin role check
+- After login, check whether admin verification is done correctly.
+- Check Firestore path: users/{uid} or admins/{uid}.
+- If user exists in Firebase Authentication but admin role is missing, show clear error:
+  “Login successful but this account is not an admin.”
+- Do not show generic “invalid credentials” for admin-role failure.
+
+4. Auth persistence/session
+- Check Firebase auth persistence.
+- Use browser local/session persistence correctly.
+- Make sure onAuthStateChanged does not redirect before Firebase finishes loading.
+- Add an authLoading state so protected routes wait until auth state is confirmed.
+
+5. Protected routes / redirects
+- Check route guards, middleware, layout, and dashboard redirect logic.
+- Fix any issue where dashboard loads first and then closes due to auth/admin state becoming false.
+- Prevent redirect loop between login and dashboard.
+- Make sure dashboard only opens after both auth and admin role are verified.
+
+6. Firestore rules and permissions
+- Check if Firestore rules are blocking admin role read.
+- If admin role document read fails due to permission error, show a proper error message.
+- Fix rules if needed so logged-in user can read their own admin/user role document safely.
+
+7. Browser console and network errors
+- Inspect console errors.
+- Inspect failed Firebase/Auth/Firestore network requests.
+- Fix every red error and warning related to login, auth, routing, Firebase config, CORS, environment variables, or missing permissions.
+
+8. Permanent production-level fix
+- Add clear logs only for development.
+- Remove unsafe console logs from production.
+- Add stable error messages.
+- Make the login flow reliable on refresh, direct dashboard URL, and after deployment.
+- Test with correct admin email/password.
+- Test wrong password.
+- Test normal user without admin role.
+- Test refresh after login.
+- Test direct dashboard URL after login.
+- Test logout.
+
+Expected result:
+After clicking Sign in, if credentials are correct and admin role exists, the dashboard should stay open permanently and should not close or redirect back. If there is any issue, the app should show the exact reason: wrong password, Firebase config error, permission denied, or not admin.
+
+Please scan the whole codebase carefully and fix the root cause, not just a temporary patch. Also explain exactly which files you changed and what the bug was.
