@@ -385,28 +385,35 @@ export async function onDriverAccept(
   if (entry?.timer) clearTimeout(entry.timer);
   queues.delete(rideId);
 
-  const [existingRide] = await db
-    .select()
-    .from(ridesTable)
-    .where(eq(ridesTable.id, rideId))
-    .limit(1);
-
-  if (!existingRide || existingRide.status !== "searching") {
-    await db.update(driversTable).set({ isOnline: true }).where(eq(driversTable.id, driverId));
-    logger.warn(
-      { rideId, driverId, status: existingRide?.status },
-      "[rideQueue] accept: ride no longer in searching state",
-    );
-    return null;
-  }
-
   const completionPin = 1000 + Math.floor(Math.random() * 9000);
 
-  const [updatedRide] = await db
-    .update(ridesTable)
-    .set({ driverId, status: "accepted", completionPin })
-    .where(eq(ridesTable.id, rideId))
-    .returning();
+  /* Atomic: FOR UPDATE + transaction prevents two drivers from simultaneously
+     passing the status check and both getting assigned to the same ride */
+  const updatedRide = await db.transaction(async (tx) => {
+    const [existingRide] = await tx
+      .select({ id: ridesTable.id, status: ridesTable.status })
+      .from(ridesTable)
+      .where(eq(ridesTable.id, rideId))
+      .for("update")
+      .limit(1);
+
+    if (!existingRide || existingRide.status !== "searching") {
+      await tx.update(driversTable).set({ isOnline: true }).where(eq(driversTable.id, driverId));
+      logger.warn(
+        { rideId, driverId, status: existingRide?.status },
+        "[rideQueue] accept: ride no longer in searching state",
+      );
+      return null;
+    }
+
+    const [updated] = await tx
+      .update(ridesTable)
+      .set({ driverId, status: "accepted", completionPin })
+      .where(eq(ridesTable.id, rideId))
+      .returning();
+
+    return updated ?? null;
+  });
 
   if (!updatedRide) return null;
 

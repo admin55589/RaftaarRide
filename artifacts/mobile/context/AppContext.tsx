@@ -211,17 +211,9 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
-const MOCK_DRIVERS: Driver[] = [
-  { id: "1", name: "Raj Kumar", rating: 4.8, vehicle: "Honda Activa", vehicleNumber: "DL 4C AB 1234", vehicleType: "bike", eta: 3, photo: "RK" },
-  { id: "2", name: "Suresh Yadav", rating: 4.9, vehicle: "Bajaj Auto", vehicleNumber: "DL 8S XY 5678", vehicleType: "auto", eta: 5, photo: "SY" },
-  { id: "3", name: "Arjun Sharma", rating: 4.7, vehicle: "Swift Dzire", vehicleNumber: "DL 2C PQ 9012", vehicleType: "prime", eta: 7, photo: "AS" },
-];
+const MOCK_DRIVERS: Driver[] = [];
 
-const SAVED_PLACES: SavedPlace[] = [
-  { id: "1", name: "Office", address: "Connaught Place, New Delhi", icon: "briefcase" },
-  { id: "2", name: "Home", address: "Sector 62, Noida", icon: "home" },
-  { id: "3", name: "Gym", address: "DLF Cyber Hub, Gurgaon", icon: "activity" },
-];
+const SAVED_PLACES: SavedPlace[] = [];
 
 const HISTORY_CACHE_KEY = "rideHistory_v2";
 
@@ -229,12 +221,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [screen, setScreen] = useState<AppScreen>("home");
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleType>("prime");
   const [rideMode, setRideMode] = useState<RideMode>("economy");
-  const [pickup, setPickup] = useState("Connaught Place, New Delhi");
+  const [pickup, setPickup] = useState("");
   const [pickupCoords, setPickupCoords] = useState<GeoCoords | null>(null);
   const [destination, setDestination] = useState("");
   const [dropCoords, setDropCoords] = useState<GeoCoords | null>(null);
-  const [currentLocationAddress, setCurrentLocationAddress] = useState("Connaught Place, New Delhi");
-  const [estimatedPrice, setEstimatedPrice] = useState(180);
+  const [currentLocationAddress, setCurrentLocationAddress] = useState("");
+  const [estimatedPrice, setEstimatedPrice] = useState(0);
   const [estimatedTime, setEstimatedTime] = useState(12);
   const [estimatedDistanceKm, setEstimatedDistanceKm] = useState<number | null>(null);
   const [isDistanceLoading, setIsDistanceLoading] = useState(false);
@@ -243,9 +235,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [rideHistory, setRideHistory] = useState<Ride[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isDriverMode, setIsDriverMode] = useState(false);
-  const [driverEarnings, setDriverEarnings] = useState(1840);
+  const [driverEarnings, setDriverEarnings] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("UPI");
-  const [userName, setUserName] = useState("Aarav");
+  const [userName, setUserName] = useState("");
   const [currentRideId, setCurrentRideId] = useState<number | null>(null);
   const [finalPaymentPrice, setFinalPaymentPrice] = useState<number>(0);
   const [fareBreakdown, setFareBreakdown] = useState<{ rideFare: number; platformFee: number; promoDiscount: number; promoCode: string; distanceKm: number; distanceCharge: number; waitingCharge: number } | null>(null);

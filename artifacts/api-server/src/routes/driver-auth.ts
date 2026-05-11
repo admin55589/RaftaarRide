@@ -637,45 +637,118 @@ router.patch("/driver-auth/rides/:id/status", async (req: Request, res: Response
 
     /* Credit driver earnings on ride completion — mirrors /api/rides/:id/status logic */
     if (status === "completed") {
-      /* Idempotency: skip if earnings already credited (e.g. via verify-pin route) */
-      if (!(ride.driverEarning && parseFloat(String(ride.driverEarning)) > 0)) {
-        const [driver] = await db.select().from(driversTable)
-          .where(eq(driversTable.id, payload.driverId)).limit(1);
-        if (driver) {
-          const price = parseFloat(String(ride.price));
-          const isCash = ride.paymentMethod === "Cash";
-          const vt = String(ride.vehicleType ?? "cab").toLowerCase();
-          const PLATFORM_FEE_MAP: Record<string, number> = { bike: 4, auto: 6, cab: 12, prime: 12, suv: 15 };
-          const platformFee = PLATFORM_FEE_MAP[vt] ?? 12;
-          const earning = parseFloat((price - platformFee).toFixed(2));
-          const currentBalance = parseFloat(String(driver.walletBalance ?? "0"));
-          const newWalletBalance = isCash
-            ? currentBalance - platformFee
-            : currentBalance + earning;
-          const totalEarningsNew = parseFloat(String(driver.totalEarnings ?? "0")) + earning;
-          await db.update(driversTable).set({
-            totalEarnings: String(totalEarningsNew.toFixed(2)),
-            walletBalance: String(newWalletBalance.toFixed(2)),
-            totalRides: (driver.totalRides ?? 0) + 1,
-            isOnline: true,
-          }).where(eq(driversTable.id, payload.driverId));
-          await db.update(ridesTable).set({
-            commissionAmount: "0",
-            driverEarning: String(earning),
-          }).where(eq(ridesTable.id, rideId));
-          await db.insert(walletTransactionsTable).values({
+      const price = parseFloat(String(ride.price));
+      const isCash = ride.paymentMethod === "Cash";
+      const vt = String(ride.vehicleType ?? "cab").toLowerCase();
+      const PLATFORM_FEE_MAP: Record<string, number> = { bike: 4, auto: 6, cab: 12, prime: 12, suv: 15 };
+      const platformFee = PLATFORM_FEE_MAP[vt] ?? 12;
+      const earning = parseFloat((price - platformFee).toFixed(2));
+
+      /* Atomic: FOR UPDATE prevents double-credit race with verify-pin route */
+      await db.transaction(async (tx) => {
+        const [driver] = await tx.select({
+          walletBalance: driversTable.walletBalance,
+          pendingCommission: driversTable.pendingCommission,
+          totalEarnings: driversTable.totalEarnings,
+          totalRides: driversTable.totalRides,
+          pushToken: driversTable.pushToken,
+        }).from(driversTable).where(eq(driversTable.id, payload.driverId)).for("update").limit(1);
+        if (!driver) return;
+
+        /* Re-check idempotency inside transaction — skip if already credited */
+        const [freshRide] = await tx.select({ driverEarning: ridesTable.driverEarning })
+          .from(ridesTable).where(eq(ridesTable.id, rideId)).limit(1);
+
+        const earningsAlreadyCredited = freshRide?.driverEarning &&
+          parseFloat(String(freshRide.driverEarning)) > 0;
+
+        if (earningsAlreadyCredited) {
+          /* Earnings already credited via verify-pin — just put driver back online */
+          await tx.update(driversTable).set({ isOnline: true })
+            .where(eq(driversTable.id, payload.driverId));
+          return;
+        }
+
+        const currentBalance = parseFloat(String(driver.walletBalance ?? "0"));
+        const currentPending = parseFloat(String(driver.pendingCommission ?? "0"));
+        let newWalletBalance: number;
+        let newPendingCommission = currentPending;
+        let commissionStatusValue: string | null = null;
+
+        if (isCash) {
+          const hasSufficientBalance = currentBalance >= platformFee;
+          commissionStatusValue = hasSufficientBalance ? "collected" : "pending";
+          if (hasSufficientBalance) {
+            newWalletBalance = currentBalance - platformFee;
+          } else {
+            newWalletBalance = currentBalance;
+            newPendingCommission = parseFloat((currentPending + platformFee).toFixed(2));
+          }
+        } else {
+          /* Online ride: credit earning, then auto-recover any pending commission */
+          const creditedBalance = currentBalance + earning;
+          if (currentPending > 0) {
+            const autoDeduct = parseFloat(Math.min(currentPending, creditedBalance).toFixed(2));
+            newWalletBalance = parseFloat((creditedBalance - autoDeduct).toFixed(2));
+            newPendingCommission = parseFloat((currentPending - autoDeduct).toFixed(2));
+          } else {
+            newWalletBalance = creditedBalance;
+          }
+        }
+
+        const totalEarningsNew = parseFloat(String(driver.totalEarnings ?? "0")) + earning;
+
+        await tx.update(driversTable).set({
+          totalEarnings: String(totalEarningsNew.toFixed(2)),
+          walletBalance: String(newWalletBalance.toFixed(2)),
+          pendingCommission: String(newPendingCommission.toFixed(2)),
+          totalRides: (driver.totalRides ?? 0) + 1,
+          isOnline: true,
+        }).where(eq(driversTable.id, payload.driverId));
+
+        await tx.update(ridesTable).set({
+          commissionAmount: String(platformFee),
+          commissionStatus: commissionStatusValue,
+          driverEarning: String(earning),
+          cashCollected: isCash,
+        }).where(eq(ridesTable.id, rideId));
+
+        if (isCash) {
+          await tx.insert(walletTransactionsTable).values({
             driverId: payload.driverId,
-            type: isCash ? "commission_debit" : "earning",
-            amount: String(isCash ? -platformFee : earning),
-            description: isCash
-              ? `Ride #${rideId} — Cash: platform fee ₹${platformFee} admin ko dena hai.`
-              : `Ride #${rideId} — Ride fare ₹${earning.toFixed(2)} credit (platform fee ₹${platformFee} admin ka).`,
+            type: commissionStatusValue === "collected" ? "commission_debit" : "commission_pending",
+            amount: String(-platformFee),
+            description: commissionStatusValue === "collected"
+              ? `Ride #${rideId} — Cash ₹${price.toFixed(2)}: Platform fee ₹${platformFee} wallet se kaata gaya ✅`
+              : `Ride #${rideId} — Cash ₹${price.toFixed(2)}: Platform fee ₹${platformFee} PENDING (wallet balance kam tha) ⚠️`,
+          });
+        } else {
+          await tx.insert(walletTransactionsTable).values({
+            driverId: payload.driverId,
+            type: "earning",
+            amount: String(earning),
+            description: `Ride #${rideId} — Online fare ₹${earning.toFixed(2)} wallet mein credit hua.`,
+          });
+          const autoDeducted = parseFloat((currentPending - newPendingCommission).toFixed(2));
+          if (autoDeducted > 0) {
+            await tx.insert(walletTransactionsTable).values({
+              driverId: payload.driverId,
+              type: "commission_debit",
+              amount: String(-autoDeducted),
+              description: `Pending commission ₹${autoDeducted.toFixed(2)} is ride ke earning se auto-recover ki gaya ✅`,
+            });
+          }
+        }
+
+        if (isCash && commissionStatusValue === "pending" && driver.pushToken) {
+          await sendPushNotification({
+            to: driver.pushToken,
+            title: "⚠️ Platform Fee Pending",
+            body: `Ride #${rideId} ki platform fee ₹${platformFee} pending hai. Agla online ride aane par auto-clear ho jaayega.`,
+            data: { type: "commission_pending", rideId },
           });
         }
-      } else {
-        /* Earnings already credited via verify-pin — just put driver back online */
-        await db.update(driversTable).set({ isOnline: true }).where(eq(driversTable.id, payload.driverId));
-      }
+      });
     }
 
     /* Emit status change to passenger ride room */

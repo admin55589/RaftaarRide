@@ -125,8 +125,8 @@ Verdict rules:
 
 if (!process.env.SESSION_SECRET) throw new Error("SESSION_SECRET environment variable is required");
 const JWT_SECRET = process.env.SESSION_SECRET;
-const ADMIN_EMAIL = "admin.raftaarride@gmail.com";
-const ADMIN_PASSWORD = "Luck@12345RR";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin.raftaarride@gmail.com";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "Luck@12345RR";
 
 function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
