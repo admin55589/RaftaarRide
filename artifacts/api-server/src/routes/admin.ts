@@ -178,6 +178,10 @@ router.post("/admin/firebase-verify", async (req: Request, res: Response) => {
   }
   try {
     const FIREBASE_API_KEY = process.env.FIREBASE_WEB_API_KEY ?? "";
+    if (!FIREBASE_API_KEY) {
+      res.status(503).json({ message: "Firebase auth not configured on this server" });
+      return;
+    }
     const lookupRes = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`,
       {
@@ -2343,7 +2347,7 @@ router.patch("/admin/fraud/flags/:id", authMiddleware, async (req: Request, res:
     /* Get admin name from token */
     const token = (req.headers.authorization ?? "").split(" ")[1];
     try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET ?? "secret") as { email?: string };
+      const payload = jwt.verify(token, JWT_SECRET) as { email?: string };
       if (payload.email) updates.reviewedBy = payload.email;
     } catch { /* ignore */ }
 

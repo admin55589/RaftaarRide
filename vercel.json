@@ -2,6 +2,10 @@
   "buildCommand": "pnpm --filter @workspace/admin run build",
   "outputDirectory": "artifacts/admin/dist/public",
   "installCommand": "pnpm install --no-frozen-lockfile",
+  "redirects": [
+    { "source": "/admin", "destination": "/" },
+    { "source": "/admin/(.*)", "destination": "/$1" }
+  ],
   "rewrites": [
     { "source": "/terms", "destination": "/terms.html" },
     { "source": "/privacy", "destination": "/privacy.html" },

@@ -135,12 +135,17 @@ router.post("/rides", userAuth, async (req: Request, res: Response) => {
       packageDetails: packageDetails ?? null,
     }).returning();
 
-    /* Increment promo usedCount — atomic to prevent concurrency issues */
+    /* Increment promo usedCount — atomic + enforces maxUses cap at booking time.
+     * Uses a conditional WHERE so the UPDATE is a no-op if the promo was already
+     * exhausted between the validate call and the actual booking (race condition). */
     if (promoCode) {
       const cleanCode = promoCode.toUpperCase().trim();
       await db.update(promoCodesTable)
         .set({ usedCount: sql`${promoCodesTable.usedCount} + 1` })
-        .where(eq(promoCodesTable.code, cleanCode))
+        .where(and(
+          eq(promoCodesTable.code, cleanCode),
+          sql`(${promoCodesTable.maxUses} IS NULL OR ${promoCodesTable.usedCount} < ${promoCodesTable.maxUses})`,
+        ))
         .catch((err: unknown) => { req.log.error({ err }, "[rides] promo usedCount update failed"); });
     }
 

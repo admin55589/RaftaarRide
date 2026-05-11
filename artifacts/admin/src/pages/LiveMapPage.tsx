@@ -45,7 +45,8 @@ export function LiveMapPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
+  /* Keyed by "<type>-<rideId>" to enable diff-updates without clearing all markers */
+  const markersMapRef = useRef<Map<string, any>>(new Map());
 
   const fetchRides = async () => {
     try {
@@ -72,13 +73,11 @@ export function LiveMapPage() {
     if (!mapRef.current) return;
     if (typeof window === "undefined") return;
 
-    const initMap = async () => {
+    const updateMarkers = async () => {
       const L = (await import("leaflet")).default;
 
-      if (leafletMapRef.current) {
-        markersRef.current.forEach((m) => m.remove());
-        markersRef.current = [];
-      } else {
+      /* Create map on first call */
+      if (!leafletMapRef.current) {
         const indiaCenter: [number, number] = [20.5937, 78.9629];
         leafletMapRef.current = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true }).setView(indiaCenter, 5);
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -90,6 +89,9 @@ export function LiveMapPage() {
       const map = leafletMapRef.current;
       const bounds: [number, number][] = [];
 
+      /* Build the desired set of markers from current rides data */
+      const desiredKeys = new Set<string>();
+
       rides.forEach((ride) => {
         const color = STATUS_COLOR[ride.status] ?? "#6b7280";
         const vehicle = VEHICLE_ICON[ride.vehicleType] ?? "🚗";
@@ -98,68 +100,104 @@ export function LiveMapPage() {
           const lat = parseFloat(ride.pickupLat);
           const lng = parseFloat(ride.pickupLng);
           bounds.push([lat, lng]);
-          const icon = L.divIcon({
-            html: `<div style="background:${color};color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)">${vehicle}</div>`,
-            className: "",
-            iconSize: [32, 32],
-            iconAnchor: [16, 16],
-          });
-          const marker = L.marker([lat, lng], { icon })
-            .addTo(map)
-            .bindPopup(`
-              <div style="min-width:180px;font-family:sans-serif">
-                <div style="font-weight:bold;margin-bottom:4px">#${ride.id} ${vehicle} ${ride.vehicleType}</div>
-                <div style="color:#6b7280;font-size:12px;margin-bottom:6px">
-                  <span style="background:${color};color:white;padding:1px 6px;border-radius:10px;font-size:11px">${ride.status}</span>
+          const key = `pickup-${ride.id}`;
+          desiredKeys.add(key);
+
+          if (markersMapRef.current.has(key)) {
+            /* Update existing marker position if it moved */
+            markersMapRef.current.get(key).setLatLng([lat, lng]);
+          } else {
+            const icon = L.divIcon({
+              html: `<div style="background:${color};color:white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4)">${vehicle}</div>`,
+              className: "",
+              iconSize: [32, 32],
+              iconAnchor: [16, 16],
+            });
+            const marker = L.marker([lat, lng], { icon })
+              .addTo(map)
+              .bindPopup(`
+                <div style="min-width:180px;font-family:sans-serif">
+                  <div style="font-weight:bold;margin-bottom:4px">#${ride.id} ${vehicle} ${ride.vehicleType}</div>
+                  <div style="color:#6b7280;font-size:12px;margin-bottom:6px">
+                    <span style="background:${color};color:white;padding:1px 6px;border-radius:10px;font-size:11px">${ride.status}</span>
+                  </div>
+                  <div style="font-size:12px"><b>Pickup:</b> ${ride.pickup}</div>
+                  <div style="font-size:12px"><b>Drop:</b> ${ride.destination}</div>
+                  <div style="font-size:12px"><b>User:</b> ${ride.userName ?? "-"}</div>
+                  <div style="font-size:12px"><b>Driver:</b> ${ride.driverName ?? "Searching..."}</div>
+                  <div style="font-size:12px"><b>Fare:</b> ₹${ride.price}</div>
                 </div>
-                <div style="font-size:12px"><b>Pickup:</b> ${ride.pickup}</div>
-                <div style="font-size:12px"><b>Drop:</b> ${ride.destination}</div>
-                <div style="font-size:12px"><b>User:</b> ${ride.userName ?? "-"}</div>
-                <div style="font-size:12px"><b>Driver:</b> ${ride.driverName ?? "Searching..."}</div>
-                <div style="font-size:12px"><b>Fare:</b> ₹${ride.price}</div>
-              </div>
-            `);
-          marker.on("click", () => setSelected(ride));
-          markersRef.current.push(marker);
+              `);
+            marker.on("click", () => setSelected(ride));
+            markersMapRef.current.set(key, marker);
+          }
         }
 
         if (ride.driverLat && ride.driverLng) {
           const lat = parseFloat(ride.driverLat);
           const lng = parseFloat(ride.driverLng);
           bounds.push([lat, lng]);
-          const dIcon = L.divIcon({
-            html: `<div style="background:#1e293b;color:white;border-radius:4px;padding:2px 4px;font-size:10px;border:1px solid #3b82f6;white-space:nowrap">🧑‍✈️ ${ride.driverName ?? "Driver"}</div>`,
-            className: "",
-            iconAnchor: [0, 0],
-          });
-          const dMarker = L.marker([lat, lng], { icon: dIcon }).addTo(map);
-          markersRef.current.push(dMarker);
+          const key = `driver-${ride.id}`;
+          desiredKeys.add(key);
+
+          if (markersMapRef.current.has(key)) {
+            markersMapRef.current.get(key).setLatLng([lat, lng]);
+          } else {
+            const dIcon = L.divIcon({
+              html: `<div style="background:#1e293b;color:white;border-radius:4px;padding:2px 4px;font-size:10px;border:1px solid #3b82f6;white-space:nowrap">🧑‍✈️ ${ride.driverName ?? "Driver"}</div>`,
+              className: "",
+              iconAnchor: [0, 0],
+            });
+            const dMarker = L.marker([lat, lng], { icon: dIcon }).addTo(map);
+            markersMapRef.current.set(key, dMarker);
+          }
         }
 
         if (ride.dropLat && ride.dropLng) {
           const lat = parseFloat(ride.dropLat);
           const lng = parseFloat(ride.dropLng);
           bounds.push([lat, lng]);
-          const dIcon = L.divIcon({
-            html: `<div style="background:#ef4444;color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;border:2px solid white">📍</div>`,
-            className: "",
-            iconSize: [20, 20],
-            iconAnchor: [10, 10],
-          });
-          const dMarker = L.marker([lat, lng], { icon: dIcon }).addTo(map);
-          markersRef.current.push(dMarker);
+          const key = `drop-${ride.id}`;
+          desiredKeys.add(key);
+
+          if (!markersMapRef.current.has(key)) {
+            const dIcon = L.divIcon({
+              html: `<div style="background:#ef4444;color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;border:2px solid white">📍</div>`,
+              className: "",
+              iconSize: [20, 20],
+              iconAnchor: [10, 10],
+            });
+            const dMarker = L.marker([lat, lng], { icon: dIcon }).addTo(map);
+            markersMapRef.current.set(key, dMarker);
+          }
         }
       });
 
-      if (bounds.length > 0) {
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+      /* Remove markers for rides that are no longer active */
+      for (const [key, marker] of markersMapRef.current) {
+        if (!desiredKeys.has(key)) {
+          try { marker.remove(); } catch { /* ignore */ }
+          markersMapRef.current.delete(key);
+        }
+      }
+
+      if (bounds.length > 0 && markersMapRef.current.size <= desiredKeys.size) {
+        /* Only auto-fit on first load (when we're adding markers, not just updating) */
+        if (markersMapRef.current.size === desiredKeys.size && desiredKeys.size > 0) {
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+        }
       }
     };
 
-    initMap().catch(() => {});
+    updateMarkers().catch(() => {});
+
     return () => {
-      markersRef.current.forEach((m) => { try { m.remove(); } catch { } });
-      markersRef.current = [];
+      markersMapRef.current.forEach((m) => { try { m.remove(); } catch { } });
+      markersMapRef.current.clear();
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove();
+        leafletMapRef.current = null;
+      }
     };
   }, [rides]);
 
