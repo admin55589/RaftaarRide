@@ -32,11 +32,17 @@ import { PrivacyPage } from "@/pages/PrivacyPage";
 import NotFound from "@/pages/not-found";
 import { useAdminRealtime } from "@/hooks/useAdminRealtime";
 
+const TOKEN_KEY = "raftaar_admin_token";
+
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error: unknown) => {
       const status = (error as any)?.status;
       if (status === 401) {
+        // Only auto-logout when there is an active session token.
+        // Prevents spurious logouts caused by stale queries that fire
+        // before the token is propagated, or after it has already been cleared.
+        if (!localStorage.getItem(TOKEN_KEY)) return;
         triggerGlobalLogout();
         queryClient.clear();
       }

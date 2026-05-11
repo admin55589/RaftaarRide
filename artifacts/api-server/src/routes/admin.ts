@@ -128,6 +128,43 @@ const JWT_SECRET = process.env.SESSION_SECRET;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin.raftaarride@gmail.com";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "Raftaar@1234HVmob23RR";
 
+/* ── Firebase JWKS verification (no env var required) ─────────────────────
+   Firebase idTokens are RS256 JWTs. We verify them directly using Firebase's
+   public X.509 certificates — no FIREBASE_WEB_API_KEY needed on the server. */
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID ?? "raftaarride-31847";
+let _fbCerts: Record<string, string> | null = null;
+let _fbCertsExpiry = 0;
+
+async function getFirebaseCerts(): Promise<Record<string, string>> {
+  const now = Date.now();
+  if (_fbCerts && now < _fbCertsExpiry) return _fbCerts;
+  const res = await fetch(
+    "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com",
+  );
+  if (!res.ok) throw new Error("Failed to fetch Firebase public certs");
+  const cc = res.headers.get("cache-control") ?? "";
+  const ma = /max-age=(\d+)/.exec(cc);
+  _fbCertsExpiry = now + (ma ? parseInt(ma[1]) * 1000 : 3_600_000);
+  _fbCerts = (await res.json()) as Record<string, string>;
+  return _fbCerts;
+}
+
+async function verifyFirebaseIdToken(idToken: string): Promise<string> {
+  const certs = await getFirebaseCerts();
+  const [rawHeader] = idToken.split(".");
+  const header = JSON.parse(Buffer.from(rawHeader, "base64url").toString()) as { kid?: string };
+  if (!header.kid) throw new Error("Missing kid in Firebase token header");
+  const cert = certs[header.kid];
+  if (!cert) throw new Error(`Unknown Firebase key ID: ${header.kid}`);
+  const payload = jwt.verify(idToken, cert, {
+    algorithms: ["RS256"],
+    audience: FIREBASE_PROJECT_ID,
+    issuer: `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`,
+  }) as { email?: string };
+  if (!payload.email) throw new Error("No email in Firebase token");
+  return payload.email;
+}
+
 function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) {
@@ -177,33 +214,16 @@ router.post("/admin/firebase-verify", async (req: Request, res: Response) => {
     return;
   }
   try {
-    const FIREBASE_API_KEY = process.env.FIREBASE_WEB_API_KEY ?? "";
-    if (!FIREBASE_API_KEY) {
-      res.status(503).json({ message: "Firebase auth not configured on this server" });
-      return;
-    }
-    const lookupRes = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
-      }
-    );
-    const lookupData = await lookupRes.json() as { users?: Array<{ email: string }> };
-    const firebaseUser = lookupData.users?.[0];
-    if (!firebaseUser?.email) {
-      res.status(401).json({ message: "Invalid Firebase token" });
-      return;
-    }
-    if (firebaseUser.email !== ADMIN_EMAIL) {
+    const email = await verifyFirebaseIdToken(idToken);
+    if (email !== ADMIN_EMAIL) {
       res.status(403).json({ message: "Not an admin account" });
       return;
     }
-    const token = jwt.sign({ role: "admin", email: firebaseUser.email }, JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign({ role: "admin", email }, JWT_SECRET, { expiresIn: "7d" });
     res.json({ token, role: "admin" });
-  } catch {
-    res.status(500).json({ message: "Firebase verification failed" });
+  } catch (err) {
+    req.log.warn({ err }, "firebase-verify failed");
+    res.status(401).json({ message: "Invalid Firebase token" });
   }
 });
 
