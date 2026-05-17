@@ -59,7 +59,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       "expo-router",
       {
-        origin: "https://replit.com/",
+        origin: "https://raftaarride.com/",
       },
     ],
     "expo-font",
