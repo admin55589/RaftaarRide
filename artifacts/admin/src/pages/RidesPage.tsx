@@ -1,12 +1,17 @@
 import { useState } from "react";
-import { useListRides } from "@workspace/api-client-react";
+import { useListRides, type Ride } from "@workspace/api-client-react";
 import { Search, Download } from "lucide-react";
 import { StatusBadge, VehicleBadge, formatCurrency, formatDate } from "@/components/shared";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-
 import { API_BASE } from "@/lib/apiBase";
 import { downloadCsv } from "@/lib/utils";
+
+type RideRow = Ride & {
+  commissionAmount?: string | number | null;
+  paymentMethod?: string | null;
+  cancelReason?: string | null;
+};
 
 const STATUS_FILTERS = ["all", "completed", "cancelled", "searching", "accepted", "arrived", "onRide"];
 
@@ -29,7 +34,7 @@ export function RidesPage() {
     statusFilter ? { status: statusFilter } : undefined
   );
 
-  const filtered = (rides ?? []).filter((r) => {
+  const filtered = (rides as RideRow[] ?? []).filter((r) => {
     if (!search) return true;
     return (
       r.userName.toLowerCase().includes(search.toLowerCase()) ||
@@ -131,33 +136,33 @@ export function RidesPage() {
                       <td className="px-5 py-3.5 font-semibold text-foreground">{formatCurrency(ride.price)}</td>
                       <td className="px-5 py-3.5 hidden lg:table-cell">
                         <div className="flex flex-col gap-1">
-                          {(ride as any).commissionAmount && parseFloat((ride as any).commissionAmount) > 0 ? (
+                          {ride.commissionAmount && parseFloat(String(ride.commissionAmount)) > 0 ? (
                             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                              +{formatCurrency((ride as any).commissionAmount)}
+                              +{formatCurrency(Number(ride.commissionAmount))}
                             </span>
                           ) : (
                             <span className="text-xs text-muted-foreground italic">—</span>
                           )}
-                          {(ride as any).paymentMethod && (
+                          {ride.paymentMethod && (
                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full w-fit ${
-                              (ride as any).paymentMethod === "Cash"
+                              ride.paymentMethod === "Cash"
                                 ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"
                                 : "bg-blue-500/15 text-blue-600 dark:text-blue-400"
                             }`}>
-                              {(ride as any).paymentMethod === "Cash" ? "💵 Cash" :
-                               (ride as any).paymentMethod === "UPI" ? "📲 UPI" :
-                               (ride as any).paymentMethod === "Card" ? "💳 Card" :
-                               (ride as any).paymentMethod === "RaftaarWallet" ? "👛 Wallet" :
-                               (ride as any).paymentMethod}
+                              {ride.paymentMethod === "Cash" ? "💵 Cash" :
+                               ride.paymentMethod === "UPI" ? "📲 UPI" :
+                               ride.paymentMethod === "Card" ? "💳 Card" :
+                               ride.paymentMethod === "RaftaarWallet" ? "👛 Wallet" :
+                               ride.paymentMethod}
                             </span>
                           )}
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
                         <StatusBadge status={ride.status} />
-                        {ride.status === "cancelled" && (ride as any).cancelReason && (
-                          <div className="text-xs text-red-400/70 mt-0.5 max-w-[120px] truncate" title={(ride as any).cancelReason}>
-                            ↳ {(ride as any).cancelReason}
+                        {ride.status === "cancelled" && ride.cancelReason && (
+                          <div className="text-xs text-red-400/70 mt-0.5 max-w-[120px] truncate" title={ride.cancelReason}>
+                            ↳ {ride.cancelReason}
                           </div>
                         )}
                       </td>

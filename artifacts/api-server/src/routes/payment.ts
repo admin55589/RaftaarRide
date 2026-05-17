@@ -53,7 +53,7 @@ router.post("/payment/create-order", requireAuth, async (req: Request, res: Resp
   }
 });
 
-router.post("/payment/verify", (req: Request, res: Response) => {
+router.post("/payment/verify", requireAuth, (req: Request, res: Response) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body as {
     razorpay_order_id: string;
     razorpay_payment_id: string;

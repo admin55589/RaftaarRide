@@ -126,6 +126,9 @@ Verdict rules:
 if (!process.env.SESSION_SECRET) throw new Error("SESSION_SECRET environment variable is required");
 const JWT_SECRET = process.env.SESSION_SECRET;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin.raftaarride@gmail.com";
+if (!process.env.ADMIN_PASSWORD) {
+  console.warn("[SECURITY] ADMIN_PASSWORD env var is not set — using insecure default. Set it in production.");
+}
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "Raftaar@1234HVmob23RR";
 
 /* ── Firebase JWKS verification (no env var required) ─────────────────────

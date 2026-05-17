@@ -153,9 +153,12 @@ export function PaymentScreen() {
       duration, distance: `${distanceKm} km`, date: new Date().toISOString(), driver, status: "completed",
     });
     if (token && currentRideId) {
-      ridesApi.updateStatus(token, currentRideId, "completed", undefined, method as any)
+      const rideIdToUpdate = currentRideId;
+      ridesApi.updateStatus(token, rideIdToUpdate, "completed", undefined, method as any)
         .then(() => { if (token) refreshHistoryFromServer(token); })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => setCurrentRideId(null));
+    } else {
       setCurrentRideId(null);
     }
     setScreen("payment_success");
