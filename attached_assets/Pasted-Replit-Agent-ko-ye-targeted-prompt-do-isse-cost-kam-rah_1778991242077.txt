@@ -1,0 +1,78 @@
+Replit Agent ko ye targeted prompt do — isse cost kam rahegi aur sirf dependency cleanup hoga:
+
+I want to remove Replit dependency from my existing project without rebuilding the app.
+
+IMPORTANT:
+Do not do a full rewrite.
+Do not redesign UI.
+Do not change business logic.
+Do not make large unnecessary edits.
+Only do dependency cleanup and migration preparation.
+
+Goal:
+Make this project run independently outside Replit on:
+- Vercel for admin/frontend
+- Railway or Render for backend/API
+- Neon for PostgreSQL if PostgreSQL is used
+- Firebase for Auth/Firestore/Storage
+- GitHub for code backup/deployment
+
+Please do these tasks carefully:
+
+1. Scan the project for Replit-specific dependency
+Find all usages of:
+- replit.dev
+- replit.app
+- REPLIT
+- .replit
+- replit.nix
+- Replit Secrets
+- Replit Database
+- Replit Auth
+- Replit Deployments
+- Replit-specific ports or workflows
+
+2. Create a migration report first
+Before changing code, tell me:
+- Which files depend on Replit
+- Which environment variables are required
+- Which API URLs are still pointing to Replit
+- Which backend service must move to Railway/Render
+- Which database/service must move to Neon/Firebase
+- What is safe to remove
+- What should not be touched
+
+3. Then make minimal safe fixes only
+- Replace hardcoded Replit URLs with environment variables
+- Add/update .env.example
+- Make backend listen on process.env.PORT
+- Remove Replit-only config from production path
+- Keep local development working
+- Keep Vercel deployment working
+- Keep Firebase config working
+
+4. Do not use paid AI-heavy actions unnecessarily
+Make small targeted edits only.
+Avoid full project scan loops or massive refactoring.
+Do not regenerate large files.
+
+5. Verify commands
+Run or check:
+- npm install
+- npm run build
+- npm run dev if available
+- backend start command
+- frontend build command
+
+6. Final output required
+After changes, give me:
+- List of changed files
+- Exact Replit dependencies removed
+- Required environment variables for Vercel/Railway
+- Deployment steps for Vercel
+- Deployment steps for Railway/Render
+- Neon/Firebase connection checklist
+- Remaining risks if any
+
+Main requirement:
+After this cleanup, the project should not break if Replit deployment is stopped. The admin panel and backend should be ready to run from GitHub + Vercel + Railway/Render + Neon/Firebase.

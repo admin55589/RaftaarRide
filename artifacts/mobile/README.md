@@ -10,7 +10,7 @@ pnpm run dev
 ## Environment Variables
 Create a `.env` file:
 ```
-EXPO_PUBLIC_API_URL=http://localhost:3000
+EXPO_PUBLIC_API_URL=https://workspaceapi-server-production-2e22.up.railway.app
 EXPO_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
 EXPO_PUBLIC_RAZORPAY_KEY_ID=your_razorpay_key_id
 ```
