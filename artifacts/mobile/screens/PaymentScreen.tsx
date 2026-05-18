@@ -213,7 +213,7 @@ export function PaymentScreen() {
     setIsProcessing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     try {
-      const order = await paymentApi.createOrder(price);
+      const order = await paymentApi.createOrder(price, token!);
       setRazorpayOrder(order);
     } catch (err: any) {
       Alert.alert("Error", err?.message || "Payment start nahi ho saka");
