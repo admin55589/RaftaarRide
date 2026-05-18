@@ -48,10 +48,10 @@ async function safeFetch(url: string, options: RequestInit): Promise<any> {
 }
 
 export const paymentApi = {
-  createOrder: async (amountInRupees: number): Promise<RazorpayOrder> => {
+  createOrder: async (amountInRupees: number, token: string): Promise<RazorpayOrder> => {
     const { data, ok } = await safeFetch(`${BASE_URL}/payment/create-order`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ amount: amountInRupees, currency: "INR" }),
     });
     if (!ok) throw new Error(data?.message || "Order creation failed");
