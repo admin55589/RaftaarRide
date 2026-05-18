@@ -197,7 +197,7 @@ export function WalletScreen() {
 
     try {
       setCreatingOrder(true);
-      const order = await paymentApi.createOrder(amt);
+      const order = await paymentApi.createOrder(amt, token!);
       setRazorpayOrder(order);
       setShowRazorpay(true);
     } catch (err) {
